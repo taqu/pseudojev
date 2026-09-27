@@ -44,13 +44,11 @@ func jevToLlamaHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("jev request:", "request", request)
 
-	// Constrain the model output to one of the choices supplied by the client.
-	schemaDefinition := llama.BuildJevJSONSchema(&request)
-	if schemaDefinition == nil {
+	llamaRequest := llama.BuildJevLlamaRequest(&request)
+	if llamaRequest == nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-	llamaRequest := llama.BuildJevLlamaRequest(&request, schemaDefinition)
 	slog.Info("llama-server:", "request", llamaRequest)
 
 	// Treat transport and decoding failures as upstream service errors.
@@ -59,12 +57,13 @@ func jevToLlamaHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "llama-server unavailable", http.StatusInternalServerError)
 		return
 	}
+	slog.Info("llama-server:", "response", httpResponse)
 	llamaResponse := llama.ParseLlamaResponse(httpResponse)
 	if llamaResponse == nil {
 		http.Error(w, "Failed to parse llama response", http.StatusInternalServerError)
 		return
 	}
-	slog.Info("llama-server:", "response", llamaResponse)
+	slog.Info("llama-server:", "llama response", llamaResponse)
 
 	// Convert the chosen label and token evidence into the Jev result shape.
 	decision, err := llama.ParseDecision(llamaResponse)

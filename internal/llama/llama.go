@@ -99,57 +99,30 @@ func BuildJevJSONSchema(jevRequest *jev.JevRequest) map[string]any {
 	return schemaDefinition
 }
 
-func buildPromptForJevRequest(request *jev.JevRequest) (string, int) {
-	var enumChoices []string = getTargetChoices(request)
-	if enumChoices == nil {
-		return "", -1
-	}
-}
-
 // BuildJevLlamaRequest builds a schema-constrained classification prompt from a Jev request.
-func BuildJevLlamaRequest(jevRequest *jev.JevRequest, schemaDefinition map[string]any) *LlamaChatRequest {
-	prompt := fmt.Sprintf("Analyze the following text and classify it perfectly according to the schema:\n\n%s", jevRequest.Text)
+func BuildJevLlamaRequest(jevRequest *jev.JevRequest) *LlamaChatRequest {
+	var enumChoices []string = getTargetChoices(jevRequest)
+	if enumChoices == nil {
+		return nil
+	}
+	var lines []string
+	for i, choice := range enumChoices {
+		line := fmt.Sprintf("%d %s", i+1, choice)
+		lines = append(lines, line)
+	}
+	prompt := fmt.Sprintf("%s\n\n %s", jevRequest.Text, strings.Join(lines, "\n"))
 	llamaRequest := LlamaChatRequest{
 		Model:       "local-model",
 		Temperature: 0.1,
-		MaxTokens:   50,
+		MaxTokens:   2,
 		Logprobs:    true,
 		TopLogprobs: 10,
 		Messages: []LlamaMessage{
-			{Role: "system", Content: "You are a precise classification engine. Respond ONLY with the requested JSON schema format."},
+			{Role: "system", Content: "Choose exactly one best-matching option from the numbered list and output only its integer number; do not output any other text."},
 			{Role: "user", Content: prompt},
-		},
-		ResponseFormat: LlamaResponseFormat{
-			Type: "json_schema",
-			JSONSchema: map[string]interface{}{
-				"name":   "jev_decision",
-				"schema": schemaDefinition,
-			},
 		},
 	}
 	return &llamaRequest
-	/*
-		prompt := fmt.Sprintf("Analyze the following text and classify it perfectly according to the schema:\n\n%s", jevRequest.Text)
-		llamaRequest := LlamaChatRequest{
-			Model:       "local-model",
-			Temperature: 0.1,
-			MaxTokens:   50,
-			Logprobs:    true,
-			TopLogprobs: 10,
-			Messages: []LlamaMessage{
-				{Role: "system", Content: "You are a precise classification engine. Respond ONLY with the requested JSON schema format."},
-				{Role: "user", Content: prompt},
-			},
-			ResponseFormat: LlamaResponseFormat{
-				Type: "json_schema",
-				JSONSchema: map[string]interface{}{
-					"name":   "jev_decision",
-					"schema": schemaDefinition,
-				},
-			},
-		}
-		return &llamaRequest
-	*/
 }
 
 // PostLlamaRequest sends a chat-completion request to the configured
