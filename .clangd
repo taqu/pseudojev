@@ -1,0 +1,8 @@
+CompileFlags:
+  Add:
+    - -std=c++17
+    - -ID:/Projects/Go/pseudojev/src
+    - -ID:/Projects/Go/pseudojev/llama.cpp/include
+    - -ID:/Projects/Go/pseudojev/llama.cpp/ggml/include
+    - -ID:/Projects/Go/pseudojev/llama.cpp/vendor
+    - -ID:/Projects/Go/pseudojev/llama.cpp/vendor/cpp-httplib

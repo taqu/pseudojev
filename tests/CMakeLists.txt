@@ -1,0 +1,48 @@
+cmake_minimum_required(VERSION 3.14)
+
+set(PJEV_TEST_INCS
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/llama.cpp/vendor
+)
+
+# test_prompt_strategy: tests PromptStrategy (no backend needed)
+add_executable(test_prompt_strategy test_prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp)
+target_include_directories(test_prompt_strategy PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_prompt_strategy COMMAND test_prompt_strategy)
+
+# test_special_tokens: tests that user content ends up in untrusted segments
+add_executable(test_special_tokens test_special_tokens.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp)
+target_include_directories(test_special_tokens PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_special_tokens COMMAND test_special_tokens)
+
+# test_decision_mock: tests DecisionEngine logic with mock backend
+add_executable(test_decision_mock test_decision_mock.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp)
+target_include_directories(test_decision_mock PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_decision_mock COMMAND test_decision_mock)
+
+# test_jev_parsing: tests Jev request parsing and response serialization
+# Uses a mock backend to avoid needing a real model
+add_executable(test_jev_parsing test_jev_parsing.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp)
+target_include_directories(test_jev_parsing PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_jev_parsing COMMAND test_jev_parsing)
+
+# test_experiment: tests experiment framework (dataset parsing, runner, named experiments)
+add_executable(test_experiment test_experiment.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/dataset.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp)
+target_include_directories(test_experiment PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_experiment COMMAND test_experiment)
+
+# test_metrics: tests metrics.h (accuracy, MAE, QWK, stability)
+add_executable(test_metrics test_metrics.cpp)
+target_include_directories(test_metrics PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_metrics COMMAND test_metrics)
