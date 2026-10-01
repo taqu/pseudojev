@@ -1,0 +1,6 @@
+[submodule "llama.cpp"]
+	path = llama.cpp
+	url = https://github.com/PrismML-Eng/llama.cpp.git
+[submodule "jevbench"]
+	path = jevbench
+	url = https://github.com/fstandhartinger/jevbench.git

@@ -1,0 +1,19 @@
+...................................................................................
+model: qwen3 1.7B Q1_0, n_vocab=151669, add_bos=0, load 380.1 ms, RSS 921 MiB
+candidate token map (bare):
+  "A"  -> 32
+  "B"  -> 33
+  "C"  -> 34
+  "D"  -> 35
+  "E"  -> 36
+  "F"  -> 37
+  "G"  -> 38
+  "H"  -> 39
+  "I"  -> 40
+  "J"  -> 41
+
+==== summary: 231 cases, 0 errors, model load 380.1 ms, RSS 982 MiB
+  choice n=139 accuracy=69/139 (0.496)
+  noul   n=74  accuracy=44/74 (0.595)
+  score  n=18  accuracy=5/18 (0.278) MAE(expected score)=0.765
+  mean total latency 1643.6 ms/case

@@ -1,0 +1,10 @@
+{"id":"noul-pos-en","type":"noul","state":"Please refund the duplicate charge.","question":"Is the user asking for a refund?","check":{"selected":true}}
+{"id":"noul-neg-en","type":"noul","state":"Thanks, everything is working now.","question":"Is the user reporting a problem?","check":{"selected":false}}
+{"id":"noul-pos-ja","type":"noul","state":"二重に請求された分を返金してください。","question":"ユーザーは返金を求めていますか？","check":{"selected":true}}
+{"id":"noul-neg-ja","type":"noul","state":"ありがとうございます。すべて正常に動作するようになりました。","question":"ユーザーは問題を報告していますか？","check":{"selected":false}}
+{"id":"choice-en","type":"choice","state":"The customer was billed twice.","question":"Which queue should handle this ticket?","choices":{"billing":"Invoices, charges, payments, and refunds","technical":"Product failures and API errors","sales":"Questions before purchasing"},"check":{"selected":"billing"}}
+{"id":"choice-ja","type":"choice","state":"APIを呼び出すと500エラーが返ってきて、アプリが動きません。","question":"このチケットはどのキューが担当すべきですか？","choices":{"billing":"請求、支払い、返金","technical":"製品の不具合やAPIエラー","sales":"購入前の質問"},"check":{"selected":"technical"}}
+{"id":"score-low-en","type":"score","state":"Thanks for the quick reply, have a nice day!","question":"How frustrated is the customer?","levels":["Calm","Mildly annoyed","Frustrated","Very angry"],"check":{"group":"frustration-en","rank":0}}
+{"id":"score-high-en","type":"score","state":"I have contacted support three times and nobody has fixed this. This is ridiculous. I am furious!","question":"How frustrated is the customer?","levels":["Calm","Mildly annoyed","Frustrated","Very angry"],"check":{"group":"frustration-en","rank":1}}
+{"id":"score-low-ja","type":"score","state":"迅速なご対応ありがとうございました。良い一日を！","question":"顧客はどのくらい不満を感じていますか？","levels":["落ち着いている","少しいらだっている","不満を感じている","非常に怒っている"],"check":{"group":"frustration-ja","rank":0}}
+{"id":"score-high-ja","type":"score","state":"サポートに3回も連絡したのに、誰も直してくれない。ふざけるな！本当に頭にきている！","question":"顧客はどのくらい不満を感じていますか？","levels":["落ち着いている","少しいらだっている","不満を感じている","非常に怒っている"],"check":{"group":"frustration-ja","rank":1}}
