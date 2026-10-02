@@ -92,6 +92,14 @@ static OptionOrder parse_order(const std::string& s) {
     return OptionOrder::ORIGINAL;
 }
 
+struct SpdLogShutdown {
+    SpdLogShutdown() = default;
+    ~SpdLogShutdown()
+    {
+        spdlog::shutdown();
+    }
+};
+
 // ---------------------------------------------------------------------------
 // server subcommand
 // ---------------------------------------------------------------------------
@@ -128,7 +136,8 @@ static int cmd_server(int argc, char** argv) {
         }
     }
 
-    spdlog::stdout_color_mt("console");
+    SpdLogShutdown spdlog_shutdown;
+    spdlog::stdout_logger_mt("console");
     if(llama_cfg.verbose){
         spdlog::set_level(spdlog::level::trace);
     }else{
@@ -136,7 +145,7 @@ static int cmd_server(int argc, char** argv) {
     }
 
     if (llama_cfg.model_path.empty()) {
-        fprintf(stderr, "error: --model is required\n");
+        spdlog::error("--model is required");
         usage_server("pjev");
         return 1;
     }
@@ -145,7 +154,7 @@ static int cmd_server(int argc, char** argv) {
     try {
         backend = new LlamaBackend(llama_cfg);
     } catch (const std::exception& e) {
-        fprintf(stderr, "model load error: %s\n", e.what());
+        spdlog::error("model load error: {}", e.what());
         return 1;
     }
 
@@ -153,7 +162,7 @@ static int cmd_server(int argc, char** argv) {
     try {
         engine = new DecisionEngine(*backend, prompt_cfg);
     } catch (const std::exception& e) {
-        fprintf(stderr, "engine init error: %s\n", e.what());
+        spdlog::error("engine init error: {}", e.what());
         delete backend;
         return 1;
     }
@@ -206,13 +215,21 @@ static int cmd_run(int argc, char** argv) {
         }
     }
 
+    SpdLogShutdown spdlog_shutdown;
+    spdlog::stdout_logger_mt("console");
+    if(llama_cfg.verbose){
+        spdlog::set_level(spdlog::level::trace);
+    }else{
+        spdlog::set_level(spdlog::level::warn);
+    }
+
     if (llama_cfg.model_path.empty()) {
-        fprintf(stderr, "error: --model is required\n");
+        spdlog::error("--model is required");
         usage_run("pjev");
         return 1;
     }
     if (input_path.empty()) {
-        fprintf(stderr, "error: --input is required\n");
+        spdlog::error("--input is required");
         usage_run("pjev");
         return 1;
     }
@@ -220,18 +237,18 @@ static int cmd_run(int argc, char** argv) {
     std::vector<DatasetRow> rows;
     std::string err;
     if (!load_dataset(input_path, rows, err)) {
-        fprintf(stderr, "dataset error: %s\n", err.c_str());
+        spdlog::error("dataset error: {}", err.c_str());
         return 1;
     }
     if (rows.empty()) {
-        fprintf(stderr, "warning: dataset is empty\n");
+        spdlog::warn("dataset is empty");
     }
 
     LlamaBackend* backend = nullptr;
     try {
         backend = new LlamaBackend(llama_cfg);
     } catch (const std::exception& e) {
-        fprintf(stderr, "model load error: %s\n", e.what());
+        spdlog::error("model load error: {}", e.what());
         return 1;
     }
 
@@ -244,7 +261,7 @@ static int cmd_run(int argc, char** argv) {
     } else {
         std::ofstream f(output_path);
         if (!f) {
-            fprintf(stderr, "cannot open output: %s\n", output_path.c_str());
+            spdlog::error("cannot open output: {}", output_path.c_str());
             return 1;
         }
         f << output_str << "\n";
@@ -287,14 +304,21 @@ static int cmd_experiment(int argc, char** argv) {
             return 2;
         }
     }
+    SpdLogShutdown spdlog_shutdown;
+    spdlog::stdout_logger_mt("console");
+    if(llama_cfg.verbose){
+        spdlog::set_level(spdlog::level::trace);
+    }else{
+        spdlog::set_level(spdlog::level::warn);
+    }
 
     if (llama_cfg.model_path.empty()) {
-        fprintf(stderr, "error: --model is required\n");
+        spdlog::error("--model is required");
         usage_experiment("pjev");
         return 1;
     }
     if (input_path.empty()) {
-        fprintf(stderr, "error: --input is required\n");
+        spdlog::error("--input is required");
         usage_experiment("pjev");
         return 1;
     }
@@ -305,7 +329,7 @@ static int cmd_experiment(int argc, char** argv) {
     bool valid = false;
     for (const auto& n : valid_names) { if (n == exp_name) { valid = true; break; } }
     if (!valid) {
-        fprintf(stderr, "unknown experiment: %s\n", exp_name.c_str());
+        spdlog::error("unknown experiment: {}", exp_name.c_str());
         usage_experiment("pjev");
         return 2;
     }
@@ -313,18 +337,18 @@ static int cmd_experiment(int argc, char** argv) {
     std::vector<DatasetRow> rows;
     std::string err;
     if (!load_dataset(input_path, rows, err)) {
-        fprintf(stderr, "dataset error: %s\n", err.c_str());
+        spdlog::error("dataset error: {}", err.c_str());
         return 1;
     }
     if (rows.empty()) {
-        fprintf(stderr, "warning: dataset is empty\n");
+        spdlog::warn("dataset is empty");
     }
 
     LlamaBackend* backend = nullptr;
     try {
         backend = new LlamaBackend(llama_cfg);
     } catch (const std::exception& e) {
-        fprintf(stderr, "model load error: %s\n", e.what());
+        spdlog::error("model load error: {}", e.what());
         return 1;
     }
 
@@ -344,7 +368,7 @@ static int cmd_experiment(int argc, char** argv) {
         std::string out_path = output_dir + "/" + exp_name + ".json";
         std::ofstream f(out_path);
         if (!f) {
-            fprintf(stderr, "cannot open output: %s\n", out_path.c_str());
+            spdlog::error("cannot open output: {}", out_path.c_str());
             return 1;
         }
         f << output_str << "\n";

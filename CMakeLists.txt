@@ -46,6 +46,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_CURRENT_SOURCE_DIR}/b
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
 set(PJEV_HEADER
+    src/util/timer.h
     src/inference/backend.h
     src/inference/llama_backend.h
     src/decision/prompt_strategy.h
@@ -62,6 +63,7 @@ source_group(include FILES ${PJEV_HEADER})
 
 set(PJEV_SOURCE
     src/main.cpp
+    src/util/timer.cpp
     src/inference/llama_backend.cpp
     src/decision/prompt_strategy.cpp
     src/decision/decision_engine.cpp
@@ -71,10 +73,16 @@ set(PJEV_SOURCE
     src/experiment/runner.cpp
 )
 source_group(src FILES ${PJEV_SOURCE})
+
 add_executable(pjev
     ${PJEV_SOURCE}
     ${PJEV_HEADER}
 )
+if (MSVC)
+    target_compile_options(pjev PRIVATE /utf-8)
+else()
+endif()
+
 target_include_directories(pjev PRIVATE ${PJEV_INCS})
 target_link_libraries(pjev PRIVATE llama pjev-httplib)
 set_target_properties(pjev PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")

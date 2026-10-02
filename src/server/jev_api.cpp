@@ -2,7 +2,9 @@
 #include <chrono>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
-#include "../decision/decision_engine.h"
+#include "decision/decision_engine.h"
+#include "util/timer.h"
+#include "spdlog/spdlog.h"
 
 namespace pjev
 {
@@ -108,6 +110,7 @@ void JevApiHandler::handle(const std::string& request_body,
 
     const json& questions = req["questions"];
 
+    Timer timer;
     json answers;
     for(auto&& itr = questions.begin(); itr != questions.end(); ++itr) {
         const std::string& key = itr.key();
@@ -117,6 +120,7 @@ void JevApiHandler::handle(const std::string& request_body,
             return;
         }
         // Run decision (serialized by mutex)
+        timer.start();
         DecisionOutput out;
         {
             std::lock_guard<std::mutex> lk(mutex_);
@@ -128,6 +132,7 @@ void JevApiHandler::handle(const std::string& request_body,
             response_out = make_error(500, out.error);
             return;
         }
+        timer.stop();
         json answer;
         answer["type"] = input.type;
         if(input.type == "noul") {
@@ -142,6 +147,8 @@ void JevApiHandler::handle(const std::string& request_body,
                 answer["choice"] = out.keys[out.selected];
             }
         }
+        answer["duration"] = std::to_string(timer.elapsed().count());
+        spdlog::info("decision took {} ms", timer.elapsed().count());
         answers[key] = answer;
     }
     // Build response
