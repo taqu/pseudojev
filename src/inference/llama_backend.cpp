@@ -4,11 +4,13 @@
 #include <cstdio>
 #include <cstring>
 
+namespace pjev
+{
 struct LlamaBackend::Impl {
     llama_model*       model  = nullptr;
     llama_context*     ctx    = nullptr;
     const llama_vocab* vocab  = nullptr;
-    int                n_vocab = 0;
+    int32_t                n_vocab = 0;
 };
 
 LlamaBackend::LlamaBackend(const LlamaConfig& cfg) : impl_(new Impl) {
@@ -55,36 +57,36 @@ LlamaBackend::~LlamaBackend() {
     delete impl_;
 }
 
-std::vector<int> LlamaBackend::tokenize(const std::string& text,
+std::vector<int32_t> LlamaBackend::tokenize(const std::string& text,
                                          bool add_special,
                                          bool parse_special) const {
     const llama_vocab* v = impl_->vocab;
-    int n = -llama_tokenize(v, text.c_str(), (int)text.size(),
+    int32_t n = -llama_tokenize(v, text.c_str(), (int32_t)text.size(),
                             nullptr, 0, add_special, parse_special);
     if (n <= 0) return {};
     std::vector<llama_token> buf(n);
-    llama_tokenize(v, text.c_str(), (int)text.size(),
+    llama_tokenize(v, text.c_str(), (int32_t)text.size(),
                    buf.data(), n, add_special, parse_special);
-    return std::vector<int>(buf.begin(), buf.end());
+    return std::vector<int32_t>(buf.begin(), buf.end());
 }
 
-int LlamaBackend::vocab_size() const { return impl_->n_vocab; }
+int32_t LlamaBackend::vocab_size() const { return impl_->n_vocab; }
 
-std::string LlamaBackend::token_to_piece(int token_id) const {
+std::string LlamaBackend::token_to_piece(int32_t token_id) const {
     char buf[256];
-    int n = llama_token_to_piece(impl_->vocab,
+    int32_t n = llama_token_to_piece(impl_->vocab,
                                   static_cast<llama_token>(token_id),
                                   buf, sizeof(buf), 0, true);
     return n > 0 ? std::string(buf, n) : "";
 }
 
-const float* LlamaBackend::eval_tokens(const std::vector<int>& tokens) {
+const float* LlamaBackend::eval_tokens(const std::vector<int32_t>& tokens) {
     if (tokens.empty()) throw std::runtime_error("empty token sequence");
-    if ((int)tokens.size() >= llama_n_ctx(impl_->ctx)) {
+    if ((int32_t)tokens.size() >= llama_n_ctx(impl_->ctx)) {
         throw std::runtime_error("prompt too long (" + std::to_string(tokens.size()) + " tokens)");
     }
     llama_memory_clear(llama_get_memory(impl_->ctx), true);
-    llama_batch batch = llama_batch_init((int)tokens.size(), 0, 1);
+    llama_batch batch = llama_batch_init((int32_t)tokens.size(), 0, 1);
     for (size_t i = 0; i < tokens.size(); i++) {
         batch.token[i]     = static_cast<llama_token>(tokens[i]);
         batch.pos[i]       = (llama_pos)i;
@@ -92,9 +94,11 @@ const float* LlamaBackend::eval_tokens(const std::vector<int>& tokens) {
         batch.seq_id[i][0] = 0;
         batch.logits[i]    = (i + 1 == tokens.size()) ? 1 : 0;
     }
-    batch.n_tokens = (int)tokens.size();
-    int rc = llama_decode(impl_->ctx, batch);
+    batch.n_tokens = (int32_t)tokens.size();
+    int32_t rc = llama_decode(impl_->ctx, batch);
     llama_batch_free(batch);
     if (rc != 0) throw std::runtime_error("llama_decode failed: " + std::to_string(rc));
     return llama_get_logits_ith(impl_->ctx, -1);
 }
+}
+

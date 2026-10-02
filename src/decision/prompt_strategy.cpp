@@ -1,6 +1,8 @@
 #include "prompt_strategy.h"
 #include <cassert>
 
+namespace pjev
+{
 PromptStrategy::PromptStrategy(const PromptConfig& cfg) : cfg_(cfg) {}
 
 bool PromptStrategy::use_state_last(const std::string& type) const {
@@ -24,9 +26,9 @@ void PromptStrategy::assign_labels(const std::string& type,
 
 std::vector<std::string> PromptStrategy::all_internal_texts() const {
     std::vector<std::string> v;
-    for (int i = 0; i < MAX_CANDIDATES; i++) v.push_back(std::string(1, (char)('A' + i)));
+    for (int32_t i = 0; i < MAX_CANDIDATES; i++) v.push_back(std::string(1, (char)('A' + i)));
     if (cfg_.scheme == Scheme::NATURAL) {
-        for (int i = 0; i < MAX_CANDIDATES; i++) v.push_back(std::to_string(i));
+        for (int32_t i = 0; i < MAX_CANDIDATES; i++) v.push_back(std::to_string(i));
         v.push_back("No");
         v.push_back("Yes");
     }
@@ -99,3 +101,5 @@ std::vector<PromptSegment> PromptStrategy::build_prompt_segments(
     segs.push_back(seg2);
     return segs;
 }
+}
+

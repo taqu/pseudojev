@@ -1,7 +1,10 @@
-#pragma once
+#ifndef INC_PJEV_LLAMA_BACKEND_H_
+#define INC_PJEV_LLAMA_BACKEND_H_
 #include "backend.h"
 #include <string>
 
+namespace pjev
+{
 struct LlamaConfig {
     std::string model_path;
     int n_ctx     = 4096;
@@ -29,3 +32,6 @@ private:
     struct Impl;
     Impl* impl_;
 };
+}
+#endif //INC_PJEV_LLAMA_BACKEND_H_
+

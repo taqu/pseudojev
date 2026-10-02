@@ -39,7 +39,27 @@ set(PJEV_INCS
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/vendor/cpp-httplib
 )
 
-add_executable(pjev
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+
+set(PJEV_HEADER
+    src/inference/backend.h
+    src/inference/llama_backend.h
+    src/decision/prompt_strategy.h
+    src/decision/decision_engine.h
+    src/server/jev_api.h
+    src/server/http_server.h
+    src/experiment/config.h
+    src/experiment/metrics.h
+    src/experiment/permute.h
+    src/experiment/dataset.h
+    src/experiment/runner.h
+)
+source_group(include FILES ${PJEV_HEADER})
+
+set(PJEV_SOURCE
     src/main.cpp
     src/inference/llama_backend.cpp
     src/decision/prompt_strategy.cpp
@@ -49,8 +69,14 @@ add_executable(pjev
     src/experiment/dataset.cpp
     src/experiment/runner.cpp
 )
+source_group(src FILES ${PJEV_SOURCE})
+add_executable(pjev
+    ${PJEV_SOURCE}
+    ${PJEV_HEADER}
+)
 target_include_directories(pjev PRIVATE ${PJEV_INCS})
 target_link_libraries(pjev PRIVATE llama pjev-httplib)
+set_target_properties(pjev PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 enable_testing()
 add_subdirectory(tests)

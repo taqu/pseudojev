@@ -5,6 +5,11 @@ set(PJEV_TEST_INCS
     ${CMAKE_SOURCE_DIR}/llama.cpp/vendor
 )
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+
 # test_prompt_strategy: tests PromptStrategy (no backend needed)
 add_executable(test_prompt_strategy test_prompt_strategy.cpp
     ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp)

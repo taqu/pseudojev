@@ -19,7 +19,7 @@ static void usage_server(const char* prog) {
         "usage: %s server --model PATH [options]\n"
         "  --model PATH       path to .gguf model file (required)\n"
         "  --port N           HTTP port (default: 8080)\n"
-        "  --host ADDR        bind address (default: 0.0.0.0)\n"
+        "  --host ADDR        bind address (default: 127.0.0.1)\n"
         "  --layout LAYOUT    auto|state-first|state-last|question-first (default: auto)\n"
         "  --scheme SCHEME    natural|letters (default: natural)\n"
         "  --threads N        CPU threads (default: 8)\n"
@@ -97,7 +97,7 @@ static OptionOrder parse_order(const std::string& s) {
 static int cmd_server(int argc, char** argv) {
     LlamaConfig  llama_cfg;
     PromptConfig prompt_cfg;
-    std::string  host       = "0.0.0.0";
+    std::string  host       = "127.0.0.1";
     uint16_t     port       = 8080;
     std::string  model_name = "pseudojev";
 

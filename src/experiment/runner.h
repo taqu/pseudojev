@@ -1,4 +1,5 @@
-#pragma once
+#ifndef INC_PJEV_RUNNER_H_
+#define INC_PJEV_RUNNER_H_
 #include "config.h"
 #include "dataset.h"
 #include "metrics.h"
@@ -6,7 +7,8 @@
 #include "../decision/decision_engine.h"
 #include "../inference/backend.h"
 #include <nlohmann/json.hpp>
-
+namespace pjev
+{
 struct ItemResult {
     std::string id;
     std::string type;
@@ -26,7 +28,7 @@ struct RunResult {
     RunMetrics          metrics;
     StabilityMetrics    stability;
     std::vector<ItemResult> items;
-    json to_json() const;
+    nlohmann::json to_json() const;
 };
 
 // Runs a single configuration over all rows; returns RunResult.
@@ -39,7 +41,7 @@ struct CompareResult {
     std::string experiment_name;
     std::string model_path;
     std::vector<RunResult> runs;
-    json to_json() const;
+    nlohmann::json to_json() const;
 };
 
 // Run candidate-binding experiment: NATURAL vs LETTERS schemes.
@@ -66,3 +68,6 @@ CompareResult exp_prior_correction(ILlamaBackend& backend,
 CompareResult exp_score_formulation(ILlamaBackend& backend,
                                     const std::vector<DatasetRow>& rows,
                                     const std::string& model_path);
+}
+#endif //INC_PJEV_RUNNER_H_
+

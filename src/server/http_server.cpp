@@ -2,6 +2,8 @@
 #include <httplib.h>
 #include <cstdio>
 
+namespace pjev
+{
 bool run_http_server(const std::string& host,
                      uint16_t port,
                      const std::string& path,
@@ -10,7 +12,7 @@ bool run_http_server(const std::string& host,
     httplib::Server svr;
     svr.Post(path.c_str(), [handler](const httplib::Request& req,
                                       httplib::Response& res) {
-        int status = 500;
+        int32_t status = 500;
         std::string body;
         handler(req.body, status, body);
         res.status = status;
@@ -24,3 +26,5 @@ bool run_http_server(const std::string& host,
     }
     return true;
 }
+}
+

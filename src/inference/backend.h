@@ -1,8 +1,12 @@
-#pragma once
+#ifndef INC_PJEV_BACKEND_H_
+#define INC_PJEV_BACKEND_H_
 #include <string>
 #include <vector>
 
-class ILlamaBackend {
+namespace pjev
+{
+class ILlamaBackend
+{
 public:
     virtual ~ILlamaBackend() = default;
 
@@ -19,3 +23,5 @@ public:
     // Pointer is valid until the next call. Throws on failure.
     virtual const float* eval_tokens(const std::vector<int>& tokens) = 0;
 };
+} // namespace pjev
+#endif //INC_PJEV_BACKEND_H_

@@ -5,11 +5,13 @@
 #include <set>
 #include <stdexcept>
 
+namespace pjev
+{
 DecisionEngine::DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg)
     : backend_(backend), strategy_(cfg)
 {
     // Verify all candidate tokens for the configured scheme
-    std::set<int> seen;
+    std::set<int32_t> seen;
     bool ok = true;
     for (const auto& s : strategy_.all_internal_texts()) {
         auto toks = backend_.tokenize(s, false, false);
@@ -35,9 +37,13 @@ DecisionEngine::DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg)
 std::string DecisionEngine::restricted_softmax(const std::vector<float>& logits,
                                                 std::vector<double>& probs) {
     probs.clear();
-    if (logits.empty()) return "empty candidate set";
+    if (logits.empty()){
+        return "empty candidate set";
+    }
     for (float l : logits) {
-        if (!std::isfinite(l)) return "non-finite candidate logit";
+        if (!std::isfinite(l)){
+            return "non-finite candidate logit";
+        }
     }
     const double m = *std::max_element(logits.begin(), logits.end());
     double sum = 0.0;
@@ -48,21 +54,27 @@ std::string DecisionEngine::restricted_softmax(const std::vector<float>& logits,
     double check = 0.0;
     for (double& p : probs) {
         p /= sum;
-        if (!std::isfinite(p) || p < 0.0 || p > 1.0) return "probability out of range";
+        if (!std::isfinite(p) || p < 0.0 || p > 1.0){
+            return "probability out of range";
+        }
         check += p;
     }
-    if (std::fabs(check - 1.0) > 1e-9) return "probabilities do not sum to 1";
+    if (std::fabs(check - 1.0) > 1e-9){
+        return "probabilities do not sum to 1";
+    }
     return "";
 }
 
 double DecisionEngine::expected_level(const std::vector<double>& probs) {
     double s = 0.0;
-    for (size_t i = 0; i < probs.size(); i++) s += (double)i * probs[i];
+    for (size_t i = 0; i < probs.size(); i++){
+        s += (double)i * probs[i];
+    }
     return s;
 }
 
-int DecisionEngine::argmax(const std::vector<double>& v) {
-    return (int)(std::max_element(v.begin(), v.end()) - v.begin());
+int32_t DecisionEngine::argmax(const std::vector<double>& v) {
+    return (int32_t)(std::max_element(v.begin(), v.end()) - v.begin());
 }
 
 DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
@@ -78,7 +90,7 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
         out.error = "need at least 2 candidates";
         return out;
     }
-    if ((int)input.options.size() > PromptStrategy::MAX_CANDIDATES) {
+    if ((int32_t)input.options.size() > PromptStrategy::MAX_CANDIDATES) {
         out.error = "too many candidates (max " +
                     std::to_string(PromptStrategy::MAX_CANDIDATES) + ")";
         return out;
@@ -97,8 +109,8 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
     strategy_.assign_labels(input.type, candidates);
 
     // Resolve candidate tokens
-    std::set<int> id_set;
-    std::vector<int> cand_ids;
+    std::set<int32_t> id_set;
+    std::vector<int32_t> cand_ids;
     for (const auto& c : candidates) {
         auto it = cand_token_map_.find(c.internal);
         if (it == cand_token_map_.end()) {
@@ -116,7 +128,7 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
     auto segments = strategy_.build_prompt_segments(
         input.type, input.state, input.question, candidates);
 
-    std::vector<int> prompt_tokens;
+    std::vector<int32_t> prompt_tokens;
     bool first = true;
     for (const auto& seg : segments) {
         // add_special=true only for the first segment so BOS is added if the model expects it.
@@ -137,7 +149,7 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
 
     // Extract candidate logits
     std::vector<float> cand_logits;
-    for (int id : cand_ids) cand_logits.push_back(logits[id]);
+    for (int32_t id : cand_ids) cand_logits.push_back(logits[id]);
 
     // Apply prior correction if requested
     if (input.prior_correction && input.prior_logits.size() == cand_ids.size()) {
@@ -168,7 +180,7 @@ std::vector<float> DecisionEngine::compute_blank_logits(const std::string& type,
     // Synthetic candidates with empty descriptions
     std::vector<Candidate> candidates;
     candidates.reserve(n_options);
-    for (int i = 0; i < n_options; i++) {
+    for (int32_t i = 0; i < n_options; i++) {
         Candidate c;
         c.key = std::to_string(i);
         c.description = "";
@@ -178,7 +190,7 @@ std::vector<float> DecisionEngine::compute_blank_logits(const std::string& type,
     strategy_.assign_labels(type, candidates);
 
     // Resolve token IDs
-    std::vector<int> cand_ids;
+    std::vector<int32_t> cand_ids;
     for (const auto& c : candidates) {
         auto it = cand_token_map_.find(c.internal);
         if (it == cand_token_map_.end()) return {};
@@ -187,7 +199,7 @@ std::vector<float> DecisionEngine::compute_blank_logits(const std::string& type,
 
     // Build blank prompt
     auto segments = strategy_.build_prompt_segments(type, "", "", candidates);
-    std::vector<int> prompt_tokens;
+    std::vector<int32_t> prompt_tokens;
     bool first = true;
     for (const auto& seg : segments) {
         auto toks = backend_.tokenize(seg.text, first && seg.trusted, seg.trusted);
@@ -203,6 +215,10 @@ std::vector<float> DecisionEngine::compute_blank_logits(const std::string& type,
     }
 
     std::vector<float> result;
-    for (int id : cand_ids) result.push_back(logits[id]);
+    for (int32_t id : cand_ids){
+        result.push_back(logits[id]);
+    }
     return result;
 }
+}
+

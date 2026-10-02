@@ -4,11 +4,16 @@
 #include <cmath>
 #include <algorithm>
 
-// ---------------------------------------------------------------------------
+namespace pjev
+{
+    using json = nlohmann::json;
+    namespace
+    {
+    // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-static bool check_correct(const ItemResult& ir, const json& expected, const std::string& type) {
+bool check_correct(const ItemResult& ir, const json& expected, const std::string& type) {
     if (!ir.ok) return false;
     if (expected.is_null()) return false;
     if (type == "noul" || type == "choice") {
@@ -23,7 +28,7 @@ static bool check_correct(const ItemResult& ir, const json& expected, const std:
     return false;
 }
 
-static void accumulate(RunMetrics& m, const ItemResult& ir, const json& expected, const std::string& type, int n_levels) {
+void accumulate(RunMetrics& m, const ItemResult& ir, const json& expected, const std::string& type, int n_levels) {
     m.n_total++;
     if (!ir.ok) { m.n_errors++; return; }
 
@@ -53,6 +58,7 @@ static void accumulate(RunMetrics& m, const ItemResult& ir, const json& expected
         tm->predicted_levels.push_back(ir.selected);
         tm->actual_levels.push_back(actual);
     }
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -314,3 +320,5 @@ CompareResult exp_score_formulation(ILlamaBackend& backend,
 
     return cr;
 }
+}
+

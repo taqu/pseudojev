@@ -1,7 +1,11 @@
-#pragma once
+#ifndef INC_PJEV_PROMPT_STRATEGY_H_
+#define INC_PJEV_PROMPT_STRATEGY_H_
+#include <cstdint>
 #include <string>
 #include <vector>
 
+namespace pjev
+{
 enum class Layout { AUTO, STATE_FIRST, STATE_LAST, QUESTION_FIRST };
 enum class Scheme { NATURAL, LETTERS };
 
@@ -26,7 +30,7 @@ struct PromptSegment {
 
 class PromptStrategy {
 public:
-    static constexpr int MAX_CANDIDATES = 10;
+    static constexpr int32_t MAX_CANDIDATES = 10;
 
     explicit PromptStrategy(const PromptConfig& cfg = {});
 
@@ -63,3 +67,5 @@ private:
         const std::string& question,
         const std::vector<Candidate>& candidates) const;
 };
+}
+#endif //INC_PJEV_PROMPT_STRATEGY_H_
