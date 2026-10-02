@@ -12,6 +12,7 @@ static void check_near(double a, double b, double tol, const char* what) {
 }
 
 int main() {
+    using namespace pjev;
     // -----------------------------------------------------------------------
     // Test 1: TypeMetrics accuracy
     // -----------------------------------------------------------------------

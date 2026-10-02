@@ -1,4 +1,6 @@
 #include "server/jev_api.h"
+#include "decision/prompt_strategy.h"
+#include "decision/decision_engine.h"
 #include "mock_backend.h"
 #include <nlohmann/json.hpp>
 #include <cstdio>
@@ -13,6 +15,7 @@ static void check(bool cond, const char* what) {
 }
 
 int main() {
+    using namespace pjev;
     MockBackend mock;
     DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
     JevApiHandler handler(eng, "pseudojev-test");

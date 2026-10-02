@@ -10,6 +10,7 @@ static void check(bool cond, const char* what) {
 }
 
 int main() {
+    using namespace pjev;
     // Test 1: NATURAL scheme label assignment for all types
     {
         PromptStrategy ps(PromptConfig{Layout::AUTO, Scheme::NATURAL});

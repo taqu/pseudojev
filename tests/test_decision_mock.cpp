@@ -11,6 +11,7 @@ static void check(bool cond, const char* what) {
 }
 
 int main() {
+    using namespace pjev;
     MockBackend mock;
 
     // Test 1: choice with LETTERS scheme — A wins

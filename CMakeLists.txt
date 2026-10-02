@@ -37,6 +37,7 @@ set(PJEV_INCS
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/ggml/include
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/vendor
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/vendor/cpp-httplib
+    ${CMAKE_CURRENT_SOURCE_DIR}/spdlog/include
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/bin")

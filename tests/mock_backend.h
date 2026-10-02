@@ -10,7 +10,7 @@
 //   Yes  -> 201
 //   0-9  -> 202-211
 //   Other multi-char strings -> encoded as multiple tokens (not single)
-class MockBackend : public ILlamaBackend {
+class MockBackend : public pjev::ILlamaBackend {
 public:
     static int single_token_id(const std::string& text) {
         if (text.size() == 1) {

@@ -9,15 +9,17 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/stdout_sinks.h"
 
 // ---------------------------------------------------------------------------
 // Usage helpers
 // ---------------------------------------------------------------------------
-
+using namespace pjev;
 static void usage_server(const char* prog) {
     fprintf(stderr,
         "usage: %s server --model PATH [options]\n"
-        "  --model PATH       path to .gguf model file (required)\n"
+        "  --model PATH       path to .gguf model file (default: models/Bonsai-1.7B.gguf)\n"
         "  --port N           HTTP port (default: 8080)\n"
         "  --host ADDR        bind address (default: 127.0.0.1)\n"
         "  --layout LAYOUT    auto|state-first|state-last|question-first (default: auto)\n"
@@ -97,6 +99,7 @@ static OptionOrder parse_order(const std::string& s) {
 static int cmd_server(int argc, char** argv) {
     LlamaConfig  llama_cfg;
     PromptConfig prompt_cfg;
+    llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
     std::string  host       = "127.0.0.1";
     uint16_t     port       = 8080;
     std::string  model_name = "pseudojev";
@@ -123,6 +126,13 @@ static int cmd_server(int argc, char** argv) {
             usage_server("pjev");
             return 2;
         }
+    }
+
+    spdlog::stdout_color_mt("console");
+    if(llama_cfg.verbose){
+        spdlog::set_level(spdlog::level::trace);
+    }else{
+        spdlog::set_level(spdlog::level::warn);
     }
 
     if (llama_cfg.model_path.empty()) {
