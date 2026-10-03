@@ -24,7 +24,7 @@ static std::string write_temp(const std::string& content) {
 
 int main() {
     using namespace pjev;
-    using json = nlohmann::json;
+    using json = nlohmann::ordered_json;
     // -----------------------------------------------------------------------
     // Test 1: load_dataset from JSONL file
     // -----------------------------------------------------------------------

@@ -8,15 +8,15 @@ namespace pjev
 {
 namespace
 {
-    std::string str_or(const nlohmann::json& j, const char* k, const std::string& def = "")
+    std::string str_or(const nlohmann::ordered_json& j, const char* k, const std::string& def = "")
     {
         return (j.contains(k) && j[k].is_string()) ? j[k].get<std::string>() : def;
     }
 } // namespace
 
-std::string parse_row(const nlohmann::json& j, DatasetRow& row)
+std::string parse_row(const nlohmann::ordered_json& j, DatasetRow& row)
 {
-    using json = nlohmann::json;
+    using json = nlohmann::ordered_json;
     row.id = j.contains("id") ? (j["id"].is_string() ? j["id"].get<std::string>() : j["id"].dump()) : "";
     row.input.state = str_or(j, "state");
     row.expected = j.contains("expected") ? j["expected"] : json();
@@ -77,7 +77,7 @@ std::string parse_row(const nlohmann::json& j, DatasetRow& row)
 
 bool load_dataset(const std::string& path, std::vector<DatasetRow>& rows, std::string& err)
 {
-    using json = nlohmann::json;
+    using json = nlohmann::ordered_json;
     std::stringstream ss;
     if(path == "-") {
         ss << std::cin.rdbuf();

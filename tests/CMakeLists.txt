@@ -3,7 +3,12 @@ cmake_minimum_required(VERSION 3.14)
 set(PJEV_TEST_INCS
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/llama.cpp/vendor
+    ${CMAKE_SOURCE_DIR}/spdlog/include
 )
+
+if (MSVC)
+    add_compile_options(/utf-8)
+endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/bin")
@@ -34,7 +39,8 @@ add_test(NAME test_decision_mock COMMAND test_decision_mock)
 add_executable(test_jev_parsing test_jev_parsing.cpp
     ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
     ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
-    ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp)
+    ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
 target_include_directories(test_jev_parsing PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_jev_parsing COMMAND test_jev_parsing)
 
