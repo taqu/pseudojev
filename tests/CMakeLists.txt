@@ -129,3 +129,13 @@ if (WIN32)
     target_link_libraries(test_distribution PRIVATE psapi)
 endif()
 add_test(NAME test_distribution COMMAND test_distribution)
+
+# test_cli: tests Phase 9 CLI formatting, option parsing, and DecisionEngine integration
+add_executable(test_cli test_cli.cpp
+    ${CMAKE_SOURCE_DIR}/src/cli/cli.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp)
+target_include_directories(test_cli PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_cli COMMAND test_cli)

@@ -31,10 +31,12 @@
 #include "experiment/dataset.h"
 #include "experiment/runner.h"
 #include "distribution/release_config.h"
+#include "cli/cli.h"
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <memory>
 #include <string>
 #include "spdlog/spdlog.h"
@@ -189,11 +191,78 @@ static void usage_diagnostics(const char* prog) {
         prog);
 }
 
+static void usage_noul(const char* prog) {
+    fprintf(stderr,
+        "usage: %s noul --question TEXT [options]\n"
+        "  --question TEXT    question to evaluate (required)\n"
+        "  --state TEXT       context state (default: empty)\n"
+        "  --state-file FILE  read state from file (- for stdin)\n"
+        "  --model PATH       path to .gguf model file\n"
+        "  --calibration FILE calibration artifact (optional)\n"
+        "  --threads N        CPU threads (default: 8)\n"
+        "  --ctx-size N       context size (default: 4096)\n"
+        "  --verbose          enable verbose logging to stderr\n"
+        "  --json             output JSON instead of plain text\n"
+        "\n"
+        "output: 'true' or 'false' (plain); JSON with p_true and probabilities (--json)\n"
+        "\n"
+        "examples:\n"
+        "  %s noul --state \"The sky is blue.\" --question \"Is it daytime?\"\n"
+        "  %s noul --state-file state.txt --question \"問題はありますか?\"\n",
+        prog, prog, prog);
+}
+
+static void usage_choice(const char* prog) {
+    fprintf(stderr,
+        "usage: %s choice --question TEXT --option KEY[:DESC] --option KEY[:DESC] ... [options]\n"
+        "  --question TEXT      question to evaluate (required)\n"
+        "  --option KEY[:DESC]  add a candidate option (at least 2 required); KEY is the label\n"
+        "  --state TEXT         context state (default: empty)\n"
+        "  --state-file FILE    read state from file (- for stdin)\n"
+        "  --model PATH         path to .gguf model file\n"
+        "  --calibration FILE   calibration artifact (optional)\n"
+        "  --threads N          CPU threads (default: 8)\n"
+        "  --ctx-size N         context size (default: 4096)\n"
+        "  --verbose            enable verbose logging to stderr\n"
+        "  --json               output JSON instead of plain text\n"
+        "\n"
+        "output: selected KEY (plain); JSON with index, key, probabilities (--json)\n"
+        "\n"
+        "examples:\n"
+        "  %s choice --state \"...\" --question \"Which action?\" --option A:\"Go left\" --option B:\"Go right\"\n"
+        "  %s choice --question \"どちら?\" --option はい --option いいえ --json\n",
+        prog, prog, prog);
+}
+
+static void usage_score(const char* prog) {
+    fprintf(stderr,
+        "usage: %s score --question TEXT --level DESC --level DESC ... [options]\n"
+        "  --question TEXT    question to evaluate (required)\n"
+        "  --level DESC       add a score level description (at least 2 required, in order)\n"
+        "  --state TEXT       context state (default: empty)\n"
+        "  --state-file FILE  read state from file (- for stdin)\n"
+        "  --model PATH       path to .gguf model file\n"
+        "  --calibration FILE calibration artifact (optional)\n"
+        "  --threads N        CPU threads (default: 8)\n"
+        "  --ctx-size N       context size (default: 4096)\n"
+        "  --verbose          enable verbose logging to stderr\n"
+        "  --json             output JSON instead of plain text\n"
+        "\n"
+        "output: expected score as decimal (plain); JSON with expected_score and probabilities (--json)\n"
+        "\n"
+        "examples:\n"
+        "  %s score --state \"Essay text.\" --question \"Rate quality\" --level Poor --level Fair --level Good\n",
+        prog, prog);
+}
+
 static void usage(const char* prog) {
     fprintf(stderr,
         "usage: %s <command> [options]\n"
         "commands:\n"
-        "  server|serve start the HTTP server (default if no command given)\n"
+        "  noul         evaluate a true/false question directly\n"
+        "  choice       evaluate a multiple-choice question directly\n"
+        "  score        evaluate a score question directly\n"
+        "  server|serve start the HTTP server\n"
         "  run          batch evaluation with a single config\n"
         "  experiment   run a named experiment\n"
         "  calibration  fit or evaluate calibration temperatures\n"
@@ -1514,6 +1583,344 @@ static int cmd_diagnostics(int argc, char** argv) {
 }
 
 // ---------------------------------------------------------------------------
+// CLI decision subcommands (noul / choice / score)
+// ---------------------------------------------------------------------------
+
+// Read state text from --state, --state-file, or nothing.
+// Returns false and prints error on failure.
+static bool resolve_state(const std::string& state_inline,
+                           const std::string& state_file,
+                           std::string& out)
+{
+    if (!state_inline.empty() && !state_file.empty()) {
+        fprintf(stderr, "error: --state and --state-file are mutually exclusive\n");
+        return false;
+    }
+    if (!state_file.empty()) {
+        if (state_file == "-") {
+            std::string line, buf;
+            while (std::getline(std::cin, line)) { buf += line; buf += '\n'; }
+            if (!buf.empty() && buf.back() == '\n') buf.pop_back();
+            out = buf;
+        } else {
+            std::ifstream f(state_file);
+            if (!f) {
+                fprintf(stderr, "error: cannot open state file: %s\n", state_file.c_str());
+                return false;
+            }
+            out.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+            if (!out.empty() && out.back() == '\n') out.pop_back();
+        }
+    } else {
+        out = state_inline;
+    }
+    return true;
+}
+
+// Load LlamaBackend + CalibrationConfig + DecisionEngine with shared pattern.
+// On failure prints to stderr and returns false.
+static bool load_engine_for_cli(const LlamaConfig& llama_cfg,
+                                 const std::string& calibration_path,
+                                 std::unique_ptr<LlamaBackend>& backend,
+                                 std::unique_ptr<DecisionEngine>& engine,
+                                 CalibrationConfig& calib_cfg)
+{
+    try {
+        backend = std::make_unique<LlamaBackend>(llama_cfg);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "error: model load failed: %s\n", e.what());
+        return false;
+    }
+
+    if (!calibration_path.empty()) {
+        std::ifstream cf(calibration_path);
+        if (!cf) {
+            fprintf(stderr, "error: cannot open calibration file: %s\n", calibration_path.c_str());
+            return false;
+        }
+        nlohmann::json cj;
+        try { cf >> cj; } catch (const std::exception& e) {
+            fprintf(stderr, "error: calibration JSON parse error: %s\n", e.what());
+            return false;
+        }
+        CalibrationArtifact art;
+        std::string calib_err;
+        if (!CalibrationArtifact::from_json(cj, art, calib_err)) {
+            fprintf(stderr, "error: calibration artifact: %s\n", calib_err.c_str());
+            return false;
+        }
+        calib_cfg = art.to_config();
+    }
+
+    try {
+        engine = std::make_unique<DecisionEngine>(*backend, PromptConfig{}, calib_cfg);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "error: engine init failed: %s\n", e.what());
+        return false;
+    }
+    return true;
+}
+
+static int cmd_noul(int argc, char** argv) {
+    LlamaConfig llama_cfg;
+    llama_cfg.model_path = "";
+    std::string question;
+    std::string state_inline;
+    std::string state_file;
+    std::string calibration_path;
+    bool json_out = false;
+    bool model_explicitly_set = false;
+
+    for (int i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&]() -> std::string {
+            if (i + 1 >= argc) { usage_noul("pjev"); exit(2); }
+            return argv[++i];
+        };
+        if      (a == "--question")    question = next();
+        else if (a == "--state")       state_inline = next();
+        else if (a == "--state-file")  state_file = next();
+        else if (a == "--model")       { llama_cfg.model_path = next(); model_explicitly_set = true; }
+        else if (a == "--calibration") calibration_path = next();
+        else if (a == "--threads")     llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--verbose")     llama_cfg.verbose = true;
+        else if (a == "--json")        json_out = true;
+        else if (a == "-h" || a == "--help") { usage_noul("pjev"); return 0; }
+        else { fprintf(stderr, "error: unknown option: %s\n", a.c_str()); usage_noul("pjev"); return 2; }
+    }
+
+    if (question.empty()) {
+        fprintf(stderr, "error: --question is required\n");
+        usage_noul("pjev");
+        return 2;
+    }
+
+    std::string state;
+    if (!resolve_state(state_inline, state_file, state)) return 2;
+
+    if (!model_explicitly_set) {
+        std::string exe_dir = get_executable_dir();
+        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
+        if (!resolved.empty()) llama_cfg.model_path = resolved;
+        else llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
+    }
+
+    SpdLogShutdown spdlog_shutdown;
+    spdlog::stdout_logger_mt("console");
+    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
+
+    std::unique_ptr<LlamaBackend> backend;
+    std::unique_ptr<DecisionEngine> engine;
+    CalibrationConfig calib_cfg;
+    if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
+
+    DecisionInput input;
+    input.type     = "noul";
+    input.state    = state;
+    input.question = question;
+    input.options  = {{"false", ""}, {"true", ""}};
+
+    DecisionOutput out;
+    try {
+        out = engine->decide(input);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "error: decision failed: %s\n", e.what());
+        return 1;
+    }
+
+    if (!out.ok) {
+        fprintf(stderr, "error: %s\n", out.error.c_str());
+        return 1;
+    }
+
+    if (json_out) printf("%s\n", format_noul_json(out).c_str());
+    else          printf("%s\n", format_noul_human(out).c_str());
+    return 0;
+}
+
+static int cmd_choice(int argc, char** argv) {
+    LlamaConfig llama_cfg;
+    llama_cfg.model_path = "";
+    std::string question;
+    std::string state_inline;
+    std::string state_file;
+    std::string calibration_path;
+    std::vector<std::pair<std::string, std::string>> options; // key, desc
+    bool json_out = false;
+    bool model_explicitly_set = false;
+
+    for (int i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&]() -> std::string {
+            if (i + 1 >= argc) { usage_choice("pjev"); exit(2); }
+            return argv[++i];
+        };
+        if      (a == "--question")    question = next();
+        else if (a == "--state")       state_inline = next();
+        else if (a == "--state-file")  state_file = next();
+        else if (a == "--model")       { llama_cfg.model_path = next(); model_explicitly_set = true; }
+        else if (a == "--calibration") calibration_path = next();
+        else if (a == "--threads")     llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--verbose")     llama_cfg.verbose = true;
+        else if (a == "--json")        json_out = true;
+        else if (a == "--option") {
+            std::string val = next();
+            auto colon = val.find(':');
+            if (colon != std::string::npos) {
+                options.push_back({val.substr(0, colon), val.substr(colon + 1)});
+            } else {
+                options.push_back({val, ""});
+            }
+        }
+        else if (a == "-h" || a == "--help") { usage_choice("pjev"); return 0; }
+        else { fprintf(stderr, "error: unknown option: %s\n", a.c_str()); usage_choice("pjev"); return 2; }
+    }
+
+    if (question.empty()) {
+        fprintf(stderr, "error: --question is required\n");
+        usage_choice("pjev");
+        return 2;
+    }
+    if (options.size() < 2) {
+        fprintf(stderr, "error: choice requires at least 2 --option values\n");
+        usage_choice("pjev");
+        return 2;
+    }
+
+    std::string state;
+    if (!resolve_state(state_inline, state_file, state)) return 2;
+
+    if (!model_explicitly_set) {
+        std::string exe_dir = get_executable_dir();
+        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
+        if (!resolved.empty()) llama_cfg.model_path = resolved;
+        else llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
+    }
+
+    SpdLogShutdown spdlog_shutdown;
+    spdlog::stdout_logger_mt("console");
+    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
+
+    std::unique_ptr<LlamaBackend> backend;
+    std::unique_ptr<DecisionEngine> engine;
+    CalibrationConfig calib_cfg;
+    if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
+
+    DecisionInput input;
+    input.type     = "choice";
+    input.state    = state;
+    input.question = question;
+    input.options  = options;
+
+    DecisionOutput out;
+    try {
+        out = engine->decide(input);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "error: decision failed: %s\n", e.what());
+        return 1;
+    }
+
+    if (!out.ok) {
+        fprintf(stderr, "error: %s\n", out.error.c_str());
+        return 1;
+    }
+
+    if (json_out) printf("%s\n", format_choice_json(out).c_str());
+    else          printf("%s\n", format_choice_human(out).c_str());
+    return 0;
+}
+
+static int cmd_score(int argc, char** argv) {
+    LlamaConfig llama_cfg;
+    llama_cfg.model_path = "";
+    std::string question;
+    std::string state_inline;
+    std::string state_file;
+    std::string calibration_path;
+    std::vector<std::pair<std::string, std::string>> options; // key (auto "0".."N-1"), desc
+    bool json_out = false;
+    bool model_explicitly_set = false;
+
+    for (int i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&]() -> std::string {
+            if (i + 1 >= argc) { usage_score("pjev"); exit(2); }
+            return argv[++i];
+        };
+        if      (a == "--question")    question = next();
+        else if (a == "--state")       state_inline = next();
+        else if (a == "--state-file")  state_file = next();
+        else if (a == "--model")       { llama_cfg.model_path = next(); model_explicitly_set = true; }
+        else if (a == "--calibration") calibration_path = next();
+        else if (a == "--threads")     llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--verbose")     llama_cfg.verbose = true;
+        else if (a == "--json")        json_out = true;
+        else if (a == "--level") {
+            std::string desc = next();
+            options.push_back({std::to_string(options.size()), desc});
+        }
+        else if (a == "-h" || a == "--help") { usage_score("pjev"); return 0; }
+        else { fprintf(stderr, "error: unknown option: %s\n", a.c_str()); usage_score("pjev"); return 2; }
+    }
+
+    if (question.empty()) {
+        fprintf(stderr, "error: --question is required\n");
+        usage_score("pjev");
+        return 2;
+    }
+    if (options.size() < 2) {
+        fprintf(stderr, "error: score requires at least 2 --level values\n");
+        usage_score("pjev");
+        return 2;
+    }
+
+    std::string state;
+    if (!resolve_state(state_inline, state_file, state)) return 2;
+
+    if (!model_explicitly_set) {
+        std::string exe_dir = get_executable_dir();
+        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
+        if (!resolved.empty()) llama_cfg.model_path = resolved;
+        else llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
+    }
+
+    SpdLogShutdown spdlog_shutdown;
+    spdlog::stdout_logger_mt("console");
+    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
+
+    std::unique_ptr<LlamaBackend> backend;
+    std::unique_ptr<DecisionEngine> engine;
+    CalibrationConfig calib_cfg;
+    if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
+
+    DecisionInput input;
+    input.type     = "score";
+    input.state    = state;
+    input.question = question;
+    input.options  = options;
+
+    DecisionOutput out;
+    try {
+        out = engine->decide(input);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "error: decision failed: %s\n", e.what());
+        return 1;
+    }
+
+    if (!out.ok) {
+        fprintf(stderr, "error: %s\n", out.error.c_str());
+        return 1;
+    }
+
+    if (json_out) printf("%s\n", format_score_json(out, options).c_str());
+    else          printf("%s\n", format_score_human(out).c_str());
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -1526,7 +1933,13 @@ int main(int argc, char** argv) {
     std::string cmd = argv[1];
 
     // If first arg looks like an option (legacy / direct server invocation), treat as "server"
-    if (cmd == "server" || cmd == "serve") {
+    if (cmd == "noul") {
+        return cmd_noul(argc - 2, argv + 2);
+    } else if (cmd == "choice") {
+        return cmd_choice(argc - 2, argv + 2);
+    } else if (cmd == "score") {
+        return cmd_score(argc - 2, argv + 2);
+    } else if (cmd == "server" || cmd == "serve") {
         return cmd_server(argc - 2, argv + 2);
     } else if (cmd == "--version" || cmd == "-V") {
         printf("pjev %s (commit: %s, llama.cpp: %s, platform: %s-%s)\n",

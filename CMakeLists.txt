@@ -67,6 +67,7 @@ set(PJEV_HEADER
     src/model/model_identity.h
     src/model/value_profile.h
     src/distribution/release_config.h
+    src/cli/cli.h
 )
 source_group(include FILES ${PJEV_HEADER})
 
@@ -87,6 +88,7 @@ set(PJEV_SOURCE
     src/model/model_identity.cpp
     src/model/value_profile.cpp
     src/distribution/release_config.cpp
+    src/cli/cli.cpp
 )
 source_group(src FILES ${PJEV_SOURCE})
 
