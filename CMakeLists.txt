@@ -68,6 +68,11 @@ set(PJEV_HEADER
     src/model/value_profile.h
     src/distribution/release_config.h
     src/cli/cli.h
+    src/worker/ipc_protocol.h
+    src/worker/runtime_dir.h
+    src/worker/local_transport.h
+    src/worker/worker_server.h
+    src/worker/worker_client.h
 )
 source_group(include FILES ${PJEV_HEADER})
 
@@ -89,6 +94,11 @@ set(PJEV_SOURCE
     src/model/value_profile.cpp
     src/distribution/release_config.cpp
     src/cli/cli.cpp
+    src/worker/ipc_protocol.cpp
+    src/worker/runtime_dir.cpp
+    src/worker/local_transport.cpp
+    src/worker/worker_server.cpp
+    src/worker/worker_client.cpp
 )
 source_group(src FILES ${PJEV_SOURCE})
 

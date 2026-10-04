@@ -139,3 +139,18 @@ add_executable(test_cli test_cli.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp)
 target_include_directories(test_cli PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_cli COMMAND test_cli)
+
+# test_worker: tests Phase 10 IPC framing, protocol serialization, runtime dir, config hash, WorkerInfo JSON
+add_executable(test_worker test_worker.cpp
+    ${CMAKE_SOURCE_DIR}/src/worker/ipc_protocol.cpp
+    ${CMAKE_SOURCE_DIR}/src/worker/runtime_dir.cpp
+    ${CMAKE_SOURCE_DIR}/src/worker/local_transport.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp)
+target_include_directories(test_worker PRIVATE ${PJEV_TEST_INCS})
+if (WIN32)
+    target_link_libraries(test_worker PRIVATE psapi)
+endif()
+add_test(NAME test_worker COMMAND test_worker)

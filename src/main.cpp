@@ -32,6 +32,11 @@
 #include "experiment/runner.h"
 #include "distribution/release_config.h"
 #include "cli/cli.h"
+#include "worker/ipc_protocol.h"
+#include "worker/runtime_dir.h"
+#include "worker/local_transport.h"
+#include "worker/worker_server.h"
+#include "worker/worker_client.h"
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -49,7 +54,7 @@ using namespace pjev;
 static void usage_server(const char* prog) {
     fprintf(stderr,
         "usage: %s server|serve --model PATH [options]\n"
-        "  --model PATH           path to .gguf model file (default: models/Bonsai-1.7B.gguf)\n"
+        "  --model PATH           path to .gguf model file (default: models/bonsai.gguf)\n"
         "  --port N               HTTP port (default: 8080)\n"
         "  --host ADDR            bind address (default: 127.0.0.1)\n"
         "  --calibration FILE     load calibration artifact (optional)\n"
@@ -71,7 +76,7 @@ static void usage_server(const char* prog) {
 static void usage_run(const char* prog) {
     fprintf(stderr,
         "usage: %s run --model PATH --input FILE [options]\n"
-        "  --model PATH               path to .gguf model file (default: models/Bonsai-1.7B.gguf)\n"
+        "  --model PATH               path to .gguf model file (default: models/bonsai.gguf)\n"
         "  --input FILE               JSONL/JSON dataset file (required, or - for stdin)\n"
         "  --output FILE              write JSON result here (default: stdout)\n"
         "  --calibration FILE         load calibration artifact (optional)\n"
@@ -203,6 +208,7 @@ static void usage_noul(const char* prog) {
         "  --ctx-size N       context size (default: 4096)\n"
         "  --verbose          enable verbose logging to stderr\n"
         "  --json             output JSON instead of plain text\n"
+        "  --direct           bypass worker, load model in-process (Phase 9 behavior)\n"
         "\n"
         "output: 'true' or 'false' (plain); JSON with p_true and probabilities (--json)\n"
         "\n"
@@ -225,6 +231,7 @@ static void usage_choice(const char* prog) {
         "  --ctx-size N         context size (default: 4096)\n"
         "  --verbose            enable verbose logging to stderr\n"
         "  --json               output JSON instead of plain text\n"
+        "  --direct             bypass worker, load model in-process (Phase 9 behavior)\n"
         "\n"
         "output: selected KEY (plain); JSON with index, key, probabilities (--json)\n"
         "\n"
@@ -247,6 +254,7 @@ static void usage_score(const char* prog) {
         "  --ctx-size N       context size (default: 4096)\n"
         "  --verbose          enable verbose logging to stderr\n"
         "  --json             output JSON instead of plain text\n"
+        "  --direct           bypass worker, load model in-process (Phase 9 behavior)\n"
         "\n"
         "output: expected score as decimal (plain); JSON with expected_score and probabilities (--json)\n"
         "\n"
@@ -259,9 +267,11 @@ static void usage(const char* prog) {
     fprintf(stderr,
         "usage: %s <command> [options]\n"
         "commands:\n"
-        "  noul         evaluate a true/false question directly\n"
-        "  choice       evaluate a multiple-choice question directly\n"
-        "  score        evaluate a score question directly\n"
+        "  noul         evaluate a true/false question (uses background worker by default)\n"
+        "  choice       evaluate a multiple-choice question (uses background worker by default)\n"
+        "  score        evaluate a score question (uses background worker by default)\n"
+        "  status       show background worker status\n"
+        "  stop         stop background worker\n"
         "  server|serve start the HTTP server\n"
         "  run          batch evaluation with a single config\n"
         "  experiment   run a named experiment\n"
@@ -335,7 +345,7 @@ enum class ServerState { INITIALIZING, READY, SHUTTING_DOWN };
 static int cmd_server(int argc, char** argv) {
     LlamaConfig  llama_cfg;
     PromptConfig prompt_cfg;
-    llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
+    llama_cfg.model_path = "models/bonsai.gguf";
     ServerConfig srv_cfg;
     std::string  model_name      = "pseudojev";
     std::string  calibration_path;
@@ -379,7 +389,7 @@ static int cmd_server(int argc, char** argv) {
         if (!resolved.empty()) {
             llama_cfg.model_path = resolved;
         }
-        // else: keep the default "models/Bonsai-1.7B.gguf" for dev use
+        // else: keep the default "models/bonsai.gguf" for dev use
     }
 
     SpdLogShutdown spdlog_shutdown;
@@ -533,7 +543,7 @@ static bool load_calibration_artifact(const std::string& path,
 
 static int cmd_run(int argc, char** argv) {
     LlamaConfig    llama_cfg;
-    llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
+    llama_cfg.model_path = "models/bonsai.gguf";
     ExperimentConfig exp_cfg;
     exp_cfg.name = "run";
     std::string input_path;
@@ -1670,6 +1680,7 @@ static int cmd_noul(int argc, char** argv) {
     std::string calibration_path;
     bool json_out = false;
     bool model_explicitly_set = false;
+    bool direct_mode = false;
 
     for (int i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -1686,6 +1697,7 @@ static int cmd_noul(int argc, char** argv) {
         else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
         else if (a == "--verbose")     llama_cfg.verbose = true;
         else if (a == "--json")        json_out = true;
+        else if (a == "--direct")      direct_mode = true;
         else if (a == "-h" || a == "--help") { usage_noul("pjev"); return 0; }
         else { fprintf(stderr, "error: unknown option: %s\n", a.c_str()); usage_noul("pjev"); return 2; }
     }
@@ -1703,17 +1715,8 @@ static int cmd_noul(int argc, char** argv) {
         std::string exe_dir = get_executable_dir();
         std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
         if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
+        else llama_cfg.model_path = "models/bonsai.gguf";
     }
-
-    SpdLogShutdown spdlog_shutdown;
-    spdlog::stdout_logger_mt("console");
-    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
-
-    std::unique_ptr<LlamaBackend> backend;
-    std::unique_ptr<DecisionEngine> engine;
-    CalibrationConfig calib_cfg;
-    if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
 
     DecisionInput input;
     input.type     = "noul";
@@ -1722,11 +1725,36 @@ static int cmd_noul(int argc, char** argv) {
     input.options  = {{"false", ""}, {"true", ""}};
 
     DecisionOutput out;
-    try {
-        out = engine->decide(input);
-    } catch (const std::exception& e) {
-        fprintf(stderr, "error: decision failed: %s\n", e.what());
-        return 1;
+
+    if (!direct_mode) {
+        ClientConfig cli_cfg;
+        cli_cfg.model_path       = llama_cfg.model_path;
+        cli_cfg.calibration_path = calibration_path;
+        cli_cfg.threads          = llama_cfg.n_threads;
+        cli_cfg.ctx_size         = llama_cfg.n_ctx;
+        try {
+            WorkerClient client(cli_cfg);
+            out = client.decide(input);
+        } catch (const std::exception& e) {
+            fprintf(stderr, "error: worker decision failed: %s\n", e.what());
+            return 1;
+        }
+    } else {
+        SpdLogShutdown spdlog_shutdown;
+        spdlog::stdout_logger_mt("console");
+        spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
+
+        std::unique_ptr<LlamaBackend> backend;
+        std::unique_ptr<DecisionEngine> engine;
+        CalibrationConfig calib_cfg;
+        if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
+
+        try {
+            out = engine->decide(input);
+        } catch (const std::exception& e) {
+            fprintf(stderr, "error: decision failed: %s\n", e.what());
+            return 1;
+        }
     }
 
     if (!out.ok) {
@@ -1749,6 +1777,7 @@ static int cmd_choice(int argc, char** argv) {
     std::vector<std::pair<std::string, std::string>> options; // key, desc
     bool json_out = false;
     bool model_explicitly_set = false;
+    bool direct_mode = false;
 
     for (int i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -1765,6 +1794,7 @@ static int cmd_choice(int argc, char** argv) {
         else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
         else if (a == "--verbose")     llama_cfg.verbose = true;
         else if (a == "--json")        json_out = true;
+        else if (a == "--direct")      direct_mode = true;
         else if (a == "--option") {
             std::string val = next();
             auto colon = val.find(':');
@@ -1796,17 +1826,8 @@ static int cmd_choice(int argc, char** argv) {
         std::string exe_dir = get_executable_dir();
         std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
         if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
+        else llama_cfg.model_path = "models/bonsai.gguf";
     }
-
-    SpdLogShutdown spdlog_shutdown;
-    spdlog::stdout_logger_mt("console");
-    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
-
-    std::unique_ptr<LlamaBackend> backend;
-    std::unique_ptr<DecisionEngine> engine;
-    CalibrationConfig calib_cfg;
-    if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
 
     DecisionInput input;
     input.type     = "choice";
@@ -1815,11 +1836,36 @@ static int cmd_choice(int argc, char** argv) {
     input.options  = options;
 
     DecisionOutput out;
-    try {
-        out = engine->decide(input);
-    } catch (const std::exception& e) {
-        fprintf(stderr, "error: decision failed: %s\n", e.what());
-        return 1;
+
+    if (!direct_mode) {
+        ClientConfig cli_cfg;
+        cli_cfg.model_path       = llama_cfg.model_path;
+        cli_cfg.calibration_path = calibration_path;
+        cli_cfg.threads          = llama_cfg.n_threads;
+        cli_cfg.ctx_size         = llama_cfg.n_ctx;
+        try {
+            WorkerClient client(cli_cfg);
+            out = client.decide(input);
+        } catch (const std::exception& e) {
+            fprintf(stderr, "error: worker decision failed: %s\n", e.what());
+            return 1;
+        }
+    } else {
+        SpdLogShutdown spdlog_shutdown;
+        spdlog::stdout_logger_mt("console");
+        spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
+
+        std::unique_ptr<LlamaBackend> backend;
+        std::unique_ptr<DecisionEngine> engine;
+        CalibrationConfig calib_cfg;
+        if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
+
+        try {
+            out = engine->decide(input);
+        } catch (const std::exception& e) {
+            fprintf(stderr, "error: decision failed: %s\n", e.what());
+            return 1;
+        }
     }
 
     if (!out.ok) {
@@ -1842,6 +1888,7 @@ static int cmd_score(int argc, char** argv) {
     std::vector<std::pair<std::string, std::string>> options; // key (auto "0".."N-1"), desc
     bool json_out = false;
     bool model_explicitly_set = false;
+    bool direct_mode = false;
 
     for (int i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -1858,6 +1905,7 @@ static int cmd_score(int argc, char** argv) {
         else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
         else if (a == "--verbose")     llama_cfg.verbose = true;
         else if (a == "--json")        json_out = true;
+        else if (a == "--direct")      direct_mode = true;
         else if (a == "--level") {
             std::string desc = next();
             options.push_back({std::to_string(options.size()), desc});
@@ -1884,17 +1932,8 @@ static int cmd_score(int argc, char** argv) {
         std::string exe_dir = get_executable_dir();
         std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
         if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
+        else llama_cfg.model_path = "models/bonsai.gguf";
     }
-
-    SpdLogShutdown spdlog_shutdown;
-    spdlog::stdout_logger_mt("console");
-    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
-
-    std::unique_ptr<LlamaBackend> backend;
-    std::unique_ptr<DecisionEngine> engine;
-    CalibrationConfig calib_cfg;
-    if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
 
     DecisionInput input;
     input.type     = "score";
@@ -1903,11 +1942,36 @@ static int cmd_score(int argc, char** argv) {
     input.options  = options;
 
     DecisionOutput out;
-    try {
-        out = engine->decide(input);
-    } catch (const std::exception& e) {
-        fprintf(stderr, "error: decision failed: %s\n", e.what());
-        return 1;
+
+    if (!direct_mode) {
+        ClientConfig cli_cfg;
+        cli_cfg.model_path       = llama_cfg.model_path;
+        cli_cfg.calibration_path = calibration_path;
+        cli_cfg.threads          = llama_cfg.n_threads;
+        cli_cfg.ctx_size         = llama_cfg.n_ctx;
+        try {
+            WorkerClient client(cli_cfg);
+            out = client.decide(input);
+        } catch (const std::exception& e) {
+            fprintf(stderr, "error: worker decision failed: %s\n", e.what());
+            return 1;
+        }
+    } else {
+        SpdLogShutdown spdlog_shutdown;
+        spdlog::stdout_logger_mt("console");
+        spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
+
+        std::unique_ptr<LlamaBackend> backend;
+        std::unique_ptr<DecisionEngine> engine;
+        CalibrationConfig calib_cfg;
+        if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
+
+        try {
+            out = engine->decide(input);
+        } catch (const std::exception& e) {
+            fprintf(stderr, "error: decision failed: %s\n", e.what());
+            return 1;
+        }
     }
 
     if (!out.ok) {
@@ -1918,6 +1982,100 @@ static int cmd_score(int argc, char** argv) {
     if (json_out) printf("%s\n", format_score_json(out, options).c_str());
     else          printf("%s\n", format_score_human(out).c_str());
     return 0;
+}
+
+// ---------------------------------------------------------------------------
+// status subcommand
+// ---------------------------------------------------------------------------
+
+static int cmd_status(int argc, char** argv) {
+    bool json_out = false;
+    for (int i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        if (a == "--json") json_out = true;
+        else if (a == "-h" || a == "--help") {
+            fprintf(stderr, "usage: pjev status [--json]\n");
+            return 0;
+        }
+        // ignore unknown args
+    }
+
+    ClientConfig cli_cfg; // default config
+    WorkerClient client(cli_cfg);
+    WorkerInfo info;
+    if (client.get_status(info)) {
+        if (json_out) {
+            printf("%s\n", ipc_worker_info_to_json(info).dump(2).c_str());
+        } else {
+            printf("pjev worker: running\n");
+            printf("  pid:              %d\n",  (int)info.pid);
+            printf("  protocol:         %d\n",  info.protocol_version);
+            printf("  version:          %s\n",  info.pjev_version.c_str());
+            printf("  model_identity:   %s\n",  info.model_identity.c_str());
+            printf("  config_hash:      %s\n",  info.config_hash.c_str());
+        }
+        return 0;
+    } else {
+        if (json_out) {
+            printf("{\"running\":false}\n");
+        } else {
+            printf("pjev worker: not running\n");
+        }
+        return 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// stop subcommand
+// ---------------------------------------------------------------------------
+
+static int cmd_stop(int argc, char** argv) {
+    (void)argc; (void)argv;
+    ClientConfig cli_cfg;
+    WorkerClient client(cli_cfg);
+    if (client.stop_worker()) {
+        printf("worker stopped\n");
+        return 0;
+    } else {
+        printf("no worker running\n");
+        return 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// internal-worker subcommand (hidden)
+// ---------------------------------------------------------------------------
+
+static int cmd_internal_worker(int argc, char** argv) {
+    WorkerConfig cfg;
+    for (int i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&]() -> std::string {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "error: %s requires an argument\n", a.c_str());
+                exit(2);
+            }
+            return argv[++i];
+        };
+        if      (a == "--model")        cfg.model_path = next();
+        else if (a == "--threads")      cfg.threads = std::stoi(next());
+        else if (a == "--ctx-size")     cfg.ctx_size = std::stoi(next());
+        else if (a == "--calibration")  cfg.calibration_path = next();
+        else if (a == "--idle-timeout") cfg.idle_timeout_secs = std::stoi(next());
+        else if (a == "--max-queued")   cfg.max_queued = std::stoi(next());
+        else {
+            fprintf(stderr, "error: unknown option: %s\n", a.c_str());
+            return 2;
+        }
+    }
+
+    if (cfg.model_path.empty()) {
+        fprintf(stderr, "error: --model is required for internal-worker\n");
+        return 1;
+    }
+
+    WorkerServer server(cfg);
+    return server.run();
 }
 
 // ---------------------------------------------------------------------------
@@ -1939,6 +2097,12 @@ int main(int argc, char** argv) {
         return cmd_choice(argc - 2, argv + 2);
     } else if (cmd == "score") {
         return cmd_score(argc - 2, argv + 2);
+    } else if (cmd == "status") {
+        return cmd_status(argc - 2, argv + 2);
+    } else if (cmd == "stop") {
+        return cmd_stop(argc - 2, argv + 2);
+    } else if (cmd == "internal-worker") {
+        return cmd_internal_worker(argc - 2, argv + 2);
     } else if (cmd == "server" || cmd == "serve") {
         return cmd_server(argc - 2, argv + 2);
     } else if (cmd == "--version" || cmd == "-V") {
