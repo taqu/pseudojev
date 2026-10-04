@@ -15,7 +15,11 @@ struct ItemResult {
     bool        ok       = false;
     std::string error;
     int         selected = -1;
-    std::vector<double> probs;
+    int         correct_index = -1;      // ground-truth candidate index (for calibration)
+    double      expected_score = 0.0;    // ground-truth score level (score items)
+    std::vector<double> probs;           // calibrated (or raw if disabled)
+    std::vector<double> raw_probs;       // before temperature scaling
+    std::vector<float>  corrected_logits; // post prior-correction, pre temperature
     std::vector<std::string> keys;
     bool        correct  = false;
     // Option ordering experiment

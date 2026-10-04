@@ -49,6 +49,9 @@ set(PJEV_HEADER
     src/util/timer.h
     src/inference/backend.h
     src/inference/llama_backend.h
+    src/calibration/calibration.h
+    src/calibration/calibration_metrics.h
+    src/calibration/calibration_fit.h
     src/decision/prompt_strategy.h
     src/decision/decision_engine.h
     src/server/jev_api.h
@@ -65,6 +68,9 @@ set(PJEV_SOURCE
     src/main.cpp
     src/util/timer.cpp
     src/inference/llama_backend.cpp
+    src/calibration/calibration.cpp
+    src/calibration/calibration_metrics.cpp
+    src/calibration/calibration_fit.cpp
     src/decision/prompt_strategy.cpp
     src/decision/decision_engine.cpp
     src/server/jev_api.cpp

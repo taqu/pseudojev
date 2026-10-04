@@ -72,7 +72,7 @@ RunResult run_experiment(ILlamaBackend& backend,
     RunResult result;
     result.config = cfg;
 
-    DecisionEngine engine(backend, PromptConfig{cfg.layout, cfg.scheme});
+    DecisionEngine engine(backend, PromptConfig{cfg.layout, cfg.scheme}, cfg.calibration);
 
     // Pre-compute blank logits cache per (type, n_options) if prior correction enabled
     std::map<std::pair<std::string, int>, std::vector<float>> prior_cache;
@@ -93,6 +93,7 @@ RunResult run_experiment(ILlamaBackend& backend,
         DecisionInput inp = row.input;
         inp.options = permute_options(row.input.options, cfg.option_order, cfg.random_seed);
         inp.prior_correction = cfg.prior_correction;
+        inp.collect_corrected_logits = cfg.collect_corrected_logits;
         if (cfg.prior_correction) {
             auto key = std::make_pair(row.input.type, (int)row.input.options.size());
             auto it = prior_cache.find(key);
@@ -106,6 +107,8 @@ RunResult run_experiment(ILlamaBackend& backend,
         ir.error    = out.error;
         ir.selected = out.selected;
         ir.probs    = out.probs;
+        ir.raw_probs         = out.raw_probs;
+        ir.corrected_logits  = out.corrected_logits;
         ir.keys     = out.keys;
 
         if (out.ok && out.selected >= 0 && out.selected < (int)out.keys.size()) {
@@ -113,6 +116,23 @@ RunResult run_experiment(ILlamaBackend& backend,
         }
 
         ir.correct = check_correct(ir, row.expected, row.input.type);
+
+        // Populate correct_index and expected_score for calibration use
+        if (!row.expected.is_null()) {
+            if (row.input.type == "noul" || row.input.type == "choice") {
+                if (row.expected.is_string()) {
+                    std::string exp_key = row.expected.get<std::string>();
+                    for (int ki = 0; ki < (int)ir.keys.size(); ki++) {
+                        if (ir.keys[ki] == exp_key) { ir.correct_index = ki; break; }
+                    }
+                }
+            } else if (row.input.type == "score") {
+                if (row.expected.is_number_integer()) {
+                    ir.correct_index = row.expected.get<int>();
+                    ir.expected_score = (double)ir.correct_index;
+                }
+            }
+        }
 
         accumulate(result.metrics, ir, row.expected, row.input.type, (int)inp.options.size());
         result.items.push_back(std::move(ir));

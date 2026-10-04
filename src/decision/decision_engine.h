@@ -1,5 +1,6 @@
 #ifndef INC_PJEV_DECISION_ENGINE_H_
 #define INC_PJEV_DECISION_ENGINE_H_
+#include "../calibration/calibration.h"
 #include "../inference/backend.h"
 #include "prompt_strategy.h"
 #include <cstdint>
@@ -18,6 +19,7 @@ struct DecisionInput
     std::vector<std::pair<std::string, std::string>> options;
     bool prior_correction = false;
     std::vector<float> prior_logits; // per-candidate prior logits (size == options.size()); used when prior_correction=true
+    bool collect_corrected_logits = false; // populate corrected_logits in output
 };
 
 struct DecisionOutput
@@ -27,7 +29,9 @@ struct DecisionOutput
     int32_t selected = -1;         // index into options
     double p_true = 0.0;           // noul: probability of "true"
     double expected_score = 0.0;   // score: expected value
-    std::vector<double> probs;     // per-candidate probabilities (same order as options)
+    std::vector<double> probs;     // per-candidate calibrated probabilities (or raw if calibration disabled)
+    std::vector<double> raw_probs; // per-candidate probabilities before temperature scaling
+    std::vector<float>  corrected_logits; // post prior-correction, pre temperature (when collect_corrected_logits=true)
     std::vector<std::string> keys; // candidate keys in order
 };
 
@@ -35,7 +39,8 @@ class DecisionEngine
 {
 public:
     // Throws std::runtime_error if candidate token verification fails.
-    DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg = {});
+    DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg = {},
+                   const CalibrationConfig& calib = {});
 
     // Not thread-safe. External callers must serialize access.
     DecisionOutput decide(const DecisionInput& input);
@@ -46,8 +51,9 @@ public:
     std::vector<float> compute_blank_logits(const std::string& type, int n_options);
 
 private:
-    ILlamaBackend& backend_;
-    PromptStrategy strategy_;
+    ILlamaBackend&   backend_;
+    PromptStrategy   strategy_;
+    CalibrationConfig calib_cfg_;
     std::map<std::string, int> cand_token_map_; // internal_text -> token_id
 
     static std::string restricted_softmax(const std::vector<float>& logits,

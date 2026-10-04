@@ -1,3 +1,6 @@
+#include "calibration/calibration.h"
+#include "calibration/calibration_fit.h"
+#include "calibration/calibration_metrics.h"
 #include "inference/llama_backend.h"
 #include "decision/decision_engine.h"
 #include "server/jev_api.h"
@@ -19,15 +22,16 @@ using namespace pjev;
 static void usage_server(const char* prog) {
     fprintf(stderr,
         "usage: %s server --model PATH [options]\n"
-        "  --model PATH       path to .gguf model file (default: models/Bonsai-1.7B.gguf)\n"
-        "  --port N           HTTP port (default: 8080)\n"
-        "  --host ADDR        bind address (default: 127.0.0.1)\n"
-        "  --layout LAYOUT    auto|state-first|state-last|question-first (default: auto)\n"
-        "  --scheme SCHEME    natural|letters (default: natural)\n"
-        "  --threads N        CPU threads (default: 8)\n"
-        "  --ctx-size N       context size (default: 4096)\n"
-        "  --verbose          enable llama.cpp verbose logging\n"
-        "  --model-name NAME  model name in responses (default: pseudojev)\n",
+        "  --model PATH         path to .gguf model file (default: models/Bonsai-1.7B.gguf)\n"
+        "  --port N             HTTP port (default: 8080)\n"
+        "  --host ADDR          bind address (default: 127.0.0.1)\n"
+        "  --calibration FILE   load calibration artifact (optional)\n"
+        "  --layout LAYOUT      auto|state-first|state-last|question-first (default: auto)\n"
+        "  --scheme SCHEME      natural|letters (default: natural)\n"
+        "  --threads N          CPU threads (default: 8)\n"
+        "  --ctx-size N         context size (default: 4096)\n"
+        "  --verbose            enable llama.cpp verbose logging\n"
+        "  --model-name NAME    model name in responses (default: pseudojev)\n",
         prog);
 }
 
@@ -37,6 +41,7 @@ static void usage_run(const char* prog) {
         "  --model PATH               path to .gguf model file (required)\n"
         "  --input FILE               JSONL/JSON dataset file (required, or - for stdin)\n"
         "  --output FILE              write JSON result here (default: stdout)\n"
+        "  --calibration FILE         load calibration artifact (optional)\n"
         "  --layout LAYOUT            auto|state-first|state-last|question-first (default: auto)\n"
         "  --scheme SCHEME            natural|letters (default: natural)\n"
         "  --prior-correction         enable prior correction\n"
@@ -44,6 +49,36 @@ static void usage_run(const char* prog) {
         "  --threads N                CPU threads (default: 8)\n"
         "  --ctx-size N               context size (default: 4096)\n"
         "  --verbose                  enable llama.cpp verbose logging\n",
+        prog);
+}
+
+static void usage_calibration(const char* prog) {
+    fprintf(stderr,
+        "usage: %s calibration <fit|evaluate> [options]\n"
+        "\n"
+        "  fit     fit per-primitive temperatures from a calibration dataset\n"
+        "    --model PATH        path to .gguf model file (required)\n"
+        "    --input FILE        JSONL/JSON calibration dataset (required)\n"
+        "    --output FILE       write calibration artifact JSON here (required)\n"
+        "    --model-id NAME     model identifier stored in artifact (default: model path)\n"
+        "    --layout LAYOUT     auto|state-first|state-last|question-first (default: auto)\n"
+        "    --scheme SCHEME     natural|letters (default: natural)\n"
+        "    --prior-correction  enable prior correction\n"
+        "    --threads N         CPU threads (default: 8)\n"
+        "    --ctx-size N        context size (default: 4096)\n"
+        "    --verbose           enable llama.cpp verbose logging\n"
+        "\n"
+        "  evaluate  compare raw vs calibrated metrics on a dataset\n"
+        "    --model PATH        path to .gguf model file (required)\n"
+        "    --input FILE        JSONL/JSON evaluation dataset (required)\n"
+        "    --calibration FILE  calibration artifact (required)\n"
+        "    --output FILE       write report JSON here (default: stdout)\n"
+        "    --layout LAYOUT     auto|state-first|state-last|question-first (default: auto)\n"
+        "    --scheme SCHEME     natural|letters (default: natural)\n"
+        "    --prior-correction  enable prior correction\n"
+        "    --threads N         CPU threads (default: 8)\n"
+        "    --ctx-size N        context size (default: 4096)\n"
+        "    --verbose           enable llama.cpp verbose logging\n",
         prog);
 }
 
@@ -64,11 +99,12 @@ static void usage(const char* prog) {
     fprintf(stderr,
         "usage: %s <command> [options]\n"
         "commands:\n"
-        "  server      start the HTTP server (default if no command given)\n"
-        "  run         batch evaluation with a single config\n"
-        "  experiment  run a named experiment\n"
-        "run '%s server --help', '%s run --help', or '%s experiment --help' for details\n",
-        prog, prog, prog, prog);
+        "  server       start the HTTP server (default if no command given)\n"
+        "  run          batch evaluation with a single config\n"
+        "  experiment   run a named experiment\n"
+        "  calibration  fit or evaluate calibration temperatures\n"
+        "run '%s <command> --help' for command-specific options\n",
+        prog, prog);
 }
 
 // ---------------------------------------------------------------------------
@@ -108,9 +144,10 @@ static int cmd_server(int argc, char** argv) {
     LlamaConfig  llama_cfg;
     PromptConfig prompt_cfg;
     llama_cfg.model_path = "models/Bonsai-1.7B.gguf";
-    std::string  host       = "127.0.0.1";
-    uint16_t     port       = 8080;
-    std::string  model_name = "pseudojev";
+    std::string  host            = "127.0.0.1";
+    uint16_t     port            = 8080;
+    std::string  model_name      = "pseudojev";
+    std::string  calibration_path;
 
     for (int i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -119,15 +156,16 @@ static int cmd_server(int argc, char** argv) {
             return argv[++i];
         };
 
-        if      (a == "--model")      llama_cfg.model_path = next();
-        else if (a == "--port")       port = (uint16_t)std::stoi(next());
-        else if (a == "--host")       host = next();
-        else if (a == "--threads")    llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")   llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--verbose")    llama_cfg.verbose = true;
-        else if (a == "--model-name") model_name = next();
-        else if (a == "--layout")     prompt_cfg.layout = parse_layout(next());
-        else if (a == "--scheme")     prompt_cfg.scheme = parse_scheme(next());
+        if      (a == "--model")        llama_cfg.model_path = next();
+        else if (a == "--port")         port = (uint16_t)std::stoi(next());
+        else if (a == "--host")         host = next();
+        else if (a == "--threads")      llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")     llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--verbose")      llama_cfg.verbose = true;
+        else if (a == "--model-name")   model_name = next();
+        else if (a == "--layout")       prompt_cfg.layout = parse_layout(next());
+        else if (a == "--scheme")       prompt_cfg.scheme = parse_scheme(next());
+        else if (a == "--calibration")  calibration_path = next();
         else if (a == "-h" || a == "--help") { usage_server("pjev"); return 0; }
         else {
             fprintf(stderr, "unknown option: %s\n", a.c_str());
@@ -158,9 +196,42 @@ static int cmd_server(int argc, char** argv) {
         return 1;
     }
 
+    CalibrationConfig calib_cfg;
+    if (!calibration_path.empty()) {
+        std::ifstream cf(calibration_path);
+        if (!cf) {
+            spdlog::error("cannot open calibration file: {}", calibration_path.c_str());
+            delete backend;
+            return 1;
+        }
+        nlohmann::json cj;
+        try { cf >> cj; } catch (const std::exception& e) {
+            spdlog::error("calibration JSON parse error: {}", e.what());
+            delete backend;
+            return 1;
+        }
+        CalibrationArtifact art;
+        std::string calib_err;
+        if (!CalibrationArtifact::from_json(cj, art, calib_err)) {
+            spdlog::error("calibration artifact error: {}", calib_err.c_str());
+            delete backend;
+            return 1;
+        }
+        CalibrationFormulation cur_form;
+        cur_form.layout           = ExperimentConfig{}.layout_str(); // "auto"
+        cur_form.candidate_scheme = (prompt_cfg.scheme == Scheme::LETTERS) ? "letters" : "natural";
+        cur_form.prior_correction = false;
+        std::string compat_warn;
+        if (!art.check_compatible(cur_form, compat_warn)) {
+            spdlog::warn("{}", compat_warn.c_str());
+        }
+        calib_cfg = art.to_config();
+        spdlog::info("calibration loaded from {}", calibration_path.c_str());
+    }
+
     DecisionEngine* engine = nullptr;
     try {
-        engine = new DecisionEngine(*backend, prompt_cfg);
+        engine = new DecisionEngine(*backend, prompt_cfg, calib_cfg);
     } catch (const std::exception& e) {
         spdlog::error("engine init error: {}", e.what());
         delete backend;
@@ -183,12 +254,26 @@ static int cmd_server(int argc, char** argv) {
 // run subcommand
 // ---------------------------------------------------------------------------
 
+static bool load_calibration_artifact(const std::string& path,
+                                      CalibrationArtifact& art,
+                                      std::string& err)
+{
+    std::ifstream cf(path);
+    if (!cf) { err = "cannot open file: " + path; return false; }
+    nlohmann::json cj;
+    try { cf >> cj; } catch (const std::exception& e) {
+        err = std::string("JSON parse error: ") + e.what(); return false;
+    }
+    return CalibrationArtifact::from_json(cj, art, err);
+}
+
 static int cmd_run(int argc, char** argv) {
     LlamaConfig    llama_cfg;
     ExperimentConfig exp_cfg;
     exp_cfg.name = "run";
     std::string input_path;
     std::string output_path;
+    std::string calibration_path;
 
     for (int i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -200,6 +285,7 @@ static int cmd_run(int argc, char** argv) {
         if      (a == "--model")           llama_cfg.model_path = next();
         else if (a == "--input")           input_path = next();
         else if (a == "--output")          output_path = next();
+        else if (a == "--calibration")     calibration_path = next();
         else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
         else if (a == "--verbose")         llama_cfg.verbose = true;
@@ -213,6 +299,16 @@ static int cmd_run(int argc, char** argv) {
             usage_run("pjev");
             return 2;
         }
+    }
+
+    if (!calibration_path.empty()) {
+        CalibrationArtifact art;
+        std::string calib_err;
+        if (!load_calibration_artifact(calibration_path, art, calib_err)) {
+            spdlog::error("calibration error: {}", calib_err.c_str());
+            return 1;
+        }
+        exp_cfg.calibration = art.to_config();
     }
 
     SpdLogShutdown spdlog_shutdown;
@@ -378,6 +474,197 @@ static int cmd_experiment(int argc, char** argv) {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: build CalibrationSamples from ItemResults
+// ---------------------------------------------------------------------------
+
+static std::vector<CalibrationSample>
+collect_samples(const std::vector<ItemResult>& items, const std::string& type)
+{
+    std::vector<CalibrationSample> out;
+    for (const auto& ir : items) {
+        if (ir.type != type) continue;
+        if (!ir.ok || ir.correct_index < 0 || ir.corrected_logits.empty()) continue;
+        CalibrationSample s;
+        s.logits        = ir.corrected_logits;
+        s.correct_index = ir.correct_index;
+        s.type          = ir.type;
+        s.expected_score = ir.expected_score;
+        out.push_back(s);
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------
+// calibration subcommand
+// ---------------------------------------------------------------------------
+
+static int cmd_calibration(int argc, char** argv) {
+    if (argc < 1 || std::string(argv[0]) == "-h" || std::string(argv[0]) == "--help") {
+        usage_calibration("pjev");
+        return (argc < 1) ? 2 : 0;
+    }
+    std::string subcmd = argv[0];
+    argc--; argv++;
+
+    LlamaConfig llama_cfg;
+    ExperimentConfig exp_cfg;
+    exp_cfg.collect_corrected_logits = true;
+    std::string input_path;
+    std::string output_path;
+    std::string calibration_path;
+    std::string model_id;
+
+    for (int i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&]() -> std::string {
+            if (i + 1 >= argc) { usage_calibration("pjev"); exit(2); }
+            return argv[++i];
+        };
+        if      (a == "--model")           llama_cfg.model_path = next();
+        else if (a == "--input")           input_path = next();
+        else if (a == "--output")          output_path = next();
+        else if (a == "--calibration")     calibration_path = next();
+        else if (a == "--model-id")        model_id = next();
+        else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--verbose")         llama_cfg.verbose = true;
+        else if (a == "--layout")          exp_cfg.layout = parse_layout(next());
+        else if (a == "--scheme")          exp_cfg.scheme = parse_scheme(next());
+        else if (a == "--prior-correction") exp_cfg.prior_correction = true;
+        else if (a == "-h" || a == "--help") { usage_calibration("pjev"); return 0; }
+        else {
+            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            usage_calibration("pjev");
+            return 2;
+        }
+    }
+
+    SpdLogShutdown spdlog_shutdown;
+    spdlog::stdout_logger_mt("console");
+    if (llama_cfg.verbose) spdlog::set_level(spdlog::level::trace);
+    else                   spdlog::set_level(spdlog::level::warn);
+
+    if (subcmd != "fit" && subcmd != "evaluate") {
+        spdlog::error("unknown calibration subcommand: {}", subcmd.c_str());
+        usage_calibration("pjev");
+        return 2;
+    }
+    if (llama_cfg.model_path.empty()) {
+        spdlog::error("--model is required");
+        return 1;
+    }
+    if (input_path.empty()) {
+        spdlog::error("--input is required");
+        return 1;
+    }
+
+    // For evaluate, also load calibration artifact
+    CalibrationArtifact eval_art;
+    if (subcmd == "evaluate") {
+        if (calibration_path.empty()) {
+            spdlog::error("--calibration is required for evaluate");
+            return 1;
+        }
+        std::string calib_err;
+        if (!load_calibration_artifact(calibration_path, eval_art, calib_err)) {
+            spdlog::error("calibration error: {}", calib_err.c_str());
+            return 1;
+        }
+    }
+
+    std::vector<DatasetRow> rows;
+    std::string load_err;
+    if (!load_dataset(input_path, rows, load_err)) {
+        spdlog::error("dataset error: {}", load_err.c_str());
+        return 1;
+    }
+    if (rows.empty()) {
+        spdlog::warn("dataset is empty");
+    }
+
+    LlamaBackend* backend = nullptr;
+    try {
+        backend = new LlamaBackend(llama_cfg);
+    } catch (const std::exception& e) {
+        spdlog::error("model load error: {}", e.what());
+        return 1;
+    }
+
+    // Run with calibration disabled and corrected logits collection enabled
+    exp_cfg.name = (subcmd == "fit") ? "calibration-fit-collect" : "calibration-eval-collect";
+    RunResult collected = run_experiment(*backend, rows, exp_cfg);
+    delete backend;
+
+    auto noul_s   = collect_samples(collected.items, "noul");
+    auto choice_s = collect_samples(collected.items, "choice");
+    auto score_s  = collect_samples(collected.items, "score");
+
+    if (subcmd == "fit") {
+        if (output_path.empty()) {
+            spdlog::error("--output is required for fit");
+            return 1;
+        }
+        FitResult fr_noul   = fit_temperature(noul_s);
+        FitResult fr_choice = fit_temperature(choice_s);
+        FitResult fr_score  = fit_temperature(score_s);
+
+        CalibrationArtifact art;
+        art.model_identifier  = model_id.empty() ? llama_cfg.model_path : model_id;
+        art.formulation.layout           = exp_cfg.layout_str();
+        art.formulation.candidate_scheme = exp_cfg.scheme_str();
+        art.formulation.prior_correction = exp_cfg.prior_correction;
+        art.noul_temperature   = fr_noul.converged   ? fr_noul.temperature   : 1.0;
+        art.choice_temperature = fr_choice.converged ? fr_choice.temperature : 1.0;
+        art.score_temperature  = fr_score.converged  ? fr_score.temperature  : 1.0;
+
+        nlohmann::json result = {
+            {"artifact", art.to_json()},
+            {"fit", {
+                {"noul",   {{"n", fr_noul.n_samples},   {"temperature", art.noul_temperature},   {"nll", fr_noul.nll},   {"converged", fr_noul.converged}}},
+                {"choice", {{"n", fr_choice.n_samples}, {"temperature", art.choice_temperature}, {"nll", fr_choice.nll}, {"converged", fr_choice.converged}}},
+                {"score",  {{"n", fr_score.n_samples},  {"temperature", art.score_temperature},  {"nll", fr_score.nll},  {"converged", fr_score.converged}}}
+            }}
+        };
+
+        // Write artifact to output
+        std::ofstream f(output_path);
+        if (!f) {
+            spdlog::error("cannot open output: {}", output_path.c_str());
+            return 1;
+        }
+        f << art.to_json().dump(2) << "\n";
+        printf("%s\n", result.dump(2).c_str());
+        return 0;
+
+    } else { // evaluate
+        double T_noul   = eval_art.noul_temperature;
+        double T_choice = eval_art.choice_temperature;
+        double T_score  = eval_art.score_temperature;
+
+        CalibrationReport report = build_calibration_report(
+            noul_s, choice_s, score_s, T_noul, T_choice, T_score);
+
+        nlohmann::json result = {
+            {"calibration", eval_art.to_json()},
+            {"results", report.to_json()}
+        };
+
+        std::string output_str = result.dump(2);
+        if (output_path.empty()) {
+            printf("%s\n", output_str.c_str());
+        } else {
+            std::ofstream f(output_path);
+            if (!f) {
+                spdlog::error("cannot open output: {}", output_path.c_str());
+                return 1;
+            }
+            f << output_str << "\n";
+        }
+        return 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -396,6 +683,8 @@ int main(int argc, char** argv) {
         return cmd_run(argc - 2, argv + 2);
     } else if (cmd == "experiment") {
         return cmd_experiment(argc - 2, argv + 2);
+    } else if (cmd == "calibration") {
+        return cmd_calibration(argc - 2, argv + 2);
     } else if (cmd == "-h" || cmd == "--help") {
         usage(argv[0]);
         return 0;

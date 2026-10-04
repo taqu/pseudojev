@@ -7,8 +7,9 @@
 
 namespace pjev
 {
-DecisionEngine::DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg)
-    : backend_(backend), strategy_(cfg)
+DecisionEngine::DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg,
+                               const CalibrationConfig& calib)
+    : backend_(backend), strategy_(cfg), calib_cfg_(calib)
 {
     // Verify all candidate tokens for the configured scheme
     std::set<int32_t> seen;
@@ -158,12 +159,31 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
         }
     }
 
-    // Restricted softmax
+    // Store corrected logits before temperature if requested
+    if (input.collect_corrected_logits) {
+        out.corrected_logits = cand_logits;
+    }
+
+    // Compute raw probabilities (T=1) for before/after comparison
+    {
+        std::string err = restricted_softmax(cand_logits, out.raw_probs);
+        if (!err.empty()) {
+            out.error = err;
+            return out;
+        }
+    }
+
+    // Apply temperature scaling if calibration is enabled
+    double T = calib_cfg_.temperature_for(input.type);
     std::vector<double> probs;
-    std::string err = restricted_softmax(cand_logits, probs);
-    if (!err.empty()) {
-        out.error = err;
-        return out;
+    if (T != 1.0) {
+        std::string err = temperature_softmax(cand_logits, T, probs);
+        if (!err.empty()) {
+            out.error = err;
+            return out;
+        }
+    } else {
+        probs = out.raw_probs;
     }
 
     out.probs    = probs;

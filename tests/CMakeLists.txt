@@ -57,3 +57,11 @@ add_test(NAME test_experiment COMMAND test_experiment)
 add_executable(test_metrics test_metrics.cpp)
 target_include_directories(test_metrics PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_metrics COMMAND test_metrics)
+
+# test_calibration: tests calibration temperature scaling, metrics, fitting, artifacts
+add_executable(test_calibration test_calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_fit.cpp)
+target_include_directories(test_calibration PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_calibration COMMAND test_calibration)
