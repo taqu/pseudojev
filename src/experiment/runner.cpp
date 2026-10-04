@@ -1,4 +1,5 @@
 #include "runner.h"
+#include "../util/timer.h"
 #include <map>
 #include <utility>
 #include <cmath>
@@ -102,7 +103,10 @@ RunResult run_experiment(ILlamaBackend& backend,
             }
         }
 
+        Timer t; t.start();
         DecisionOutput out = engine.decide(inp);
+        t.stop();
+
         ir.ok       = out.ok;
         ir.error    = out.error;
         ir.selected = out.selected;
@@ -110,6 +114,12 @@ RunResult run_experiment(ILlamaBackend& backend,
         ir.raw_probs         = out.raw_probs;
         ir.corrected_logits  = out.corrected_logits;
         ir.keys     = out.keys;
+        ir.prompt_token_count = out.prompt_token_count;
+        ir.eval_ms            = t.elapsed().count();
+        // Multilingual metadata from dataset row
+        ir.language   = row.language;
+        ir.pair_id    = row.pair_id;
+        ir.difficulty = row.difficulty;
 
         if (out.ok && out.selected >= 0 && out.selected < (int)out.keys.size()) {
             ir.stable_key = out.keys[out.selected];

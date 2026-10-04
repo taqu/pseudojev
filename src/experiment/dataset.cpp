@@ -72,6 +72,14 @@ std::string parse_row(const nlohmann::ordered_json& j, DatasetRow& row)
     if(row.input.options.size() < 2) {
         return "need at least 2 candidates";
     }
+
+    // Optional multilingual metadata
+    row.language               = str_or(j, "language");
+    row.pair_id                = str_or(j, "pair_id");
+    row.source_language        = str_or(j, "source_language");
+    row.translation_provenance = str_or(j, "translation_provenance");
+    row.difficulty             = str_or(j, "difficulty");
+
     return "";
 }
 

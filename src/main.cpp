@@ -1,6 +1,7 @@
 #include "calibration/calibration.h"
 #include "calibration/calibration_fit.h"
 #include "calibration/calibration_metrics.h"
+#include "multilingual/multilingual.h"
 #include "inference/llama_backend.h"
 #include "decision/decision_engine.h"
 #include "server/jev_api.h"
@@ -86,12 +87,21 @@ static void usage_experiment(const char* prog) {
     fprintf(stderr,
         "usage: %s experiment NAME --model PATH --input FILE [options]\n"
         "  NAME: candidate-binding | option-order | prompt-layout | prior-correction | score-formulation\n"
-        "  --model PATH       path to .gguf model file (required)\n"
-        "  --input FILE       JSONL/JSON dataset file (required, or - for stdin)\n"
-        "  --output DIR       directory to write per-run JSON results (default: stdout)\n"
-        "  --threads N        CPU threads (default: 8)\n"
-        "  --ctx-size N       context size (default: 4096)\n"
-        "  --verbose          enable llama.cpp verbose logging\n",
+        "        multilingual  (requires --input-reference and --input-target instead of --input)\n"
+        "  --model PATH              path to .gguf model file (required)\n"
+        "  --input FILE              JSONL/JSON dataset file (single-language experiments)\n"
+        "  --input-reference FILE    reference/English dataset (multilingual experiment)\n"
+        "  --input-target FILE       target/Japanese dataset  (multilingual experiment)\n"
+        "  --ref-language LANG       reference language tag (default: en)\n"
+        "  --target-language LANG    target language tag (default: ja)\n"
+        "  --output DIR/FILE         output file or directory (default: stdout)\n"
+        "  --calibration FILE        calibration artifact (optional)\n"
+        "  --layout LAYOUT           auto|state-first|state-last|question-first\n"
+        "  --scheme SCHEME           natural|letters\n"
+        "  --prior-correction        enable prior correction\n"
+        "  --threads N               CPU threads (default: 8)\n"
+        "  --ctx-size N              context size (default: 4096)\n"
+        "  --verbose                 enable llama.cpp verbose logging\n",
         prog);
 }
 
@@ -376,9 +386,15 @@ static int cmd_experiment(int argc, char** argv) {
     }
 
     std::string exp_name = argv[0];
-    LlamaConfig llama_cfg;
+    LlamaConfig      llama_cfg;
+    ExperimentConfig exp_cfg;
     std::string input_path;
+    std::string input_reference;
+    std::string input_target;
+    std::string ref_language   = "en";
+    std::string target_language = "ja";
     std::string output_dir;
+    std::string calibration_path;
 
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
@@ -387,12 +403,20 @@ static int cmd_experiment(int argc, char** argv) {
             return argv[++i];
         };
 
-        if      (a == "--model")   llama_cfg.model_path = next();
-        else if (a == "--input")   input_path = next();
-        else if (a == "--output")  output_dir = next();
-        else if (a == "--threads") llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size") llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--verbose") llama_cfg.verbose = true;
+        if      (a == "--model")            llama_cfg.model_path = next();
+        else if (a == "--input")            input_path = next();
+        else if (a == "--input-reference")  input_reference = next();
+        else if (a == "--input-target")     input_target = next();
+        else if (a == "--ref-language")     ref_language = next();
+        else if (a == "--target-language")  target_language = next();
+        else if (a == "--output")           output_dir = next();
+        else if (a == "--calibration")      calibration_path = next();
+        else if (a == "--layout")           exp_cfg.layout = parse_layout(next());
+        else if (a == "--scheme")           exp_cfg.scheme = parse_scheme(next());
+        else if (a == "--prior-correction") exp_cfg.prior_correction = true;
+        else if (a == "--threads")          llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")         llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--verbose")          llama_cfg.verbose = true;
         else if (a == "-h" || a == "--help") { usage_experiment("pjev"); return 0; }
         else {
             fprintf(stderr, "unknown option: %s\n", a.c_str());
@@ -413,6 +437,85 @@ static int cmd_experiment(int argc, char** argv) {
         usage_experiment("pjev");
         return 1;
     }
+
+    // Load calibration if provided
+    if (!calibration_path.empty()) {
+        CalibrationArtifact art;
+        std::string calib_err;
+        if (!load_calibration_artifact(calibration_path, art, calib_err)) {
+            spdlog::error("calibration error: {}", calib_err.c_str());
+            return 1;
+        }
+        exp_cfg.calibration = art.to_config();
+    }
+
+    // ---------------------------------------------------------------------------
+    // Multilingual experiment
+    // ---------------------------------------------------------------------------
+    if (exp_name == "multilingual") {
+        if (input_reference.empty() || input_target.empty()) {
+            spdlog::error("--input-reference and --input-target are required for multilingual");
+            return 1;
+        }
+
+        std::vector<DatasetRow> ref_rows, tgt_rows;
+        std::string load_err;
+        if (!load_dataset(input_reference, ref_rows, load_err)) {
+            spdlog::error("reference dataset error: {}", load_err.c_str());
+            return 1;
+        }
+        if (!load_dataset(input_target, tgt_rows, load_err)) {
+            spdlog::error("target dataset error: {}", load_err.c_str());
+            return 1;
+        }
+
+        // Validate pairs
+        auto violations = validate_pairs(ref_rows, tgt_rows);
+        for (const auto& v : violations)
+            spdlog::warn("pair validation: {}", v.c_str());
+
+        LlamaBackend* backend = nullptr;
+        try {
+            backend = new LlamaBackend(llama_cfg);
+        } catch (const std::exception& e) {
+            spdlog::error("model load error: {}", e.what());
+            return 1;
+        }
+
+        ExperimentConfig ref_cfg = exp_cfg;
+        ref_cfg.name = "multilingual-reference";
+        ref_cfg.collect_corrected_logits = true;
+
+        ExperimentConfig tgt_cfg = exp_cfg;
+        tgt_cfg.name = "multilingual-target";
+        tgt_cfg.collect_corrected_logits = true;
+
+        RunResult ref_run = run_experiment(*backend, ref_rows, ref_cfg);
+        RunResult tgt_run = run_experiment(*backend, tgt_rows, tgt_cfg);
+        delete backend;
+
+        MultilingualResult ml = compare_runs(ref_run, tgt_run,
+                                              ref_language, target_language,
+                                              llama_cfg.model_path);
+
+        std::string output_str = ml.to_json().dump(2);
+        if (output_dir.empty()) {
+            printf("%s\n", output_str.c_str());
+        } else {
+            std::ofstream f(output_dir);
+            if (!f) {
+                spdlog::error("cannot open output: {}", output_dir.c_str());
+                return 1;
+            }
+            f << output_str << "\n";
+            printf("wrote: %s\n", output_dir.c_str());
+        }
+        return 0;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Standard single-language experiments
+    // ---------------------------------------------------------------------------
     if (input_path.empty()) {
         spdlog::error("--input is required");
         usage_experiment("pjev");

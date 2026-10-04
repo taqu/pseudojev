@@ -24,6 +24,13 @@ struct ItemResult {
     bool        correct  = false;
     // Option ordering experiment
     std::string stable_key; // the key selected in this run (for stability check)
+    // Multilingual metadata (from DatasetRow)
+    std::string language;               // "en", "ja", etc.
+    std::string pair_id;                // shared ID for cross-language pairing
+    std::string difficulty;             // "easy", "original", "hard"
+    // Per-item performance
+    int32_t prompt_token_count = 0;
+    int64_t eval_ms = 0;
 };
 
 struct RunResult {

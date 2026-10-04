@@ -61,6 +61,7 @@ set(PJEV_HEADER
     src/experiment/permute.h
     src/experiment/dataset.h
     src/experiment/runner.h
+    src/multilingual/multilingual.h
 )
 source_group(include FILES ${PJEV_HEADER})
 
@@ -77,6 +78,7 @@ set(PJEV_SOURCE
     src/server/http_server.cpp
     src/experiment/dataset.cpp
     src/experiment/runner.cpp
+    src/multilingual/multilingual.cpp
 )
 source_group(src FILES ${PJEV_SOURCE})
 

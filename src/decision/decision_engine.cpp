@@ -139,6 +139,8 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
         prompt_tokens.insert(prompt_tokens.end(), toks.begin(), toks.end());
     }
 
+    out.prompt_token_count = (int32_t)prompt_tokens.size();
+
     // Evaluate prompt
     const float* logits = nullptr;
     try {

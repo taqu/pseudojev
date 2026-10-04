@@ -33,6 +33,7 @@ struct DecisionOutput
     std::vector<double> raw_probs; // per-candidate probabilities before temperature scaling
     std::vector<float>  corrected_logits; // post prior-correction, pre temperature (when collect_corrected_logits=true)
     std::vector<std::string> keys; // candidate keys in order
+    int32_t prompt_token_count = 0; // number of tokens in the prompt
 };
 
 class DecisionEngine

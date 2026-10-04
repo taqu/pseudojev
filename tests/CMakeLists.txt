@@ -65,3 +65,17 @@ add_executable(test_calibration test_calibration.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration_fit.cpp)
 target_include_directories(test_calibration PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_calibration COMMAND test_calibration)
+
+# test_multilingual: tests multilingual pairing, stats, validate_pairs
+add_executable(test_multilingual test_multilingual.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_fit.cpp
+    ${CMAKE_SOURCE_DIR}/src/multilingual/multilingual.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/dataset.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
+target_include_directories(test_multilingual PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_multilingual COMMAND test_multilingual)
