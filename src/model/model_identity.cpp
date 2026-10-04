@@ -15,6 +15,9 @@
 #include <psapi.h>
 #elif defined(__linux__)
 #include <cstdio>
+#include <unistd.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
 #endif
 
 namespace pjev
@@ -316,6 +319,40 @@ std::string get_os_name()
     return "macOS";
 #else
     return "unknown";
+#endif
+}
+
+std::string get_executable_dir()
+{
+#ifdef _WIN32
+    wchar_t buf[32768];
+    DWORD n = GetModuleFileNameW(nullptr, buf, (DWORD)(sizeof(buf)/sizeof(buf[0])));
+    if (n == 0) return "";
+    // Convert to UTF-8
+    int sz = WideCharToMultiByte(CP_UTF8, 0, buf, (int)n, nullptr, 0, nullptr, nullptr);
+    if (sz <= 0) return "";
+    std::string path(sz, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, buf, (int)n, &path[0], sz, nullptr, nullptr);
+    // Find last separator
+    auto pos = path.find_last_of("/\\");
+    return (pos == std::string::npos) ? "" : path.substr(0, pos);
+#elif defined(__linux__)
+    char buf[4096];
+    ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (n <= 0) return "";
+    buf[n] = '\0';
+    std::string path(buf);
+    auto pos = path.find_last_of('/');
+    return (pos == std::string::npos) ? "" : path.substr(0, pos);
+#elif defined(__APPLE__)
+    char buf[4096];
+    uint32_t sz = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &sz) != 0) return "";
+    std::string path(buf);
+    auto pos = path.find_last_of('/');
+    return (pos == std::string::npos) ? "" : path.substr(0, pos);
+#else
+    return "";
 #endif
 }
 

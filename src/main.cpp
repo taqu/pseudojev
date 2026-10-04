@@ -1,6 +1,18 @@
 #ifndef PJEV_VERSION
 #define PJEV_VERSION "0.6.0"
 #endif
+#ifndef PJEV_PLATFORM
+#define PJEV_PLATFORM "unknown"
+#endif
+#ifndef PJEV_ARCH
+#define PJEV_ARCH "unknown"
+#endif
+#ifndef PJEV_GIT_COMMIT
+#define PJEV_GIT_COMMIT "unknown"
+#endif
+#ifndef PJEV_LLAMA_REVISION
+#define PJEV_LLAMA_REVISION "unknown"
+#endif
 
 #include "calibration/calibration.h"
 #include "calibration/calibration_fit.h"
@@ -18,6 +30,7 @@
 #include "experiment/config.h"
 #include "experiment/dataset.h"
 #include "experiment/runner.h"
+#include "distribution/release_config.h"
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -257,6 +270,7 @@ static int cmd_server(int argc, char** argv) {
     ServerConfig srv_cfg;
     std::string  model_name      = "pseudojev";
     std::string  calibration_path;
+    bool         model_explicitly_set = false;
 
     for (int i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -265,7 +279,7 @@ static int cmd_server(int argc, char** argv) {
             return argv[++i];
         };
 
-        if      (a == "--model")        llama_cfg.model_path = next();
+        if      (a == "--model")        { llama_cfg.model_path = next(); model_explicitly_set = true; }
         else if (a == "--port")         srv_cfg.port = (uint16_t)std::stoi(next());
         else if (a == "--host")         srv_cfg.host = next();
         else if (a == "--threads")      llama_cfg.n_threads = std::stoi(next());
@@ -287,6 +301,16 @@ static int cmd_server(int argc, char** argv) {
             usage_server("pjev");
             return 2;
         }
+    }
+
+    // Resolve model path from executable-relative location if not explicitly set
+    if (!model_explicitly_set) {
+        std::string exe_dir = get_executable_dir();
+        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
+        if (!resolved.empty()) {
+            llama_cfg.model_path = resolved;
+        }
+        // else: keep the default "models/Bonsai-1.7B.gguf" for dev use
     }
 
     SpdLogShutdown spdlog_shutdown;
@@ -1505,8 +1529,8 @@ int main(int argc, char** argv) {
     if (cmd == "server" || cmd == "serve") {
         return cmd_server(argc - 2, argv + 2);
     } else if (cmd == "--version" || cmd == "-V") {
-        printf("pjev %s (commit: %s, llama.cpp: %s)\n",
-               PJEV_VERSION, PJEV_GIT_COMMIT, PJEV_LLAMA_REVISION);
+        printf("pjev %s (commit: %s, llama.cpp: %s, platform: %s-%s)\n",
+               PJEV_VERSION, PJEV_GIT_COMMIT, PJEV_LLAMA_REVISION, PJEV_PLATFORM, PJEV_ARCH);
         return 0;
     } else if (cmd == "run") {
         return cmd_run(argc - 2, argv + 2);

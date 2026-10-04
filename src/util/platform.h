@@ -12,5 +12,9 @@ int64_t get_rss_bytes();
 // Returns OS name string: "Windows", "Linux", "macOS", or "unknown".
 std::string get_os_name();
 
+// Returns the directory containing the current executable (no trailing separator).
+// Returns "" on failure.
+std::string get_executable_dir();
+
 } // namespace pjev
 #endif // INC_PJEV_PLATFORM_H_

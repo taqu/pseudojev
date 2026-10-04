@@ -66,6 +66,7 @@ set(PJEV_HEADER
     src/multilingual/multilingual.h
     src/model/model_identity.h
     src/model/value_profile.h
+    src/distribution/release_config.h
 )
 source_group(include FILES ${PJEV_HEADER})
 
@@ -85,6 +86,7 @@ set(PJEV_SOURCE
     src/multilingual/multilingual.cpp
     src/model/model_identity.cpp
     src/model/value_profile.cpp
+    src/distribution/release_config.cpp
 )
 source_group(src FILES ${PJEV_SOURCE})
 
@@ -118,11 +120,14 @@ execute_process(
 if (NOT PJEV_LLAMA_REV_VAL)
     set(PJEV_LLAMA_REV_VAL "unknown")
 endif()
-set(PJEV_VERSION "0.6.0")
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" PJEV_VERSION_RAW)
+string(STRIP "${PJEV_VERSION_RAW}" PJEV_VERSION)
 target_compile_definitions(pjev PRIVATE
     PJEV_VERSION="${PJEV_VERSION}"
     PJEV_GIT_COMMIT="${PJEV_GIT_COMMIT_VAL}"
     PJEV_LLAMA_REVISION="${PJEV_LLAMA_REV_VAL}"
+    PJEV_PLATFORM="${PJEV_PLATFORM}"
+    PJEV_ARCH="${PJEV_ARCH}"
 )
 
 target_include_directories(pjev PRIVATE ${PJEV_INCS})
@@ -131,6 +136,29 @@ if (WIN32)
     target_link_libraries(pjev PRIVATE psapi)
 endif()
 set_target_properties(pjev PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+install(TARGETS pjev RUNTIME DESTINATION .)
+
+# CPack — release archive generation
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(PJEV_PLATFORM "windows")
+    set(PJEV_ARCH "x86_64")
+    set(CPACK_GENERATOR "ZIP")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(PJEV_PLATFORM "macos")
+    execute_process(COMMAND uname -m OUTPUT_VARIABLE PJEV_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(CPACK_GENERATOR "TGZ")
+else()
+    set(PJEV_PLATFORM "linux")
+    execute_process(COMMAND uname -m OUTPUT_VARIABLE PJEV_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(CPACK_GENERATOR "TGZ")
+endif()
+set(CPACK_PACKAGE_NAME "pjev")
+set(CPACK_PACKAGE_VERSION "${PJEV_VERSION}")
+set(CPACK_PACKAGE_FILE_NAME "pjev-${PJEV_VERSION}-${PJEV_PLATFORM}-${PJEV_ARCH}")
+set(CPACK_STRIP_FILES TRUE)
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${CMAKE_PROJECT_NAME};ALL;/")
+include(CPack)
 
 enable_testing()
 add_subdirectory(tests)

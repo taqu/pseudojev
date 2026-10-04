@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "pjev_version": "0.8.0",
+  "default_model": "model.gguf",
+  "threads": -1,
+  "context_size": 4096,
+  "kv_reuse": true,
+  "batch_questions": true
+}

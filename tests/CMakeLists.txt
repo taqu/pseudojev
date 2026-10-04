@@ -119,3 +119,13 @@ add_executable(test_perf_opt test_perf_opt.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp)
 target_include_directories(test_perf_opt PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_perf_opt COMMAND test_perf_opt)
+
+# test_distribution: tests Phase 8 distribution (ReleaseConfig, path resolution, get_executable_dir)
+add_executable(test_distribution test_distribution.cpp
+    ${CMAKE_SOURCE_DIR}/src/distribution/release_config.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/model_identity.cpp)
+target_include_directories(test_distribution PRIVATE ${PJEV_TEST_INCS})
+if (WIN32)
+    target_link_libraries(test_distribution PRIVATE psapi)
+endif()
+add_test(NAME test_distribution COMMAND test_distribution)
