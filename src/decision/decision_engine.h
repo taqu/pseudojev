@@ -34,6 +34,13 @@ struct DecisionOutput
     std::vector<float>  corrected_logits; // post prior-correction, pre temperature (when collect_corrected_logits=true)
     std::vector<std::string> keys; // candidate keys in order
     int32_t prompt_token_count = 0; // number of tokens in the prompt
+    int64_t tokenize_us = 0;  // microseconds for prompt tokenization
+    int64_t eval_us     = 0;  // microseconds for llama_decode
+    int64_t decision_us = 0;  // microseconds for logit extraction + softmax
+};
+
+struct BatchConfig {
+    bool use_kv_reuse = true;
 };
 
 class DecisionEngine
@@ -45,6 +52,12 @@ public:
 
     // Not thread-safe. External callers must serialize access.
     DecisionOutput decide(const DecisionInput& input);
+
+    // Process multiple questions, reusing the shared-state KV prefix when possible.
+    // Falls back to sequential decide() calls if prefix reuse is not applicable.
+    // Not thread-safe. Callers must serialize access.
+    std::vector<DecisionOutput> decide_batch(const std::vector<DecisionInput>& inputs,
+                                              const BatchConfig& cfg = {});
 
     // Compute candidate logits for a blank (empty state/question) prompt of the given type and n_options.
     // Returns per-candidate raw logits (size = n_options), or empty vector on failure.
@@ -61,6 +74,19 @@ private:
                                           std::vector<double>& probs);
     static double expected_level(const std::vector<double>& probs);
     static int32_t argmax(const std::vector<double>& v);
+
+    // Build full prompt tokens for one question.
+    std::vector<int32_t> make_prompt_tokens(const DecisionInput& input,
+                                             const std::vector<Candidate>& candidates);
+    // Complete a DecisionOutput from already-computed logits pointer.
+    // cand_ids: token ids of candidates in order.
+    DecisionOutput finish_from_logits(const DecisionInput& input,
+                                       const std::vector<std::string>& keys,
+                                       const std::vector<int32_t>& cand_ids,
+                                       const float* logits,
+                                       int32_t token_count,
+                                       int64_t tokenize_us_val,
+                                       int64_t eval_us_val);
 };
 } // namespace pjev
 #endif // INC_PJEV_DECISION_ENGINE_H_

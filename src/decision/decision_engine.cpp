@@ -1,9 +1,17 @@
 #include "decision_engine.h"
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <set>
 #include <stdexcept>
+
+namespace {
+static int64_t now_us() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+} // anonymous namespace
 
 namespace pjev
 {
@@ -78,6 +86,83 @@ int32_t DecisionEngine::argmax(const std::vector<double>& v) {
     return (int32_t)(std::max_element(v.begin(), v.end()) - v.begin());
 }
 
+std::vector<int32_t> DecisionEngine::make_prompt_tokens(
+    const DecisionInput& input, const std::vector<Candidate>& candidates)
+{
+    auto segments = strategy_.build_prompt_segments(
+        input.type, input.state, input.question, candidates);
+
+    std::vector<int32_t> prompt_tokens;
+    bool first = true;
+    for (const auto& seg : segments) {
+        auto toks = backend_.tokenize(seg.text, first && seg.trusted, seg.trusted);
+        first = false;
+        prompt_tokens.insert(prompt_tokens.end(), toks.begin(), toks.end());
+    }
+    return prompt_tokens;
+}
+
+DecisionOutput DecisionEngine::finish_from_logits(
+    const DecisionInput& input,
+    const std::vector<std::string>& keys,
+    const std::vector<int32_t>& cand_ids,
+    const float* logits,
+    int32_t token_count,
+    int64_t tokenize_us_val,
+    int64_t eval_us_val)
+{
+    DecisionOutput out;
+    out.keys               = keys;
+    out.prompt_token_count = token_count;
+    out.tokenize_us        = tokenize_us_val;
+    out.eval_us            = eval_us_val;
+
+    auto td0 = now_us();
+
+    std::vector<float> cand_logits;
+    for (int32_t id : cand_ids) cand_logits.push_back(logits[id]);
+
+    if (input.prior_correction && input.prior_logits.size() == cand_ids.size()) {
+        for (size_t i = 0; i < cand_logits.size(); i++) {
+            cand_logits[i] -= input.prior_logits[i];
+        }
+    }
+
+    if (input.collect_corrected_logits) {
+        out.corrected_logits = cand_logits;
+    }
+
+    {
+        std::string err = restricted_softmax(cand_logits, out.raw_probs);
+        if (!err.empty()) {
+            out.error = err;
+            out.decision_us = now_us() - td0;
+            return out;
+        }
+    }
+
+    double T = calib_cfg_.temperature_for(input.type);
+    std::vector<double> probs;
+    if (T != 1.0) {
+        std::string err = temperature_softmax(cand_logits, T, probs);
+        if (!err.empty()) {
+            out.error = err;
+            out.decision_us = now_us() - td0;
+            return out;
+        }
+    } else {
+        probs = out.raw_probs;
+    }
+
+    out.probs    = probs;
+    out.selected = argmax(probs);
+    if (input.type == "score") out.expected_score = expected_level(probs);
+    if (input.type == "noul")  out.p_true = probs[1];
+    out.ok = true;
+    out.decision_us = now_us() - td0;
+    return out;
+}
+
 DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
     DecisionOutput out;
     out.keys.reserve(input.options.size());
@@ -97,7 +182,6 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
         return out;
     }
 
-    // Build candidates with descriptions
     std::vector<Candidate> candidates;
     candidates.reserve(input.options.size());
     for (const auto& kv : input.options) {
@@ -109,7 +193,6 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
     }
     strategy_.assign_labels(input.type, candidates);
 
-    // Resolve candidate tokens
     std::set<int32_t> id_set;
     std::vector<int32_t> cand_ids;
     for (const auto& c : candidates) {
@@ -125,75 +208,129 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input) {
         cand_ids.push_back(it->second);
     }
 
-    // Build prompt token sequence with proper parse_special flags for special-token safety
-    auto segments = strategy_.build_prompt_segments(
-        input.type, input.state, input.question, candidates);
-
-    std::vector<int32_t> prompt_tokens;
-    bool first = true;
-    for (const auto& seg : segments) {
-        // add_special=true only for the first segment so BOS is added if the model expects it.
-        // parse_special=seg.trusted so special-token strings in user content are never parsed.
-        auto toks = backend_.tokenize(seg.text, first && seg.trusted, seg.trusted);
-        first = false;
-        prompt_tokens.insert(prompt_tokens.end(), toks.begin(), toks.end());
-    }
-
+    auto t0 = now_us();
+    auto prompt_tokens = make_prompt_tokens(input, candidates);
+    auto t1 = now_us();
     out.prompt_token_count = (int32_t)prompt_tokens.size();
+    out.tokenize_us = t1 - t0;
 
-    // Evaluate prompt
     const float* logits = nullptr;
     try {
+        auto t2 = now_us();
         logits = backend_.eval_tokens(prompt_tokens);
+        auto t3 = now_us();
+        out.eval_us = t3 - t2;
     } catch (const std::exception& e) {
         out.error = e.what();
         return out;
     }
 
-    // Extract candidate logits
-    std::vector<float> cand_logits;
-    for (int32_t id : cand_ids) cand_logits.push_back(logits[id]);
+    return finish_from_logits(input, out.keys, cand_ids, logits,
+                               out.prompt_token_count, out.tokenize_us, out.eval_us);
+}
 
-    // Apply prior correction if requested
-    if (input.prior_correction && input.prior_logits.size() == cand_ids.size()) {
-        for (size_t i = 0; i < cand_logits.size(); i++) {
-            cand_logits[i] -= input.prior_logits[i];
+std::vector<DecisionOutput> DecisionEngine::decide_batch(
+    const std::vector<DecisionInput>& inputs, const BatchConfig& cfg)
+{
+    if (inputs.empty()) return {};
+    if (inputs.size() == 1 || !cfg.use_kv_reuse) {
+        std::vector<DecisionOutput> r;
+        r.reserve(inputs.size());
+        for (const auto& inp : inputs) r.push_back(decide(inp));
+        return r;
+    }
+
+    const std::string& shared_state = inputs[0].state;
+    bool can_reuse = true;
+    for (const auto& inp : inputs) {
+        if (inp.state != shared_state) { can_reuse = false; break; }
+        if (!strategy_.build_prefix_info(inp.type, inp.state).valid) { can_reuse = false; break; }
+    }
+
+    if (!can_reuse) {
+        std::vector<DecisionOutput> r;
+        r.reserve(inputs.size());
+        for (const auto& inp : inputs) r.push_back(decide(inp));
+        return r;
+    }
+
+    auto pinfo = strategy_.build_prefix_info(inputs[0].type, shared_state);
+    auto seg0_toks    = backend_.tokenize(pinfo.seg0_text, true, true);
+    auto partial_toks = backend_.tokenize(pinfo.partial_content, false, false);
+    int32_t prefix_len = (int32_t)(seg0_toks.size() + partial_toks.size());
+
+    std::vector<DecisionOutput> results;
+    results.reserve(inputs.size());
+
+    for (size_t i = 0; i < inputs.size(); i++) {
+        const auto& input = inputs[i];
+        DecisionOutput out;
+        out.keys.reserve(input.options.size());
+        for (const auto& kv : input.options) out.keys.push_back(kv.first);
+
+        if (input.type != "noul" && input.type != "choice" && input.type != "score") {
+            out.error = "unknown decision type: " + input.type;
+            results.push_back(out); continue;
         }
-    }
-
-    // Store corrected logits before temperature if requested
-    if (input.collect_corrected_logits) {
-        out.corrected_logits = cand_logits;
-    }
-
-    // Compute raw probabilities (T=1) for before/after comparison
-    {
-        std::string err = restricted_softmax(cand_logits, out.raw_probs);
-        if (!err.empty()) {
-            out.error = err;
-            return out;
+        if (input.options.size() < 2) {
+            out.error = "need at least 2 candidates";
+            results.push_back(out); continue;
         }
-    }
-
-    // Apply temperature scaling if calibration is enabled
-    double T = calib_cfg_.temperature_for(input.type);
-    std::vector<double> probs;
-    if (T != 1.0) {
-        std::string err = temperature_softmax(cand_logits, T, probs);
-        if (!err.empty()) {
-            out.error = err;
-            return out;
+        if ((int32_t)input.options.size() > PromptStrategy::MAX_CANDIDATES) {
+            out.error = "too many candidates (max " + std::to_string(PromptStrategy::MAX_CANDIDATES) + ")";
+            results.push_back(out); continue;
         }
-    } else {
-        probs = out.raw_probs;
-    }
 
-    out.probs    = probs;
-    out.selected = argmax(probs);
-    if (input.type == "score") out.expected_score = expected_level(probs);
-    if (input.type == "noul")  out.p_true = probs[1];  // index 1 = "true"
-    out.ok = true;
-    return out;
+        std::vector<Candidate> candidates;
+        candidates.reserve(input.options.size());
+        for (const auto& kv : input.options) {
+            Candidate c; c.key = kv.first; c.description = kv.second; c.internal = "";
+            candidates.push_back(c);
+        }
+        strategy_.assign_labels(input.type, candidates);
+
+        std::set<int32_t> id_set;
+        std::vector<int32_t> cand_ids;
+        bool cand_ok = true;
+        for (const auto& c : candidates) {
+            auto it = cand_token_map_.find(c.internal);
+            if (it == cand_token_map_.end()) {
+                out.error = "candidate " + c.internal + " is not a verified single token";
+                cand_ok = false; break;
+            }
+            if (!id_set.insert(it->second).second) {
+                out.error = "duplicate candidate token id for " + c.internal;
+                cand_ok = false; break;
+            }
+            cand_ids.push_back(it->second);
+        }
+        if (!cand_ok) { results.push_back(out); continue; }
+
+        auto t0 = now_us();
+        auto full_tokens = make_prompt_tokens(input, candidates);
+        auto t1 = now_us();
+        out.tokenize_us = t1 - t0;
+        out.prompt_token_count = (int32_t)full_tokens.size();
+
+        const float* logits = nullptr;
+        try {
+            auto t2 = now_us();
+            if (i == 0) {
+                logits = backend_.eval_tokens(full_tokens);
+            } else {
+                logits = backend_.eval_tokens_reuse_prefix(full_tokens, prefix_len);
+            }
+            auto t3 = now_us();
+            out.eval_us = t3 - t2;
+        } catch (const std::exception& e) {
+            out.error = e.what();
+            results.push_back(out); continue;
+        }
+
+        results.push_back(finish_from_logits(input, out.keys, cand_ids, logits,
+                                              out.prompt_token_count, out.tokenize_us, out.eval_us));
+    }
+    return results;
 }
 
 std::vector<float> DecisionEngine::compute_blank_logits(const std::string& type, int n_options) {

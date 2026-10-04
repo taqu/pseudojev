@@ -35,7 +35,7 @@ LlamaBackend::LlamaBackend(const LlamaConfig& cfg) : impl_(new Impl) {
     cp.n_ctx           = (uint32_t)cfg.n_ctx;
     cp.n_batch         = (uint32_t)cfg.n_batch;
     cp.n_threads       = cfg.n_threads;
-    cp.n_threads_batch = cfg.n_threads;
+    cp.n_threads_batch = (cfg.n_threads_batch < 0) ? cfg.n_threads : cfg.n_threads_batch;
     cp.no_perf         = true;
     impl_->ctx = llama_init_from_model(impl_->model, cp);
     if (!impl_->ctx) {
@@ -80,6 +80,30 @@ std::string LlamaBackend::token_to_piece(int32_t token_id) const {
     return n > 0 ? std::string(buf, n) : "";
 }
 
+std::string LlamaBackend::model_meta_val(const std::string& key) const {
+    if (!impl_ || !impl_->model) return "";
+    char buf[512];
+    int32_t n = llama_model_meta_val_str(impl_->model, key.c_str(), buf, sizeof(buf));
+    if (n > 0) return std::string(buf, (size_t)n);
+    return "";
+}
+
+std::string LlamaBackend::model_desc() const {
+    if (!impl_ || !impl_->model) return "";
+    char buf[256];
+    int32_t n = llama_model_desc(impl_->model, buf, sizeof(buf));
+    if (n > 0) return std::string(buf);
+    return "";
+}
+
+int64_t LlamaBackend::model_n_params() const {
+    if (!impl_ || !impl_->model) return 0;
+    char buf[64];
+    int32_t n = llama_model_meta_val_str(impl_->model, "general.parameter_count", buf, sizeof(buf));
+    if (n > 0) return (int64_t)std::atoll(buf);
+    return 0;
+}
+
 const float* LlamaBackend::eval_tokens(const std::vector<int32_t>& tokens) {
     if (tokens.empty()) throw std::runtime_error("empty token sequence");
     if ((int32_t)tokens.size() >= llama_n_ctx(impl_->ctx)) {
@@ -98,6 +122,36 @@ const float* LlamaBackend::eval_tokens(const std::vector<int32_t>& tokens) {
     int32_t rc = llama_decode(impl_->ctx, batch);
     llama_batch_free(batch);
     if (rc != 0) throw std::runtime_error("llama_decode failed: " + std::to_string(rc));
+    return llama_get_logits_ith(impl_->ctx, -1);
+}
+
+const float* LlamaBackend::eval_tokens_reuse_prefix(
+    const std::vector<int32_t>& tokens, int32_t prefix_len)
+{
+    if (tokens.empty()) throw std::runtime_error("empty token sequence");
+    if ((int32_t)tokens.size() >= llama_n_ctx(impl_->ctx)) {
+        throw std::runtime_error("prompt too long (" + std::to_string(tokens.size()) + " tokens)");
+    }
+    if (prefix_len <= 0 || prefix_len >= (int32_t)tokens.size()) {
+        return eval_tokens(tokens);
+    }
+    llama_memory_t mem = llama_get_memory(impl_->ctx);
+    if (!llama_memory_seq_rm(mem, 0, (llama_pos)prefix_len, -1)) {
+        return eval_tokens(tokens);
+    }
+    int32_t suffix_len = (int32_t)tokens.size() - prefix_len;
+    llama_batch batch = llama_batch_init(suffix_len, 0, 1);
+    for (int32_t i = 0; i < suffix_len; i++) {
+        batch.token[i]     = static_cast<llama_token>(tokens[prefix_len + i]);
+        batch.pos[i]       = (llama_pos)(prefix_len + i);
+        batch.n_seq_id[i]  = 1;
+        batch.seq_id[i][0] = 0;
+        batch.logits[i]    = (i + 1 == suffix_len) ? 1 : 0;
+    }
+    batch.n_tokens = suffix_len;
+    int32_t rc = llama_decode(impl_->ctx, batch);
+    llama_batch_free(batch);
+    if (rc != 0) throw std::runtime_error("llama_decode failed (suffix): " + std::to_string(rc));
     return llama_get_logits_ith(impl_->ctx, -1);
 }
 }

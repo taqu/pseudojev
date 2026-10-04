@@ -76,6 +76,19 @@ std::string PromptStrategy::build_user_content(
     return p;
 }
 
+PromptStrategy::PrefixInfo PromptStrategy::build_prefix_info(
+    const std::string& type, const std::string& state) const
+{
+    PrefixInfo info;
+    if (use_state_last(type) || cfg_.layout == Layout::QUESTION_FIRST) {
+        return info;
+    }
+    info.seg0_text      = "<|im_start|>user\n";
+    info.partial_content = "You are performing a classification task.\n\nState:\n" + state + "\n\n";
+    info.valid = true;
+    return info;
+}
+
 std::vector<PromptSegment> PromptStrategy::build_prompt_segments(
     const std::string& type,
     const std::string& state,

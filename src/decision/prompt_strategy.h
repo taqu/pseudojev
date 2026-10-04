@@ -55,6 +55,17 @@ public:
         const std::string& question,
         const std::vector<Candidate>& candidates) const;
 
+    // Info for shared-prefix KV reuse across same-state questions.
+    struct PrefixInfo {
+        bool        valid = false;
+        std::string seg0_text;       // tokenize with add_special=true, parse_special=true
+        std::string partial_content; // tokenize with add_special=false, parse_special=false
+    };
+    // Returns a PrefixInfo for this (type, state) pair.
+    // valid=true only when layout puts state before per-question content (STATE_FIRST for noul/choice).
+    PrefixInfo build_prefix_info(const std::string& type,
+                                  const std::string& state) const;
+
 private:
     PromptConfig cfg_;
 

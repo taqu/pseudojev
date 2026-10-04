@@ -6,3 +6,4 @@ CompileFlags:
     - -ID:/Projects/Go/pseudojev/llama.cpp/ggml/include
     - -ID:/Projects/Go/pseudojev/llama.cpp/vendor
     - -ID:/Projects/Go/pseudojev/llama.cpp/vendor/cpp-httplib
+    - -ID:/Projects/Go/pseudojev/spdlog/include
