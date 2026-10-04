@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "features/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux (x86_64)
+            cmake_flags: ""
+          - os: macos-latest
+            name: macOS (arm64)
+            cmake_flags: ""
+          - os: windows-latest
+            name: Windows (x86_64)
+            cmake_flags: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            ${{ matrix.cmake_flags }}
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build ${{ matrix.cmake_flags }}
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        run: cmake --build build --config Release --parallel
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build build --config Release
+
+      - name: Run unit tests
+        run: ctest --test-dir build -C Release --output-on-failure --timeout 60
+
+      - name: Smoke test binary
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            EXE="bin/pjev.exe"
+          else
+            EXE="bin/pjev"
+          fi
+          "$EXE" --version
+          "$EXE" diagnostics 2>/dev/null || true
+          "$EXE" --help 2>/dev/null || true

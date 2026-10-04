@@ -43,6 +43,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <thread>
 #include <string>
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_sinks.h"
@@ -187,12 +188,14 @@ static void usage_benchmark(const char* prog) {
 
 static void usage_diagnostics(const char* prog) {
     fprintf(stderr,
-        "usage: %s diagnostics --model PATH [options]\n"
-        "  --model PATH       path to .gguf model file (required)\n"
+        "usage: %s diagnostics [options]\n"
+        "  --model PATH       path to .gguf model file (optional; uses default if omitted)\n"
         "  --threads N        CPU threads (default: 8)\n"
         "  --ctx-size N       context size (default: 4096)\n"
-        "  --no-kv-reuse      disable KV prefix reuse\n"
-        "  --no-batch-questions disable question batching\n",
+        "  --json             output JSON to stdout\n"
+        "\n"
+        "Shows pjev version, build, platform, CPU, model path, worker status, and config.\n"
+        "Use 'pjev diagnostics --json' for machine-readable output (useful for bug reports).\n",
         prog);
 }
 
@@ -265,23 +268,34 @@ static void usage_score(const char* prog) {
 
 static void usage(const char* prog) {
     fprintf(stderr,
+        "pjev — local Jev-compatible decision engine powered by llama.cpp\n"
+        "\n"
         "usage: %s <command> [options]\n"
-        "commands:\n"
-        "  noul         evaluate a true/false question (uses background worker by default)\n"
-        "  choice       evaluate a multiple-choice question (uses background worker by default)\n"
-        "  score        evaluate a score question (uses background worker by default)\n"
-        "  status       show background worker status\n"
-        "  stop         stop background worker\n"
-        "  server|serve start the HTTP server\n"
-        "  run          batch evaluation with a single config\n"
-        "  experiment   run a named experiment\n"
-        "  calibration  fit or evaluate calibration temperatures\n"
-        "  model        model value gate: inspect and evaluate models\n"
-        "  benchmark    latency benchmarking\n"
-        "  diagnostics  print configuration without loading model\n"
+        "\n"
+        "decision commands (background worker reused automatically; use --direct for in-process):\n"
+        "  noul         true/false question  -> 'true' | 'false'\n"
+        "  choice       multiple-choice      -> selected key\n"
+        "  score        quality score        -> expected score value\n"
+        "\n"
+        "worker commands:\n"
+        "  status       show background worker state\n"
+        "  stop         stop the background worker and release model memory\n"
+        "\n"
+        "server:\n"
+        "  serve        start the Jev-compatible HTTP server\n"
+        "\n"
+        "utilities:\n"
+        "  diagnostics  runtime info, model path, CPU, worker state  (--json for reports)\n"
+        "  benchmark    measure decision latency\n"
         "  --version    print version and exit\n"
-        "run '%s <command> --help' for command-specific options\n",
-        prog, prog);
+        "\n"
+        "run '%s <command> --help' for command-specific options\n"
+        "\n"
+        "examples:\n"
+        "  %s noul --state \"The sky is blue.\" --question \"Is it daytime?\"\n"
+        "  %s choice --question \"Pick one\" --option A:\"First\" --option B:\"Second\"\n"
+        "  %s diagnostics --json\n",
+        prog, prog, prog, prog, prog);
 }
 
 // ---------------------------------------------------------------------------
@@ -1557,7 +1571,8 @@ static int cmd_benchmark(int argc, char** argv) {
 
 static int cmd_diagnostics(int argc, char** argv) {
     LlamaConfig  llama_cfg;
-    ServerConfig srv_cfg;
+    bool json_out = false;
+    bool model_explicitly_set = false;
 
     for (int i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -1565,11 +1580,10 @@ static int cmd_diagnostics(int argc, char** argv) {
             if (i + 1 >= argc) { usage_diagnostics("pjev"); exit(2); }
             return argv[++i];
         };
-        if      (a == "--model")           llama_cfg.model_path = next();
-        else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--no-kv-reuse")     srv_cfg.kv_reuse = false;
-        else if (a == "--no-batch-questions") srv_cfg.batch_questions = false;
+        if      (a == "--model")   { llama_cfg.model_path = next(); model_explicitly_set = true; }
+        else if (a == "--threads")  llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size") llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--json")     json_out = true;
         else if (a == "-h" || a == "--help") { usage_diagnostics("pjev"); return 0; }
         else {
             fprintf(stderr, "unknown option: %s\n", a.c_str());
@@ -1578,17 +1592,73 @@ static int cmd_diagnostics(int argc, char** argv) {
         }
     }
 
-    nlohmann::json cfg = {
-        {"model",           llama_cfg.model_path},
-        {"n_threads",       llama_cfg.n_threads},
-        {"n_threads_batch", llama_cfg.n_threads_batch},
-        {"n_ctx",           llama_cfg.n_ctx},
-        {"n_batch",         llama_cfg.n_batch},
-        {"kv_reuse",        srv_cfg.kv_reuse},
-        {"batch_questions", srv_cfg.batch_questions},
-        {"max_queued",      srv_cfg.max_queued_requests}
-    };
-    printf("%s\n", cfg.dump(2).c_str());
+    // Resolve model path
+    if (!model_explicitly_set) {
+        std::string exe_dir = get_executable_dir();
+        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
+        if (!resolved.empty()) llama_cfg.model_path = resolved;
+        else llama_cfg.model_path = "models/bonsai.gguf";
+    }
+
+    // CPU detection
+    unsigned hw_concurrency = std::thread::hardware_concurrency();
+
+    // Worker status
+    bool worker_running = false;
+    WorkerInfo worker_info;
+    {
+        ClientConfig cli_cfg;
+        WorkerClient worker_client(cli_cfg);
+        worker_running = worker_client.get_status(worker_info);
+    }
+
+    // Check model file accessibility
+    bool model_accessible = false;
+    {
+        std::ifstream mf(llama_cfg.model_path);
+        model_accessible = mf.good();
+    }
+
+    if (json_out) {
+        nlohmann::json d;
+        d["pjev_version"]    = PJEV_VERSION;
+        d["git_commit"]      = PJEV_GIT_COMMIT;
+        d["llama_revision"]  = PJEV_LLAMA_REVISION;
+        d["platform"]        = PJEV_PLATFORM;
+        d["arch"]            = PJEV_ARCH;
+        d["cpu"]["logical_cores"] = (int)hw_concurrency;
+        d["model"]["path"]        = llama_cfg.model_path;
+        d["model"]["accessible"]  = model_accessible;
+        d["runtime"]["n_threads"] = llama_cfg.n_threads;
+        d["runtime"]["n_ctx"]     = llama_cfg.n_ctx;
+        d["worker"]["running"]    = worker_running;
+        if (worker_running) {
+            d["worker"]["pid"]            = (int)worker_info.pid;
+            d["worker"]["pjev_version"]   = worker_info.pjev_version;
+            d["worker"]["model_identity"] = worker_info.model_identity;
+        }
+        printf("%s\n", d.dump(2).c_str());
+    } else {
+        printf("pjev version:    %s (commit: %s)\n", PJEV_VERSION, PJEV_GIT_COMMIT);
+        printf("llama.cpp:       %s\n", PJEV_LLAMA_REVISION);
+        printf("platform:        %s-%s\n", PJEV_PLATFORM, PJEV_ARCH);
+        printf("cpu logical cores: %u\n", hw_concurrency);
+        printf("model path:      %s (%s)\n",
+               llama_cfg.model_path.c_str(),
+               model_accessible ? "found" : "NOT FOUND");
+        printf("threads:         %d\n", llama_cfg.n_threads);
+        printf("context size:    %d\n", llama_cfg.n_ctx);
+        if (worker_running) {
+            printf("worker:          running (pid %d, model: %s)\n",
+                   (int)worker_info.pid, worker_info.model_identity.c_str());
+        } else {
+            printf("worker:          not running\n");
+        }
+        if (!model_accessible) {
+            printf("\naction: model not found at '%s'\n", llama_cfg.model_path.c_str());
+            printf("        use --model PATH or place model.gguf next to the executable\n");
+        }
+    }
     return 0;
 }
 

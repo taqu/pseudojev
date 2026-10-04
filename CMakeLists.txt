@@ -134,6 +134,22 @@ if (NOT PJEV_LLAMA_REV_VAL)
 endif()
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" PJEV_VERSION_RAW)
 string(STRIP "${PJEV_VERSION_RAW}" PJEV_VERSION)
+
+# Platform/arch detection (must be before target_compile_definitions)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(PJEV_PLATFORM "windows")
+    set(PJEV_ARCH "x86_64")
+    set(CPACK_GENERATOR "ZIP")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(PJEV_PLATFORM "macos")
+    execute_process(COMMAND uname -m OUTPUT_VARIABLE PJEV_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(CPACK_GENERATOR "TGZ")
+else()
+    set(PJEV_PLATFORM "linux")
+    execute_process(COMMAND uname -m OUTPUT_VARIABLE PJEV_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(CPACK_GENERATOR "TGZ")
+endif()
+
 target_compile_definitions(pjev PRIVATE
     PJEV_VERSION="${PJEV_VERSION}"
     PJEV_GIT_COMMIT="${PJEV_GIT_COMMIT_VAL}"
@@ -152,19 +168,6 @@ set_target_properties(pjev PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CUR
 install(TARGETS pjev RUNTIME DESTINATION .)
 
 # CPack — release archive generation
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(PJEV_PLATFORM "windows")
-    set(PJEV_ARCH "x86_64")
-    set(CPACK_GENERATOR "ZIP")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    set(PJEV_PLATFORM "macos")
-    execute_process(COMMAND uname -m OUTPUT_VARIABLE PJEV_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set(CPACK_GENERATOR "TGZ")
-else()
-    set(PJEV_PLATFORM "linux")
-    execute_process(COMMAND uname -m OUTPUT_VARIABLE PJEV_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set(CPACK_GENERATOR "TGZ")
-endif()
 set(CPACK_PACKAGE_NAME "pjev")
 set(CPACK_PACKAGE_VERSION "${PJEV_VERSION}")
 set(CPACK_PACKAGE_FILE_NAME "pjev-${PJEV_VERSION}-${PJEV_PLATFORM}-${PJEV_ARCH}")

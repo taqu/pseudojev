@@ -1,0 +1,222 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux x86_64
+            platform: linux
+            arch: x86_64
+          - os: macos-latest
+            name: macOS arm64
+            platform: macos
+            arch: arm64
+          - os: windows-latest
+            name: Windows x86_64
+            platform: windows
+            arch: x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Extract version from tag
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Verify VERSION file matches tag
+        shell: bash
+        run: |
+          FILE_VER=$(cat VERSION | tr -d '[:space:]')
+          if [ "$FILE_VER" != "$VERSION" ]; then
+            echo "ERROR: VERSION file ($FILE_VER) does not match tag ($VERSION)"
+            exit 1
+          fi
+          echo "Version check passed: $VERSION"
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -S . -B build
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        run: cmake --build build --config Release --parallel
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build build --config Release
+
+      - name: Run unit tests
+        run: ctest --test-dir build -C Release --output-on-failure --timeout 60
+
+      - name: Verify binary version matches tag
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            EXE="bin/pjev.exe"
+          else
+            EXE="bin/pjev"
+          fi
+          BIN_VER=$("$EXE" --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ "$BIN_VER" != "$VERSION" ]; then
+            echo "ERROR: binary version ($BIN_VER) does not match tag ($VERSION)"
+            exit 1
+          fi
+          echo "Binary version check passed: $BIN_VER"
+
+      - name: Package
+        shell: bash
+        run: |
+          cd build
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cpack -C Release -G ZIP
+          else
+            cpack -C Release -G TGZ
+          fi
+
+      - name: Smoke test packaged binary
+        shell: bash
+        run: |
+          cd build
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ARCHIVE=$(ls pjev-*.zip | head -1)
+            mkdir smoke_test
+            cd smoke_test
+            unzip "../$ARCHIVE"
+            ./pjev.exe --version
+            ./pjev.exe diagnostics 2>/dev/null || true
+          else
+            ARCHIVE=$(ls pjev-*.tar.gz | head -1)
+            mkdir smoke_test
+            cd smoke_test
+            tar -xzf "../$ARCHIVE"
+            ./pjev --version
+            ./pjev diagnostics 2>/dev/null || true
+          fi
+
+      - name: Generate checksums (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd build
+          for f in pjev-*.tar.gz; do
+            sha256sum "$f" > "$f.sha256"
+          done
+
+      - name: Generate checksums (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-Location build
+          Get-ChildItem "pjev-*.zip" | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Out-File -Encoding utf8 "$($_.Name).sha256"
+          }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pjev-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            build/pjev-*.*
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Collect release files
+        run: |
+          mkdir release_files
+          find artifacts/ -name "pjev-*" -type f | xargs -I{} cp {} release_files/
+          ls -lh release_files/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: pjev ${{ env.VERSION }}
+          draft: false
+          prerelease: ${{ contains(env.TAG, '-rc') || contains(env.TAG, '-beta') || contains(env.TAG, '-alpha') }}
+          body: |
+            ## pjev ${{ env.VERSION }}
+
+            Local Jev-compatible decision engine powered by llama.cpp.
+
+            ### Downloads
+
+            | Platform | Archive |
+            |----------|---------|
+            | Linux x86_64 | `pjev-${{ env.VERSION }}-linux-x86_64.tar.gz` |
+            | macOS arm64  | `pjev-${{ env.VERSION }}-macos-arm64.tar.gz` |
+            | Windows x86_64 | `pjev-${{ env.VERSION }}-windows-x86_64.zip` |
+
+            ### Model
+
+            A compatible GGUF model is required. Place `model.gguf` next to the `pjev` executable,
+            or specify `--model /path/to/model.gguf`.
+
+            See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md#model-setup)
+            for model setup instructions.
+
+            ### Quick start
+
+            ```bash
+            ./pjev --version
+            ./pjev noul --state "The sky is blue." --question "Is it daytime?"
+            ./pjev serve
+            ```
+
+            ### Checksums
+
+            SHA-256 checksums are attached (`.sha256` files).
+
+            ### License
+
+            pjev is MIT licensed. See LICENSE.
+            llama.cpp is MIT licensed. See llama.cpp/LICENSE.
+          files: release_files/*
