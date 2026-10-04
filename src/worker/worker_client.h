@@ -12,7 +12,7 @@ struct ClientConfig {
     std::string calibration_path;
     int threads = 8;
     int ctx_size = 4096;
-    int idle_timeout_secs = 300;     // worker idle timeout
+    int idle_timeout_secs = 600;     // worker idle timeout
     int startup_timeout_ms = 30000;  // 30s for worker to start
     int request_timeout_ms = 120000; // 2 min for inference
 };

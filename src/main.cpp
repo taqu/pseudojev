@@ -352,14 +352,14 @@ static BOOL WINAPI pjev_ctrl_handler(DWORD event) {
 }
 #else
 #include <csignal>
-static void pjev_sig_handler(int) {
+static void pjev_sig_handler(int32_t) {
     if (g_server_ptr) g_server_ptr->stop();
 }
 #endif
 
 enum class ServerState { INITIALIZING, READY, SHUTTING_DOWN };
 
-static int cmd_server(int argc, char** argv) {
+static int32_t cmd_server(int32_t argc, char** argv) {
     LlamaConfig  llama_cfg;
     PromptConfig prompt_cfg;
     llama_cfg.model_path = "models/bonsai.gguf";
@@ -368,7 +368,7 @@ static int cmd_server(int argc, char** argv) {
     std::string  calibration_path;
     bool         model_explicitly_set = false;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_server(argv[-1]); exit(2); }
@@ -512,7 +512,7 @@ static int cmd_server(int argc, char** argv) {
     // Log startup info (only after model is ready)
     spdlog::info("pjev {} (commit: {}, llama.cpp: {})", PJEV_VERSION, PJEV_GIT_COMMIT, PJEV_LLAMA_REVISION);
     spdlog::info("model: {}", model_id_for_health);
-    spdlog::info("bind: {}:{}", srv_cfg.host, (int)srv_cfg.port);
+    spdlog::info("bind: {}:{}", srv_cfg.host, (int32_t)srv_cfg.port);
     spdlog::info("request_body_limit: {} bytes", srv_cfg.request_body_limit);
     spdlog::info("read_timeout: {}s", srv_cfg.read_timeout_secs);
     spdlog::info("inference: serialized (single mutex, not safe for concurrent llama_context use)");
@@ -558,7 +558,7 @@ static bool load_calibration_artifact(const std::string& path,
     return CalibrationArtifact::from_json(cj, art, err);
 }
 
-static int cmd_run(int argc, char** argv) {
+static int32_t cmd_run(int32_t argc, char** argv) {
     LlamaConfig    llama_cfg;
     llama_cfg.model_path = "models/bonsai.gguf";
     ExperimentConfig exp_cfg;
@@ -567,7 +567,7 @@ static int cmd_run(int argc, char** argv) {
     std::string output_path;
     std::string calibration_path;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_run("pjev"); exit(2); }
@@ -661,7 +661,7 @@ static int cmd_run(int argc, char** argv) {
 // experiment subcommand
 // ---------------------------------------------------------------------------
 
-static int cmd_experiment(int argc, char** argv) {
+static int32_t cmd_experiment(int32_t argc, char** argv) {
     if (argc < 1) {
         usage_experiment("pjev");
         return 2;
@@ -678,7 +678,7 @@ static int cmd_experiment(int argc, char** argv) {
     std::string output_dir;
     std::string calibration_path;
 
-    for (int i = 1; i < argc; i++) {
+    for (int32_t i = 1; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_experiment("pjev"); exit(2); }
@@ -883,7 +883,7 @@ collect_samples(const std::vector<ItemResult>& items, const std::string& type)
 // calibration subcommand
 // ---------------------------------------------------------------------------
 
-static int cmd_calibration(int argc, char** argv) {
+static int32_t cmd_calibration(int32_t argc, char** argv) {
     if (argc < 1 || std::string(argv[0]) == "-h" || std::string(argv[0]) == "--help") {
         usage_calibration("pjev");
         return (argc < 1) ? 2 : 0;
@@ -899,7 +899,7 @@ static int cmd_calibration(int argc, char** argv) {
     std::string calibration_path;
     std::string model_id;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_calibration("pjev"); exit(2); }
@@ -1058,11 +1058,11 @@ static const std::vector<std::string> g_default_candidates = {
     "Yes", "No", "A", "B", "C", "D", "E", "1", "2", "3", "4", "5"
 };
 
-static int cmd_model_inspect(int argc, char** argv) {
+static int32_t cmd_model_inspect(int32_t argc, char** argv) {
     LlamaConfig llama_cfg;
     std::string output_path;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_model("pjev"); exit(2); }
@@ -1172,7 +1172,7 @@ static int cmd_model_inspect(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_model_evaluate(int argc, char** argv) {
+static int32_t cmd_model_evaluate(int32_t argc, char** argv) {
     LlamaConfig      llama_cfg;
     ExperimentConfig exp_cfg;
     exp_cfg.collect_corrected_logits = true;
@@ -1182,7 +1182,7 @@ static int cmd_model_evaluate(int argc, char** argv) {
     bool        fit_calibration = false;
     std::string output_path;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_model("pjev"); exit(2); }
@@ -1394,7 +1394,7 @@ static int cmd_model_evaluate(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_model(int argc, char** argv) {
+static int32_t cmd_model(int32_t argc, char** argv) {
     if (argc < 1 || std::string(argv[0]) == "-h" || std::string(argv[0]) == "--help") {
         usage_model("pjev");
         return (argc < 1) ? 2 : 0;
@@ -1414,16 +1414,16 @@ static int cmd_model(int argc, char** argv) {
 // benchmark subcommand
 // ---------------------------------------------------------------------------
 
-static int cmd_benchmark_latency(int argc, char** argv) {
+static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
     LlamaConfig  llama_cfg;
     ServerConfig srv_cfg;
-    int iterations   = 20;
-    int warmup       = 3;
-    int n_questions  = 1;
+    int32_t iterations   = 20;
+    int32_t warmup       = 3;
+    int32_t n_questions  = 1;
     std::string state_text = "This is a test state for benchmarking.";
     std::string output_path;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_benchmark("pjev"); exit(2); }
@@ -1474,7 +1474,7 @@ static int cmd_benchmark_latency(int argc, char** argv) {
     // Build a batch of n_questions noul inputs with the same state
     auto make_inputs = [&]() {
         std::vector<DecisionInput> inputs;
-        for (int q = 0; q < n_questions; q++) {
+        for (int32_t q = 0; q < n_questions; q++) {
             DecisionInput inp;
             inp.type     = "noul";
             inp.state    = state_text;
@@ -1489,7 +1489,7 @@ static int cmd_benchmark_latency(int argc, char** argv) {
     bcfg.use_kv_reuse = srv_cfg.kv_reuse;
 
     // Warmup
-    for (int i = 0; i < warmup; i++) {
+    for (int32_t i = 0; i < warmup; i++) {
         auto inputs = make_inputs();
         if (srv_cfg.batch_questions && n_questions > 1)
             engine->decide_batch(inputs, bcfg);
@@ -1500,7 +1500,7 @@ static int cmd_benchmark_latency(int argc, char** argv) {
     // Measure
     std::vector<int64_t> latencies_us;
     latencies_us.reserve(iterations);
-    for (int i = 0; i < iterations; i++) {
+    for (int32_t i = 0; i < iterations; i++) {
         auto inputs = make_inputs();
         auto t0 = std::chrono::steady_clock::now();
         if (srv_cfg.batch_questions && n_questions > 1)
@@ -1556,7 +1556,7 @@ static int cmd_benchmark_latency(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_benchmark(int argc, char** argv) {
+static int32_t cmd_benchmark(int32_t argc, char** argv) {
     if (argc < 1 || std::string(argv[0]) == "-h" || std::string(argv[0]) == "--help") {
         usage_benchmark("pjev");
         return (argc < 1) ? 2 : 0;
@@ -1572,12 +1572,12 @@ static int cmd_benchmark(int argc, char** argv) {
 // diagnostics subcommand
 // ---------------------------------------------------------------------------
 
-static int cmd_diagnostics(int argc, char** argv) {
+static int32_t cmd_diagnostics(int32_t argc, char** argv) {
     LlamaConfig  llama_cfg;
     bool json_out = false;
     bool model_explicitly_set = false;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_diagnostics("pjev"); exit(2); }
@@ -1629,14 +1629,14 @@ static int cmd_diagnostics(int argc, char** argv) {
         d["llama_revision"]  = PJEV_LLAMA_REVISION;
         d["platform"]        = PJEV_PLATFORM;
         d["arch"]            = PJEV_ARCH;
-        d["cpu"]["logical_cores"] = (int)hw_concurrency;
+        d["cpu"]["logical_cores"] = (int32_t)hw_concurrency;
         d["model"]["path"]        = llama_cfg.model_path;
         d["model"]["accessible"]  = model_accessible;
         d["runtime"]["n_threads"] = llama_cfg.n_threads;
         d["runtime"]["n_ctx"]     = llama_cfg.n_ctx;
         d["worker"]["running"]    = worker_running;
         if (worker_running) {
-            d["worker"]["pid"]            = (int)worker_info.pid;
+            d["worker"]["pid"]            = (int32_t)worker_info.pid;
             d["worker"]["pjev_version"]   = worker_info.pjev_version;
             d["worker"]["model_identity"] = worker_info.model_identity;
         }
@@ -1653,7 +1653,7 @@ static int cmd_diagnostics(int argc, char** argv) {
         printf("context size:    %d\n", llama_cfg.n_ctx);
         if (worker_running) {
             printf("worker:          running (pid %d, model: %s)\n",
-                   (int)worker_info.pid, worker_info.model_identity.c_str());
+                   (int32_t)worker_info.pid, worker_info.model_identity.c_str());
         } else {
             printf("worker:          not running\n");
         }
@@ -1744,19 +1744,19 @@ static bool load_engine_for_cli(const LlamaConfig& llama_cfg,
     return true;
 }
 
-static int cmd_noul(int argc, char** argv) {
+static int32_t cmd_noul(int32_t argc, char** argv) {
     LlamaConfig llama_cfg;
     llama_cfg.model_path = "";
     std::string question;
     std::string state_inline;
     std::string state_file;
     std::string calibration_path;
-    int idle_timeout_secs = 300;
+    int32_t idle_timeout_secs = 600;
     bool json_out = false;
     bool model_explicitly_set = false;
     bool direct_mode = false;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_noul("pjev"); exit(2); }
@@ -1843,7 +1843,7 @@ static int cmd_noul(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_choice(int argc, char** argv) {
+static int32_t cmd_choice(int32_t argc, char** argv) {
     LlamaConfig llama_cfg;
     llama_cfg.model_path = "";
     std::string question;
@@ -1851,12 +1851,12 @@ static int cmd_choice(int argc, char** argv) {
     std::string state_file;
     std::string calibration_path;
     std::vector<std::pair<std::string, std::string>> options; // key, desc
-    int idle_timeout_secs = 300;
+    int32_t idle_timeout_secs = 600;
     bool json_out = false;
     bool model_explicitly_set = false;
     bool direct_mode = false;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_choice("pjev"); exit(2); }
@@ -1957,7 +1957,7 @@ static int cmd_choice(int argc, char** argv) {
     return 0;
 }
 
-static int cmd_score(int argc, char** argv) {
+static int32_t cmd_score(int32_t argc, char** argv) {
     LlamaConfig llama_cfg;
     llama_cfg.model_path = "";
     std::string question;
@@ -1965,12 +1965,12 @@ static int cmd_score(int argc, char** argv) {
     std::string state_file;
     std::string calibration_path;
     std::vector<std::pair<std::string, std::string>> options; // key (auto "0".."N-1"), desc
-    int idle_timeout_secs = 300;
+    int32_t idle_timeout_secs = 600;
     bool json_out = false;
     bool model_explicitly_set = false;
     bool direct_mode = false;
 
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) { usage_score("pjev"); exit(2); }
@@ -2070,9 +2070,9 @@ static int cmd_score(int argc, char** argv) {
 // status subcommand
 // ---------------------------------------------------------------------------
 
-static int cmd_status(int argc, char** argv) {
+static int32_t cmd_status(int32_t argc, char** argv) {
     bool json_out = false;
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         if (a == "--json") json_out = true;
         else if (a == "-h" || a == "--help") {
@@ -2090,7 +2090,7 @@ static int cmd_status(int argc, char** argv) {
             printf("%s\n", ipc_worker_info_to_json(info).dump(2).c_str());
         } else {
             printf("pjev worker: running\n");
-            printf("  pid:              %d\n",  (int)info.pid);
+            printf("  pid:              %d\n",  (int32_t)info.pid);
             printf("  protocol:         %d\n",  info.protocol_version);
             printf("  version:          %s\n",  info.pjev_version.c_str());
             printf("  model_identity:   %s\n",  info.model_identity.c_str());
@@ -2111,7 +2111,7 @@ static int cmd_status(int argc, char** argv) {
 // stop subcommand
 // ---------------------------------------------------------------------------
 
-static int cmd_stop(int argc, char** argv) {
+static int32_t cmd_stop(int32_t argc, char** argv) {
     (void)argc; (void)argv;
     ClientConfig cli_cfg;
     WorkerClient client(cli_cfg);
@@ -2128,9 +2128,9 @@ static int cmd_stop(int argc, char** argv) {
 // internal-worker subcommand (hidden)
 // ---------------------------------------------------------------------------
 
-static int cmd_internal_worker(int argc, char** argv) {
+static int32_t cmd_internal_worker(int32_t argc, char** argv) {
     WorkerConfig cfg;
-    for (int i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) {
@@ -2164,7 +2164,7 @@ static int cmd_internal_worker(int argc, char** argv) {
 // main
 // ---------------------------------------------------------------------------
 
-int main(int argc, char** argv) {
+int32_t main(int32_t argc, char** argv) {
     if (argc < 2) {
         usage(argv[0]);
         return 2;
