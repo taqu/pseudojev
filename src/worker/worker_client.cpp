@@ -102,6 +102,8 @@ bool WorkerClient::spawn_worker()
         args.push_back("--calibration");
         args.push_back(cfg_.calibration_path);
     }
+    args.push_back("--idle-timeout");
+    args.push_back(std::to_string(cfg_.idle_timeout_secs));
 
 #ifdef _WIN32
     // Build a quoted command line string

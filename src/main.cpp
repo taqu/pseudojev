@@ -202,16 +202,17 @@ static void usage_diagnostics(const char* prog) {
 static void usage_noul(const char* prog) {
     fprintf(stderr,
         "usage: %s noul --question TEXT [options]\n"
-        "  --question TEXT    question to evaluate (required)\n"
-        "  --state TEXT       context state (default: empty)\n"
-        "  --state-file FILE  read state from file (- for stdin)\n"
-        "  --model PATH       path to .gguf model file\n"
-        "  --calibration FILE calibration artifact (optional)\n"
-        "  --threads N        CPU threads (default: 8)\n"
-        "  --ctx-size N       context size (default: 4096)\n"
-        "  --verbose          enable verbose logging to stderr\n"
-        "  --json             output JSON instead of plain text\n"
-        "  --direct           bypass worker, load model in-process (Phase 9 behavior)\n"
+        "  --question TEXT      question to evaluate (required)\n"
+        "  --state TEXT         context state (default: empty)\n"
+        "  --state-file FILE    read state from file (- for stdin)\n"
+        "  --model PATH         path to .gguf model file\n"
+        "  --calibration FILE   calibration artifact (optional)\n"
+        "  --threads N          CPU threads (default: 8)\n"
+        "  --ctx-size N         context size (default: 4096)\n"
+        "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
+        "  --verbose            enable verbose logging to stderr\n"
+        "  --json               output JSON instead of plain text\n"
+        "  --direct             bypass worker, load model in-process\n"
         "\n"
         "output: 'true' or 'false' (plain); JSON with p_true and probabilities (--json)\n"
         "\n"
@@ -232,9 +233,10 @@ static void usage_choice(const char* prog) {
         "  --calibration FILE   calibration artifact (optional)\n"
         "  --threads N          CPU threads (default: 8)\n"
         "  --ctx-size N         context size (default: 4096)\n"
+        "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
         "  --verbose            enable verbose logging to stderr\n"
         "  --json               output JSON instead of plain text\n"
-        "  --direct             bypass worker, load model in-process (Phase 9 behavior)\n"
+        "  --direct             bypass worker, load model in-process\n"
         "\n"
         "output: selected KEY (plain); JSON with index, key, probabilities (--json)\n"
         "\n"
@@ -247,17 +249,18 @@ static void usage_choice(const char* prog) {
 static void usage_score(const char* prog) {
     fprintf(stderr,
         "usage: %s score --question TEXT --level DESC --level DESC ... [options]\n"
-        "  --question TEXT    question to evaluate (required)\n"
-        "  --level DESC       add a score level description (at least 2 required, in order)\n"
-        "  --state TEXT       context state (default: empty)\n"
-        "  --state-file FILE  read state from file (- for stdin)\n"
-        "  --model PATH       path to .gguf model file\n"
-        "  --calibration FILE calibration artifact (optional)\n"
-        "  --threads N        CPU threads (default: 8)\n"
-        "  --ctx-size N       context size (default: 4096)\n"
-        "  --verbose          enable verbose logging to stderr\n"
-        "  --json             output JSON instead of plain text\n"
-        "  --direct           bypass worker, load model in-process (Phase 9 behavior)\n"
+        "  --question TEXT      question to evaluate (required)\n"
+        "  --level DESC         add a score level description (at least 2 required, in order)\n"
+        "  --state TEXT         context state (default: empty)\n"
+        "  --state-file FILE    read state from file (- for stdin)\n"
+        "  --model PATH         path to .gguf model file\n"
+        "  --calibration FILE   calibration artifact (optional)\n"
+        "  --threads N          CPU threads (default: 8)\n"
+        "  --ctx-size N         context size (default: 4096)\n"
+        "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
+        "  --verbose            enable verbose logging to stderr\n"
+        "  --json               output JSON instead of plain text\n"
+        "  --direct             bypass worker, load model in-process\n"
         "\n"
         "output: expected score as decimal (plain); JSON with expected_score and probabilities (--json)\n"
         "\n"
@@ -1748,6 +1751,7 @@ static int cmd_noul(int argc, char** argv) {
     std::string state_inline;
     std::string state_file;
     std::string calibration_path;
+    int idle_timeout_secs = 300;
     bool json_out = false;
     bool model_explicitly_set = false;
     bool direct_mode = false;
@@ -1758,16 +1762,17 @@ static int cmd_noul(int argc, char** argv) {
             if (i + 1 >= argc) { usage_noul("pjev"); exit(2); }
             return argv[++i];
         };
-        if      (a == "--question")    question = next();
-        else if (a == "--state")       state_inline = next();
-        else if (a == "--state-file")  state_file = next();
-        else if (a == "--model")       { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--calibration") calibration_path = next();
-        else if (a == "--threads")     llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--verbose")     llama_cfg.verbose = true;
-        else if (a == "--json")        json_out = true;
-        else if (a == "--direct")      direct_mode = true;
+        if      (a == "--question")      question = next();
+        else if (a == "--state")         state_inline = next();
+        else if (a == "--state-file")    state_file = next();
+        else if (a == "--model")         { llama_cfg.model_path = next(); model_explicitly_set = true; }
+        else if (a == "--calibration")   calibration_path = next();
+        else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
+        else if (a == "--verbose")       llama_cfg.verbose = true;
+        else if (a == "--json")          json_out = true;
+        else if (a == "--direct")        direct_mode = true;
         else if (a == "-h" || a == "--help") { usage_noul("pjev"); return 0; }
         else { fprintf(stderr, "error: unknown option: %s\n", a.c_str()); usage_noul("pjev"); return 2; }
     }
@@ -1798,10 +1803,11 @@ static int cmd_noul(int argc, char** argv) {
 
     if (!direct_mode) {
         ClientConfig cli_cfg;
-        cli_cfg.model_path       = llama_cfg.model_path;
-        cli_cfg.calibration_path = calibration_path;
-        cli_cfg.threads          = llama_cfg.n_threads;
-        cli_cfg.ctx_size         = llama_cfg.n_ctx;
+        cli_cfg.model_path        = llama_cfg.model_path;
+        cli_cfg.calibration_path  = calibration_path;
+        cli_cfg.threads           = llama_cfg.n_threads;
+        cli_cfg.ctx_size          = llama_cfg.n_ctx;
+        cli_cfg.idle_timeout_secs = idle_timeout_secs;
         try {
             WorkerClient client(cli_cfg);
             out = client.decide(input);
@@ -1845,6 +1851,7 @@ static int cmd_choice(int argc, char** argv) {
     std::string state_file;
     std::string calibration_path;
     std::vector<std::pair<std::string, std::string>> options; // key, desc
+    int idle_timeout_secs = 300;
     bool json_out = false;
     bool model_explicitly_set = false;
     bool direct_mode = false;
@@ -1855,16 +1862,17 @@ static int cmd_choice(int argc, char** argv) {
             if (i + 1 >= argc) { usage_choice("pjev"); exit(2); }
             return argv[++i];
         };
-        if      (a == "--question")    question = next();
-        else if (a == "--state")       state_inline = next();
-        else if (a == "--state-file")  state_file = next();
-        else if (a == "--model")       { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--calibration") calibration_path = next();
-        else if (a == "--threads")     llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--verbose")     llama_cfg.verbose = true;
-        else if (a == "--json")        json_out = true;
-        else if (a == "--direct")      direct_mode = true;
+        if      (a == "--question")      question = next();
+        else if (a == "--state")         state_inline = next();
+        else if (a == "--state-file")    state_file = next();
+        else if (a == "--model")         { llama_cfg.model_path = next(); model_explicitly_set = true; }
+        else if (a == "--calibration")   calibration_path = next();
+        else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
+        else if (a == "--verbose")       llama_cfg.verbose = true;
+        else if (a == "--json")          json_out = true;
+        else if (a == "--direct")        direct_mode = true;
         else if (a == "--option") {
             std::string val = next();
             auto colon = val.find(':');
@@ -1909,10 +1917,11 @@ static int cmd_choice(int argc, char** argv) {
 
     if (!direct_mode) {
         ClientConfig cli_cfg;
-        cli_cfg.model_path       = llama_cfg.model_path;
-        cli_cfg.calibration_path = calibration_path;
-        cli_cfg.threads          = llama_cfg.n_threads;
-        cli_cfg.ctx_size         = llama_cfg.n_ctx;
+        cli_cfg.model_path        = llama_cfg.model_path;
+        cli_cfg.calibration_path  = calibration_path;
+        cli_cfg.threads           = llama_cfg.n_threads;
+        cli_cfg.ctx_size          = llama_cfg.n_ctx;
+        cli_cfg.idle_timeout_secs = idle_timeout_secs;
         try {
             WorkerClient client(cli_cfg);
             out = client.decide(input);
@@ -1956,6 +1965,7 @@ static int cmd_score(int argc, char** argv) {
     std::string state_file;
     std::string calibration_path;
     std::vector<std::pair<std::string, std::string>> options; // key (auto "0".."N-1"), desc
+    int idle_timeout_secs = 300;
     bool json_out = false;
     bool model_explicitly_set = false;
     bool direct_mode = false;
@@ -1966,16 +1976,17 @@ static int cmd_score(int argc, char** argv) {
             if (i + 1 >= argc) { usage_score("pjev"); exit(2); }
             return argv[++i];
         };
-        if      (a == "--question")    question = next();
-        else if (a == "--state")       state_inline = next();
-        else if (a == "--state-file")  state_file = next();
-        else if (a == "--model")       { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--calibration") calibration_path = next();
-        else if (a == "--threads")     llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")    llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--verbose")     llama_cfg.verbose = true;
-        else if (a == "--json")        json_out = true;
-        else if (a == "--direct")      direct_mode = true;
+        if      (a == "--question")      question = next();
+        else if (a == "--state")         state_inline = next();
+        else if (a == "--state-file")    state_file = next();
+        else if (a == "--model")         { llama_cfg.model_path = next(); model_explicitly_set = true; }
+        else if (a == "--calibration")   calibration_path = next();
+        else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
+        else if (a == "--verbose")       llama_cfg.verbose = true;
+        else if (a == "--json")          json_out = true;
+        else if (a == "--direct")        direct_mode = true;
         else if (a == "--level") {
             std::string desc = next();
             options.push_back({std::to_string(options.size()), desc});
@@ -2015,10 +2026,11 @@ static int cmd_score(int argc, char** argv) {
 
     if (!direct_mode) {
         ClientConfig cli_cfg;
-        cli_cfg.model_path       = llama_cfg.model_path;
-        cli_cfg.calibration_path = calibration_path;
-        cli_cfg.threads          = llama_cfg.n_threads;
-        cli_cfg.ctx_size         = llama_cfg.n_ctx;
+        cli_cfg.model_path        = llama_cfg.model_path;
+        cli_cfg.calibration_path  = calibration_path;
+        cli_cfg.threads           = llama_cfg.n_threads;
+        cli_cfg.ctx_size          = llama_cfg.n_ctx;
+        cli_cfg.idle_timeout_secs = idle_timeout_secs;
         try {
             WorkerClient client(cli_cfg);
             out = client.decide(input);
