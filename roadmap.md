@@ -1,18 +1,39 @@
-# pseudojev Roadmap Revision — Native C++ Implementation
+## pjev Revised Roadmap
 
-## Architecture Decision
+### Phase 0 — Experimental Decision Core ✅
 
-From Phase 1 onward, pseudojev will be implemented as a **native C++ application built directly on llama.cpp**.
+目的は、Bonsai 1.7B + llama.cpp で constrained-logit 型の Jev decision が成立するか検証すること。
 
-The previous direction of using Go with a llama.cpp binding should be dropped.
+実証済み：
 
-Primary reason:
+- `noul`
+- `choice`
+- `score`
+- single-token candidate validation
+- candidate-logit extraction
+- restricted softmax
+- deterministic argmax
+- constrained one-token generation
+- English / Japanese smoke tests
+- JevBench baseline
+- latency / RSS measurement
 
-> pseudojev is ultimately intended to be a small, local, cross-platform, single-binary decision engine, and introducing a Go ↔ C/C++ FFI boundary creates unnecessary build, packaging, debugging, and platform-specific complexity.
+結論は、
 
-Because llama.cpp is already C/C++, keeping the application layer native removes this boundary entirely.
+```text
+mechanism: viable
+quality: not yet sufficient
+```
 
-The target architecture becomes:
+という状態。元の baseline は choice 0.554、noul 0.649、score 0.444 / MAE 0.78。roadmap
+
+---
+
+### Phase 1 — Minimal Jev-Compatible Native C++ Server
+
+ここから正式実装は **native C++**。
+
+基本構造：
 
 ```text
 HTTP API
@@ -23,299 +44,278 @@ DecisionEngine
    ↓
 PromptStrategy
    ↓
-llama.cpp
+LlamaBackend
    ↓
-GGUF model
+llama.cpp
 ```
 
-All of these layers should live in the same native C++ codebase.
-
----
-
-# Phase 1 — Minimal Jev-Compatible C++ Server
-
-## Goal
-
-Make pseudojev callable in the same way as Jev.
-
-The objective remains:
-
-> stable experimental API surface
-
-Decision quality is not the focus of this phase.
-
-Implement:
+主要 endpoint：
 
 ```text
 POST /api/v1/systemone/
 ```
 
-as a minimal native C++ HTTP server.
+重要事項：
 
-The server should call `DecisionEngine` directly without any language-binding or IPC boundary.
+- JevBench から Jev / pjev を endpoint 切替だけで比較可能にする
+- `DecisionEngine` を HTTP から独立させる
+- `PromptStrategy` を独立させる
+- `state-first / state-last`
+- `natural / letters`
+  などを固定しない
+- user content と chat special tokens の tokenization を分離
+- `<|im_end|>` 等を user content から special token として解釈させない
+- CMake を正式 build system とする
 
-Suggested logical structure:
-
-```text
-src/
-  server/
-    http_server.*
-    jev_api.*
-  decision/
-    decision_engine.*
-    prompt_strategy.*
-    candidate_scheme.*
-  inference/
-    llama_backend.*
-  main.*
-```
-
-Exact filenames are not mandatory.
-
-The important requirement is separation of responsibilities.
+Phase 1 の本来の exit criterion も「Jev endpoint と pseudojev endpoint を切り替えて同じ test suite を実行できること」です。roadmap
 
 ---
 
-## DecisionEngine
+### Phase 2 — Decision Quality Baseline
 
-`DecisionEngine` should expose native C++ APIs conceptually equivalent to:
+目的：
 
-```cpp
-noul(...)
-choice(...)
-score(...)
-```
+> Bonsai 1.7B が JevBench でなぜ失点しているかを、model capability と decision formulation に分解する。
 
-The HTTP layer must not contain decision logic.
+モデル交換はまだ行わない。
 
-The decision layer must not depend on HTTP request types.
+研究対象：
 
-The same `DecisionEngine` will later be reused by:
+**2A — Candidate Binding**
+
+比較：
 
 ```text
-HTTP server
-CLI
-background runtime
-benchmark tooling
+A/B/C/D
+0/1/2/3
+Yes/No
+True/False
+custom single-token IDs
 ```
 
-without duplicating inference behavior.
+**2B — Option Order Sensitivity**
+
+```text
+original
+reverse
+random permutations
+```
+
+見るもの：
+
+```text
+prediction stability
+probability variance
+accuracy variance
+semantic answer consistency
+```
+
+**2C — Prompt Layout**
+
+```text
+state → question → options
+question → options → state
+question → state → options
+```
+
+少数の明確な template だけを比較する。
+
+**2D — Candidate Prior Correction**
+
+content-free prompt から candidate prior を測定し、
+
+```text
+corrected_logit_i =
+    raw_logit_i - prior_logit_i
+```
+
+のような補正を検証。
+
+**2E — Score Formulation**
+
+```text
+ordinal labels
+digits
+letters
+semantic anchors
+```
+
+を比較し、
+
+```text
+accuracy
+MAE
+QWK
+ordering consistency
+```
+
+で評価。
+
+元ロードマップでも、モデル交換より先に formulation を調べることが明示されています。roadmap
 
 ---
 
-## llama.cpp Integration
+### Phase 3 — Calibration + JevBench-Derived Tuning Dataset
 
-Use llama.cpp directly from C++.
+ここは当初の calibration フェーズから少し拡張した。
 
-Avoid:
+最終目的：
 
-```text
-cgo
-CGo wrappers
-language FFI
-separate inference subprocesses
-```
+> JevBench dataset から reproducible な pjev tuning dataset を作り、prompt と post-logit parameters の両方を調整できる研究基盤にする。
 
-unless a later requirement clearly justifies them.
-
-The application should own llama.cpp lifecycle directly:
+流れ：
 
 ```text
-initialize backend
-load model
-create context
-evaluate prompts
-extract logits
-apply constrained decision logic
-destroy context/model
+JevBench dataset
+        ↓
+pjev inference
+        ↓
+raw candidate logits を保存
+        ↓
+derived tuning dataset
+        ↓
+parameter tuning
+        ↓
+prompt/formulation comparison
+        ↓
+held-out evaluation
 ```
 
-The existing Phase 0 constrained-logit behavior must be preserved.
-
----
-
-## PromptStrategy
-
-Keep prompt formulation explicitly configurable.
-
-Do not freeze Phase 0 choices into the implementation.
-
-At minimum support representation of:
+derived dataset には最低限：
 
 ```text
-layout:
-  auto
-  state-first
-  state-last
-
-scheme:
-  natural
-  letters
+source ID / split
+primitive
+state / question / options
+ground truth
+difficulty
+prompt configuration
+candidate mapping
+candidate token IDs
+raw logits
+prior logits
+corrected logits
+probabilities
+prediction
 ```
 
-`PromptStrategy` should control:
+を保存する。
+
+重要な分離：
+
+**post-logit tuning**
 
 ```text
-state placement
-question placement
-option rendering
-candidate labels
-candidate token mapping
+temperature
+prior correction strength
 ```
 
-Future Phase 2 experiments must be possible without changing HTTP routing or llama.cpp integration.
+→ stored logits だけで再評価可能。
 
----
-
-## Tokenization Fix
-
-Fix the Phase 0 technical debt before completing serverization.
-
-Trusted chat-template tokens and user-controlled content must be handled separately.
-
-For example, user input containing:
+**prompt tuning**
 
 ```text
-<|im_end|>
+layout
+candidate scheme
+wording
+score anchors
 ```
 
-must remain ordinary user text and must not be interpreted as a chat control token.
+→ prompt が変わるので llama.cpp inference を再実行。
 
-The implementation should clearly distinguish:
-
-```text
-trusted template/control content
-```
-
-from:
-
-```text
-untrusted user text
-```
-
-and tokenize them with the appropriate special-token handling.
-
-Add regression tests.
-
----
-
-## Build System
-
-Use CMake as the primary build system.
-
-Target a conventional workflow such as:
-
-```bash
-cmake -S . -B build
-cmake --build build
-```
-
-llama.cpp should be integrated as a native dependency, preferably in a way that supports reproducible builds.
-
-Avoid designing the build around system-installed llama.cpp.
-
-The project should ultimately be capable of building llama.cpp together with pseudojev.
-
----
-
-## Platform Targets
-
-The architecture should avoid assumptions that prevent support for:
-
-```text
-Linux x86_64
-Linux arm64
-macOS arm64
-macOS x86_64 where practical
-Windows x86_64
-```
-
-Phase 1 does not require fully polished release artifacts for every platform.
-
-However, platform-dependent choices should not be introduced unnecessarily.
-
-Keep OS-specific code behind narrow abstractions.
-
----
-
-# Phase 2 — Decision Quality Baseline
-
-No fundamental change.
-
-Continue using the native C++ `DecisionEngine` and `PromptStrategy`.
-
-Evaluate:
-
-```text
-candidate binding
-option-order sensitivity
-prompt layout
-noul prior correction
-score formulation
-```
-
-The benchmark loop remains:
-
-```text
-implement
-   ↓
-JevBench
-   ↓
-analyze
-   ↓
-change formulation
-   ↓
-JevBench
-```
-
-The advantage of the native architecture is that these experiments occur directly against the final inference implementation rather than through an FFI layer.
-
----
-
-# Phase 3 — Calibration
-
-No architectural change.
-
-Implement calibration as another layer around logits/probabilities produced by `DecisionEngine`.
-
-Start with:
+Calibration はまず：
 
 ```text
 temperature scaling
 ```
 
-and optionally maintain separate parameters for:
+primitive 別に：
 
 ```text
-noul
-choice
-score
+T_noul
+T_choice
+T_score
 ```
 
-Calibration logic should remain independent of llama.cpp.
+を許可。
+
+評価：
+
+```text
+NLL
+Brier
+ECE
+accuracy
+score MAE
+```
+
+accuracy と calibration は別物として報告する。これは元ロードマップでも明示されています。roadmap
+
+また tuning / validation / held-out evaluation を明確に分離し、最終評価データへの overfitting を防ぐ。
 
 ---
 
-# Phase 4 — Multilingual Validation
+### Phase 4 — Multilingual Validation
 
-No change in goals.
-
-Validate at minimum:
+正式対象：
 
 ```text
 English
 Japanese
 ```
 
-and measure language degradation relative to English.
+目的は翻訳 benchmark そのものではなく、
+
+```text
+language degradation
+```
+
+を測ること。roadmap
+
+基本手順：
+
+```text
+English-selected configuration
+        ↓
+そのまま Japanese に transfer
+        ↓
+degradation を測定
+        ↓
+必要な場合だけ Japanese-specific tuning
+```
+
+評価：
+
+- choice / noul / score
+- NLL / Brier / ECE
+- cross-language semantic consistency
+- confidence shift
+- `EN correct → JA wrong`
+- easy / original / hard
+- token count / latency
+
+さらに、
+
+```text
+English instruction + Japanese content
+Japanese instruction + Japanese content
+```
+
+も必要に応じて比較。
+
+英語用 calibration が日本語にも transfer するかも検証する。
 
 ---
 
-# Phase 5 — Model Value Gate
+### Phase 5 — Model Value Gate
 
-No major change.
+ここで初めて、
 
-Evaluate:
+> Bonsai 1.7B を pjev の default model として採用する価値があるか
+
+を判断する。roadmap
+
+評価軸：
 
 ```text
 quality
@@ -324,19 +324,50 @@ latency
 RSS
 model size
 multilingual quality
+candidate compatibility
 ```
 
-Because inference is already native, model comparisons can use the same llama.cpp backend directly.
+まず現在の Bonsai を完全に再評価する。
 
-Do not introduce model abstraction layers beyond what is needed to swap GGUF models and associated prompt/tokenization configuration.
+必要な場合のみ、概ね：
+
+```text
+0.5B–2B
+```
+
+クラスの小型 CPU-friendly GGUF models と比較。
+
+すべて：
+
+```text
+pjev
+ ↓
+llama.cpp
+```
+
+の実 product path で比較する。
+
+モデルごとに：
+
+- candidate token compatibility
+- model-specific calibration
+- English / Japanese degradation
+- cold load
+- warm latency
+- RSS
+- GGUF size
+
+を測る。
+
+Phase 5 の結果として **default model decision artifact** を freeze する。
 
 ---
 
-# Phase 6 — Production Server
+### Phase 6 — Production Server
 
-Promote the Phase 1 C++ server into a production-capable local server.
+experimental server を実運用可能な local server に hardening。
 
-Add:
+追加：
 
 ```text
 graceful shutdown
@@ -349,34 +380,45 @@ structured errors
 basic logging
 ```
 
-Keep the HTTP implementation deliberately small.
-
-The command should eventually become:
+正式起動：
 
 ```bash
-pseudojev serve
+pjev serve
 ```
 
-The server should still invoke the same in-process `DecisionEngine`.
+元ロードマップでも「server は引き続き単純にする」とされています。roadmap
+
+方針：
+
+- default bind は localhost
+- model は startup 時にロード
+- invalid request で crash しない
+- user prompt を通常ログに出さない
+- inference concurrency は必要なら serialize
+- high-concurrency architecture はまだ不要
 
 ---
 
-# Phase 7 — Performance Optimization
+### Phase 7 — Performance Optimization
 
-Continue with:
+最大の狙い：
+
+> repeated prompt evaluation を減らす。
+
+元ロードマップでも prompt evaluation がほぼ全コストで、decision math はごく小さいとされています。roadmap
+
+研究対象：
 
 ```text
 prompt length
 KV reuse
-batching questions
+multiple-question batching
 context sizing
 thread count
 llama.cpp settings
 ```
 
-Native C++ integration makes this phase especially important because pseudojev can directly access llama.cpp contexts and KV-cache behavior without crossing an FFI boundary.
-
-In particular, investigate reuse for:
+特に：
 
 ```text
 same state
@@ -384,164 +426,187 @@ same state
 multiple questions
 ```
 
-within one Jev request.
+を最重要候補とする。
 
-Avoid premature optimization before benchmark evidence identifies the important paths.
+目標：
+
+```text
+shared state prefix
+   ↓
+evaluate once
+   ↓
+reuse KV
+   ↓
+question A/B/C...
+```
+
+ただし、
+
+- optimized path と reference path を残す
+- logits / probabilities / prediction の数値等価性を検証
+- state-first が高速でも quality を落とすなら勝手に変更しない
+- cross-request persistent KV cache はやらない
+- latency と RSS の両方を見る
 
 ---
 
-# Phase 8 — Native Single-Binary Distribution
+### Phase 8 — Native Distribution
 
-This phase changes substantially.
+目的：
 
-The old concept:
+> development checkout がなくても pjev を配布・実行できる状態にする。
+
+初期完成形：
 
 ```text
-Go
+pjev executable
 +
-static llama.cpp
+GGUF model
 +
-Bonsai GGUF
+versioned config
 ```
 
-is replaced with:
+literal な model embedding は必須ではない。
+
+元ロードマップでは Phase 8 で single-binary distribution と model embed / extraction / mmap を扱う想定でした。roadmap
+
+対象：
 
 ```text
-pseudojev C++
-+
-llama.cpp
-+
-model distribution strategy
+Linux x86_64
+Linux arm64
+macOS arm64
+Windows x86_64
 ```
 
-There is no Go runtime or cgo boundary.
+実際に build + smoke test できたものだけ supported とする。
 
-Target:
+整備：
 
-```text
-download
-chmod +x
-run
-```
+- release CMake build
+- runtime dependency inspection
+- artifact naming
+- release manifest
+- checksums
+- model hash
+- relocation/path tests
+- license/notice files
+- archive packaging
 
-where applicable.
+基本方針は **adjacent GGUF を先に完成**。
 
-First aim for a native executable with llama.cpp statically linked.
-
-Example conceptual output:
-
-```text
-pseudojev
-```
-
-plus either:
-
-```text
-bonsai.gguf
-```
-
-as an adjacent model file,
-
-or a later embedded/resource-packaging mechanism.
-
-Do not require model embedding in the first version of this phase.
-
-Treat these as separate problems:
-
-```text
-1. single native executable
-2. model discovery/download/cache
-3. optional model embedding
-```
-
-Do not complicate executable portability merely to achieve literal one-file distribution prematurely.
+model embedding は、その後に価値がある場合だけ検討。
 
 ---
 
-# Phase 9 — CLI
+### Phase 9 — Human-Facing CLI
 
-Implement the CLI directly in the same C++ executable.
-
-For example:
+ここで正式に：
 
 ```bash
-pseudojev noul ...
-pseudojev choice ...
-pseudojev score ...
-pseudojev serve
+pjev noul ...
+pjev choice ...
+pjev score ...
 ```
 
-Architecture:
+を作る。
 
-```text
-CLI
-  ↓
-DecisionEngine
-```
-
-and:
-
-```text
-HTTP server
-  ↓
-DecisionEngine
-```
-
-Both interfaces must reuse exactly the same decision implementation.
-
-No local HTTP round-trip should be required for normal CLI execution.
-
----
-
-# Phase 10 — Background Runtime
-
-Add an optional long-lived native process to keep the model loaded.
-
-Conceptually:
+構造：
 
 ```text
 CLI
  ↓
-local worker exists?
- ├─ yes → communicate with worker
- └─ no  → start worker
+DecisionEngine
 ```
 
-After an idle timeout:
+HTTP server は経由しない。
+
+元ロードマップでも、CLI と server の decision logic を二重実装しないことが方針です。roadmap
+
+整備：
+
+- human-readable output
+- `--json`
+- stdout / stderr discipline
+- predictable exit codes
+- stdin / file input where useful
+- Unicode / Japanese support
+- CLI ↔ server output equivalence tests
+
+この段階では毎回 model load してよい。
+
+---
+
+### Phase 10 — Background Runtime
+
+目的：
+
+> CLI の repeated model load cost を隠す。
+
+元ロードマップの構造そのまま：roadmap
+
+```text
+pjev CLI
+ ↓
+worker exists?
+ ├─ yes → use it
+ └─ no  → spawn worker
+```
+
+worker：
+
+```text
+model loaded
+DecisionEngine alive
+local IPC
+idle timeout
+```
+
+idle 後：
 
 ```text
 unload model
 exit
 ```
 
-Add:
+追加：
 
 ```bash
-pseudojev status
-pseudojev stop
+pjev status
+pjev stop
 ```
 
-Use narrow platform-specific IPC implementations:
+IPC：
 
 ```text
-Unix/macOS:
-  Unix domain socket
-
-Windows:
-  named pipe
+Unix/macOS → Unix domain socket
+Windows    → named pipe
 ```
 
-Keep platform IPC isolated from `DecisionEngine`.
+重要事項：
+
+- worker は ephemeral helper
+- system daemon/service にはしない
+- direct CLI path は残す
+- local IPC only
+- worker は user-scoped
+- protocol versioning
+- simultaneous startup race 対応
+- config/model mismatch を検出
+- stale worker recovery
+- request content は永続化しない
 
 ---
 
-# Phase 11 — UX / Distribution Polish
+### Phase 11 — UX / GitHub Distribution Polish
 
-Finalize:
+最終フェーズ。
+
+元ロードマップの対象：
 
 ```text
 automatic CPU detection
-model discovery/cache
+model extraction/cache
 cross-platform packaging
 versioning
 friendly errors
@@ -549,77 +614,175 @@ benchmark command
 diagnostics
 ```
 
-Where useful, expose llama.cpp runtime information through diagnostics:
+を完成させる。roadmap
 
-```text
-CPU features
-thread configuration
-backend
-context size
-model metadata
+今回さらに **GitHub public distribution** を正式スコープに追加。
+
+#### UX
+
+整備：
+
+```bash
+pjev --help
+pjev --version
+pjev diagnostics
+pjev diagnostics --json
+pjev benchmark
 ```
 
-The final product remains:
+friendly errors、CPU/runtime detection、model discovery、worker UX などを最終調整。
 
-> one native local Jev-compatible decision engine
+#### README.md
 
-without requiring a Go runtime or a CGo-based integration layer.
+public GitHub project の入口として全面整備。
+
+含める：
+
+```text
+What is pjev?
+Features
+Quick Start
+GitHub Releases installation
+Model setup
+noul / choice / score
+pjev serve
+Background runtime
+Build from source
+Tests
+Configuration
+Troubleshooting
+Diagnostics
+Architecture
+Supported platforms
+Known limitations
+License / model license
+```
+
+README のコマンドはすべて実際に検証する。
+
+#### GitHub Actions
+
+最低：
+
+```text
+.github/workflows/
+  ci.yml
+  release.yml
+```
+
+必要なら：
+
+```text
+real-model.yml
+```
+
+通常 CI：
+
+```text
+push / PR
+ ↓
+Linux / macOS / Windows
+ ↓
+CMake build
+ ↓
+model-free tests
+ ↓
+light integration tests
+```
+
+巨大 GGUF を毎 PR で落とさない。
+
+Real-model tests は：
+
+```text
+release
+manual
+scheduled
+```
+
+などに分離。
+
+Release workflow：
+
+```text
+git tag
+ ↓
+version validation
+ ↓
+platform builds
+ ↓
+Phase 8 package
+ ↓
+smoke tests
+ ↓
+checksums
+ ↓
+GitHub Release
+```
+
+GitHub Actions 内に別の packaging implementation を作らず、Phase 8 の packaging scripts をそのまま使う。
 
 ---
 
-# Revised Technical Principles
+# 全体のクリティカルパス
 
-From Phase 1 onward:
-
-```text
-C++ is the application implementation language.
-llama.cpp is used directly.
-CMake is the primary build system.
-DecisionEngine is independent of transport.
-PromptStrategy is independent of inference execution.
-HTTP and CLI are thin interfaces over DecisionEngine.
-Platform-specific code stays behind narrow boundaries.
-```
-
-Avoid introducing:
+現在のロードマップを一行でまとめると：
 
 ```text
-CGo
-FFI wrappers
-RPC between the server and inference engine
-separate inference processes
-language-specific model bindings
-```
-
-unless later measurements demonstrate a concrete need.
-
----
-
-# Revised Critical Path
-
-```text
+Phase 0
+prove mechanism
+   ↓
 Phase 1
-Native C++ Jev-compatible API
-        ↓
+native C++ Jev-compatible foundation
+   ↓
 Phase 2
-candidate binding / position bias / priors
-        ↓
+understand formulation errors
+   ↓
 Phase 3
-calibration
-        ↓
+build tuning dataset + calibration
+   ↓
+Phase 4
+validate multilingual transfer
+   ↓
 Phase 5
-Bonsai value gate
-        ↓
+freeze default model
+   ↓
 Phase 6
-production-quality C++ server
-        ↓
+harden server
+   ↓
 Phase 7
-native llama.cpp optimization
-        ↓
+optimize repeated prompt evaluation
+   ↓
 Phase 8
-cross-platform native distribution
+make native releases
+   ↓
+Phase 9
+make direct CLI pleasant
+   ↓
+Phase 10
+hide repeated model load
+   ↓
+Phase 11
+polish UX + publish cleanly on GitHub
 ```
 
-The main architectural objective is to make the experimental implementation and the eventual distributed implementation the same codebase.
+## 一貫して守る設計原則
 
-Phase 1 should therefore already establish the native C++ boundaries that later phases will retain.
+最終的に重要なのはこのあたりです。
+
+- 実装言語は **native C++**
+- command name は **`pjev`**
+- llama.cpp を直接使用
+- `DecisionEngine` は interface に依存しない
+- HTTP / CLI / worker で decision logic を共有
+- PromptStrategy / candidate representation を research 可能なまま保つ
+- JevBench は単なる最後の benchmark ではなく、Phase 1 以降ずっと research loop の中心
+- raw logits を保存し、post-logit tuning は inference をやり直さず行う
+- prompt が変わった時だけ inference を再実行
+- tuning / validation / holdout を分離
+- English → Japanese transfer を multilingual quality の重要指標とする
+- model comparison は formulation を十分に詰めた後だけ
+- performance optimization は correctness freeze 後
+- model distribution と executable distribution を分離
+- background worker は daemon ではなく ephemeral local helper
+- GitHub Releases を最終的な一般ユーザー向け distribution surface にする
