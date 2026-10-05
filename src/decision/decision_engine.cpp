@@ -113,6 +113,7 @@ std::vector<int32_t> DecisionEngine::make_prompt_tokens(
 DecisionOutput DecisionEngine::finish_from_logits(
     const DecisionInput& input,
     const std::vector<std::string>& keys,
+    const std::vector<Candidate>& candidates,
     const std::vector<int32_t>& cand_ids,
     const float* logits,
     int32_t token_count,
@@ -166,8 +167,14 @@ DecisionOutput DecisionEngine::finish_from_logits(
     out.selected = argmax(probs);
     if(input.type == "score")
         out.expected_score = expected_level(probs);
-    if(input.type == "noul")
-        out.p_true = probs[1];
+    if(input.type == "noul") {
+        for(size_t i = 0; i < candidates.size(); ++i) {
+            if(candidates[i].noul_value.has_value() && *candidates[i].noul_value == NoulValue::True) {
+                out.p_true = probs[i];
+                break;
+            }
+        }
+    }
     out.ok = true;
     out.decision_us = now_us() - td0;
     return out;
@@ -235,7 +242,7 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input)
         return out;
     }
 
-    return finish_from_logits(input, out.keys, cand_ids, logits,
+    return finish_from_logits(input, out.keys, candidates, cand_ids, logits,
                               out.prompt_token_count, out.tokenize_us, out.eval_us);
 }
 
@@ -356,7 +363,7 @@ std::vector<DecisionOutput> DecisionEngine::decide_batch(
             continue;
         }
 
-        results.push_back(finish_from_logits(input, out.keys, cand_ids, logits,
+        results.push_back(finish_from_logits(input, out.keys, candidates, cand_ids, logits,
                                              out.prompt_token_count, out.tokenize_us, out.eval_us));
     }
     return results;

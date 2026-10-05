@@ -15,12 +15,14 @@ void PromptStrategy::assign_labels(const std::string& type,
                                    std::vector<Candidate>& candidates) const {
     for (size_t i = 0; i < candidates.size(); i++) {
         std::string s = std::string(1, (char)('A' + i));
-        if (cfg_.scheme == Scheme::NATURAL && type == "noul") {
-            s = (i == 0) ? "No" : "Yes";
-        } else if (cfg_.scheme == Scheme::NATURAL && type == "score") {
+        if (cfg_.scheme == Scheme::NATURAL && type == "score") {
             s = std::to_string(i);
         }
         candidates[i].internal = s;
+        if (type == "noul") {
+            if (candidates[i].key == "true")  candidates[i].noul_value = NoulValue::True;
+            else if (candidates[i].key == "false") candidates[i].noul_value = NoulValue::False;
+        }
     }
 }
 
@@ -55,10 +57,10 @@ std::string PromptStrategy::build_user_content(
         const auto& c = candidates[i];
         std::string desc = c.description;
         if (type == "noul") {
-            const std::string word = (i == 0) ? "No" : "Yes";
-            if (c.internal != word) {
-                desc = desc.empty() ? word : word + ". " + desc;
-            }
+            const std::string word = c.noul_value.has_value()
+                ? (*c.noul_value == NoulValue::True ? "Yes" : "No")
+                : (i == 0 ? "No" : "Yes"); // positional fallback when noul_value unset
+            if (desc.empty()) desc = word;
         }
         opts += c.internal + (desc.empty() ? "" : ": " + desc) + "\n";
     }

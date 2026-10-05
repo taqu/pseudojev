@@ -20,8 +20,14 @@ int main() {
         cands.push_back(c0);
         cands.push_back(c1);
         ps.assign_labels("noul", cands);
-        check(cands[0].internal == "No",  "noul NATURAL: false=No");
-        check(cands[1].internal == "Yes", "noul NATURAL: true=Yes");
+        // noul always uses letter labels (A/B) regardless of scheme
+        check(cands[0].internal == "A",  "noul NATURAL: false=A");
+        check(cands[1].internal == "B",  "noul NATURAL: true=B");
+        // noul_value is set from key
+        check(cands[0].noul_value.has_value() && *cands[0].noul_value == NoulValue::False,
+              "noul NATURAL: noul_value[0]=False");
+        check(cands[1].noul_value.has_value() && *cands[1].noul_value == NoulValue::True,
+              "noul NATURAL: noul_value[1]=True");
 
         std::vector<Candidate> scands;
         for (int i = 0; i < 3; i++) {
@@ -154,6 +160,44 @@ int main() {
         check(has_A,  "NATURAL all_internal_texts has A");
         check(has_No, "NATURAL all_internal_texts has No");
         check(has_0,  "NATURAL all_internal_texts has 0");
+    }
+
+    // Test 9: noul normal order — prompt shows "A: No\nB: Yes", not "No: Yes"
+    {
+        PromptStrategy ps(PromptConfig{Layout::AUTO, Scheme::LETTERS});
+        std::vector<Candidate> cands;
+        Candidate c0; c0.key = "false"; c0.description = ""; c0.internal = "";
+        Candidate c1; c1.key = "true";  c1.description = ""; c1.internal = "";
+        cands.push_back(c0); cands.push_back(c1);
+        ps.assign_labels("noul", cands);
+        auto segs = ps.build_prompt_segments("noul", "S", "Q?", cands);
+        const std::string& content = segs[1].text;
+        check(content.find("A: No")  != std::string::npos, "noul normal order: A: No in prompt");
+        check(content.find("B: Yes") != std::string::npos, "noul normal order: B: Yes in prompt");
+        check(content.find("No: Yes") == std::string::npos, "noul normal order: no 'No: Yes'");
+        check(content.find("Yes: No") == std::string::npos, "noul normal order: no 'Yes: No'");
+    }
+
+    // Test 10: noul reversed order — semantic binding follows noul_value, not position
+    {
+        PromptStrategy ps(PromptConfig{Layout::AUTO, Scheme::LETTERS});
+        std::vector<Candidate> cands;
+        // Reversed: true first, false second
+        Candidate c0; c0.key = "true";  c0.description = ""; c0.internal = "";
+        Candidate c1; c1.key = "false"; c1.description = ""; c1.internal = "";
+        cands.push_back(c0); cands.push_back(c1);
+        ps.assign_labels("noul", cands);
+        check(cands[0].internal == "A", "noul reversed: internal[0]=A");
+        check(cands[1].internal == "B", "noul reversed: internal[1]=B");
+        check(cands[0].noul_value.has_value() && *cands[0].noul_value == NoulValue::True,
+              "noul reversed: noul_value[0]=True");
+        check(cands[1].noul_value.has_value() && *cands[1].noul_value == NoulValue::False,
+              "noul reversed: noul_value[1]=False");
+        auto segs = ps.build_prompt_segments("noul", "S", "Q?", cands);
+        const std::string& content = segs[1].text;
+        check(content.find("A: Yes") != std::string::npos, "noul reversed: A: Yes in prompt");
+        check(content.find("B: No")  != std::string::npos, "noul reversed: B: No in prompt");
+        check(content.find("No: Yes") == std::string::npos, "noul reversed: no 'No: Yes'");
     }
 
     printf("\n%s (%d failure(s))\n", fails ? "FAIL" : "PASS", fails);

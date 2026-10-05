@@ -1,7 +1,6 @@
 #include "decision/decision_engine.h"
 #include "mock_backend.h"
 #include <cstdio>
-#include <cmath>
 #include <cassert>
 
 static int fails = 0;
@@ -46,33 +45,80 @@ int main() {
         check(out.keys[out.selected] == "technical", "choice B wins: key is technical");
     }
 
-    // Test 3: noul with NATURAL scheme — Yes wins -> p_true high
+    // Test 3: noul — B wins (semantic true) -> p_true high
     {
-        DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::NATURAL});
-        mock.set_winner(201); // "Yes"
+        DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
+        mock.set_winner(66); // "B" = semantic true (index 1)
         DecisionInput inp;
         inp.type     = "noul";
         inp.state    = "Please refund the duplicate charge.";
         inp.question = "Is the user asking for a refund?";
-        inp.options  = {{"false","No"}, {"true","Yes"}};
+        inp.options  = {{"false",""}, {"true",""}};
         auto out = eng.decide(inp);
-        check(out.ok, "noul NATURAL ok");
-        check(out.p_true > 0.99, "noul: p_true high when Yes wins");
+        check(out.ok, "noul B wins ok");
+        check(out.p_true > 0.99, "noul: p_true high when B (true) wins");
         check(out.selected == 1, "noul: selected index 1 (true)");
     }
 
-    // Test 4: noul — No wins -> p_true low
+    // Test 4: noul — A wins (semantic false) -> p_true low
     {
-        DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::NATURAL});
-        mock.set_winner(200); // "No"
+        DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
+        mock.set_winner(65); // "A" = semantic false (index 0)
         DecisionInput inp;
         inp.type     = "noul";
         inp.state    = "Thanks, working now.";
         inp.question = "Is user reporting a problem?";
-        inp.options  = {{"false","No"}, {"true","Yes"}};
+        inp.options  = {{"false",""}, {"true",""}};
         auto out = eng.decide(inp);
-        check(out.ok, "noul No wins ok");
-        check(out.p_true < 0.01, "noul: p_true low when No wins");
+        check(out.ok, "noul A wins ok");
+        check(out.p_true < 0.01, "noul: p_true low when A (false) wins");
+        check(out.selected == 0, "noul: selected index 0 (false)");
+    }
+
+    // Test 4b: noul reversed order — true is first (A), false is second (B)
+    // Same winner token A (65) should now yield HIGH p_true because A=true
+    {
+        DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
+        mock.set_winner(65); // "A" = semantic true (reversed order)
+        DecisionInput inp;
+        inp.type     = "noul";
+        inp.state    = "The sky is blue.";
+        inp.question = "Is it daytime?";
+        inp.options  = {{"true",""}, {"false",""}};  // reversed
+        auto out = eng.decide(inp);
+        check(out.ok, "noul reversed ok");
+        check(out.p_true > 0.99, "noul reversed: p_true high when A=true wins");
+        check(out.selected == 0, "noul reversed: selected index 0 (true)");
+    }
+
+    // Test 4c: same logits, different option order -> different p_true, same semantic meaning
+    // Normal order: A=false, B=true; logit(A)>>logit(B) -> semantic false, p_true low
+    // Reversed order: A=true, B=false; same logit(A)>>logit(B) -> semantic true, p_true high
+    {
+        DecisionEngine eng_normal (mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
+        DecisionEngine eng_reversed(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
+        mock.set_winner(65); // A dominates
+
+        DecisionInput normal_inp;
+        normal_inp.type    = "noul";
+        normal_inp.state   = "Test state.";
+        normal_inp.question = "Test question?";
+        normal_inp.options = {{"false",""}, {"true",""}};   // A=false, B=true
+        auto normal_out = eng_normal.decide(normal_inp);
+
+        DecisionInput rev_inp;
+        rev_inp.type    = "noul";
+        rev_inp.state   = "Test state.";
+        rev_inp.question = "Test question?";
+        rev_inp.options = {{"true",""}, {"false",""}};   // A=true, B=false
+        auto rev_out = eng_reversed.decide(rev_inp);
+
+        check(normal_out.ok && rev_out.ok, "noul synthetic logits: both ok");
+        check(normal_out.p_true < 0.01,    "noul synthetic: normal order, A wins -> p_true low");
+        check(rev_out.p_true   > 0.99,     "noul synthetic: reversed order, A wins -> p_true high");
+        // Candidate token A wins in both cases — semantic interpretation differs
+        check(normal_out.selected == 0 && rev_out.selected == 0,
+              "noul synthetic: selected=0 (A) in both cases");
     }
 
     // Test 5: score with NATURAL scheme — level 2 wins

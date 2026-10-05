@@ -80,8 +80,10 @@ private:
                                              const std::vector<Candidate>& candidates);
     // Complete a DecisionOutput from already-computed logits pointer.
     // cand_ids: token ids of candidates in order.
+    // candidates: full candidate metadata (noul_value used for p_true).
     DecisionOutput finish_from_logits(const DecisionInput& input,
                                        const std::vector<std::string>& keys,
+                                       const std::vector<Candidate>& candidates,
                                        const std::vector<int32_t>& cand_ids,
                                        const float* logits,
                                        int32_t token_count,

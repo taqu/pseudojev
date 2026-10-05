@@ -122,7 +122,7 @@ static void test_score_format() {
 // ---------------------------------------------------------------------------
 static void test_noul_engine_false() {
     MockBackend mock;
-    mock.set_winner(200); // "No" / false wins
+    mock.set_winner(65); // "A" / false wins (noul always uses A/B labels)
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL});
 
     pjev::DecisionInput input;
@@ -244,7 +244,7 @@ static void test_option_order_preserved() {
 // ---------------------------------------------------------------------------
 static void test_japanese_input() {
     MockBackend mock;
-    mock.set_winner(200); // No/false
+    mock.set_winner(65); // "A" / false wins (noul always uses A/B labels)
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL});
 
     pjev::DecisionInput input;

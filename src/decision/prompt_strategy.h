@@ -1,6 +1,7 @@
 #ifndef INC_PJEV_PROMPT_STRATEGY_H_
 #define INC_PJEV_PROMPT_STRATEGY_H_
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -8,6 +9,10 @@ namespace pjev
 {
 enum class Layout { AUTO, STATE_FIRST, STATE_LAST, QUESTION_FIRST };
 enum class Scheme { NATURAL, LETTERS };
+
+// Semantic truth value for a noul candidate — set by assign_labels(), used by
+// finish_from_logits() to locate p_true without relying on candidate index.
+enum class NoulValue { False, True };
 
 struct PromptConfig {
     Layout layout = Layout::AUTO;
@@ -18,6 +23,7 @@ struct Candidate {
     std::string key;          // semantic key ("billing", "true", "2", ...)
     std::string description;  // text shown to model
     std::string internal;     // internal token text ("A", "Yes", "0", ...)
+    std::optional<NoulValue> noul_value; // set only for noul type
 };
 
 // A segment of the final prompt.
