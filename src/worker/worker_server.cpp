@@ -114,13 +114,12 @@ int WorkerServer::run()
     info_.pid = (int32_t)getpid();
 #endif
     info_.model_identity = mid.name.empty() ? cfg_.model_path : mid.name;
-    info_.config_hash    = make_config_hash(cfg_.model_path, cfg_.threads,
-                                             cfg_.ctx_size, cfg_.calibration_path);
+    info_.config_hash    = make_config_hash(cfg_.model_path);
     info_.start_time_us  = get_now_us();
 
     // 5. Create ILocalServer and bind
     auto server = make_local_server();
-    std::string endpoint = get_worker_endpoint();
+    const std::string& endpoint = get_worker_endpoint();
     if (!server->bind(endpoint)) {
         spdlog::error("worker: failed to bind IPC endpoint: {}", endpoint);
         return 1;
@@ -158,13 +157,15 @@ void WorkerServer::handle_connection(std::unique_ptr<ILocalConn> conn)
 {
     std::string frame;
     if (!conn->recv_frame(frame, 30000)) {
+        spdlog::warn("worker: connection timeout or disconnect");
         return; // timeout or disconnect
     }
 
     nlohmann::json req;
     try {
         req = nlohmann::json::parse(frame);
-    } catch (...) {
+    } catch (std::exception const& e) {
+        spdlog::warn("worker: request parse error: {}", e.what());
         return;
     }
 
@@ -174,13 +175,13 @@ void WorkerServer::handle_connection(std::unique_ptr<ILocalConn> conn)
         nlohmann::json resp = {{"error", "protocol version mismatch"}, {"ok", false}};
         std::string s = resp.dump();
         conn->send_frame(s);
+        spdlog::error("worker: protocol version mismatch: expected={}, got={}", IPC_PROTOCOL_VERSION, pver);
         return;
     }
 
     std::string type = req.value("type", "");
-    if (type == "ping") {
-        handle_ping(*conn);
-    } else if (type == "decide") {
+    spdlog::info("worker: request type={}", type);
+    if (type == "decide") {
         handle_decide(*conn, req);
     } else if (type == "shutdown") {
         handle_shutdown(*conn);

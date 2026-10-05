@@ -210,7 +210,7 @@ static void test_ipc_protocol_serialization()
 // ---------------------------------------------------------------------------
 static void test_runtime_dir()
 {
-    std::string ep = get_worker_endpoint();
+    const std::string& ep = get_worker_endpoint();
     CHECK(!ep.empty(), "runtime_dir: endpoint is non-empty");
 
 #ifdef _WIN32
@@ -223,13 +223,13 @@ static void test_runtime_dir()
     CHECK(ep.find("pjev-") != std::string::npos, "runtime_dir: Unix contains pjev-");
     CHECK(ep.find("worker-v1.sock") != std::string::npos, "runtime_dir: Unix socket suffix");
     // Lock path should be non-empty on Unix
-    std::string lp = get_worker_lock_path();
+    const std::string& lp = get_worker_lock_path();
     CHECK(!lp.empty(), "runtime_dir: Unix lock path non-empty");
     CHECK(lp.find("worker-v1.lock") != std::string::npos, "runtime_dir: lock path suffix");
 #endif
 
     // Runtime dir
-    std::string rd = get_worker_runtime_dir();
+    const std::string& rd = get_worker_runtime_dir();
     CHECK(!rd.empty(), "runtime_dir: runtime_dir non-empty");
 }
 

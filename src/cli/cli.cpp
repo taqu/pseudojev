@@ -6,14 +6,14 @@ namespace pjev {
 
 std::string format_noul_human(const DecisionOutput& out)
 {
-    return (out.selected == 1) ? "true" : "false";
+    return (out.selected == 0) ? "true" : "false";
 }
 
 std::string format_noul_json(const DecisionOutput& out)
 {
     nlohmann::json j;
     j["primitive"]        = "noul";
-    j["result"]["value"]  = (out.selected == 1);
+    j["result"]["value"]  = (out.selected == 0);
     j["result"]["p_true"] = out.p_true;
     j["probabilities"]    = out.probs;
     return j.dump();

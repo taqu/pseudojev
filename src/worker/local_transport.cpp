@@ -12,6 +12,8 @@
 #include <windows.h>
 #include <sddl.h>
 
+#include "spdlog/spdlog.h"
+
 namespace pjev {
 
 // ---------------------------------------------------------------------------
@@ -24,8 +26,11 @@ static bool write_all(HANDLE h, const void* buf, DWORD n)
     DWORD written = 0;
     while (written < n) {
         DWORD w = 0;
-        if (!WriteFile(h, (const char*)buf + written, n - written, &w, nullptr))
+        if (!WriteFile(h, (const char*)buf + written, n - written, &w, nullptr)){
+            DWORD err = GetLastError();
+            spdlog::error("WriteFile failed: {}", err);
             return false;
+        }
         written += w;
     }
     return true;
@@ -274,7 +279,7 @@ std::unique_ptr<ILocalConn> make_local_client(const std::string& endpoint, int t
         }
 
         DWORD err = GetLastError();
-        if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PIPE_BUSY) {
+        if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PIPE_BUSY || err == ERROR_ACCESS_DENIED) {
             if (std::chrono::steady_clock::now() >= deadline) return nullptr;
             DWORD wait_ms = (err == ERROR_PIPE_BUSY) ? 50 : 0;
             if (err == ERROR_PIPE_BUSY) {

@@ -394,7 +394,7 @@ static int32_t cmd_server(int32_t argc, char** argv) {
         else if (a == "--no-batch-questions") srv_cfg.batch_questions = false;
         else if (a == "-h" || a == "--help") { usage_server("pjev"); return 0; }
         else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             usage_server("pjev");
             return 2;
         }
@@ -588,7 +588,7 @@ static int32_t cmd_run(int32_t argc, char** argv) {
         else if (a == "--option-order")    exp_cfg.option_order = parse_order(next());
         else if (a == "-h" || a == "--help") { usage_run("pjev"); return 0; }
         else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             usage_run("pjev");
             return 2;
         }
@@ -702,7 +702,7 @@ static int32_t cmd_experiment(int32_t argc, char** argv) {
         else if (a == "--verbose")          llama_cfg.verbose = true;
         else if (a == "-h" || a == "--help") { usage_experiment("pjev"); return 0; }
         else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             usage_experiment("pjev");
             return 2;
         }
@@ -919,7 +919,7 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
         else if (a == "--prior-correction") exp_cfg.prior_correction = true;
         else if (a == "-h" || a == "--help") { usage_calibration("pjev"); return 0; }
         else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             usage_calibration("pjev");
             return 2;
         }
@@ -1076,7 +1076,7 @@ static int32_t cmd_model_inspect(int32_t argc, char** argv) {
         else if (a == "--output")          output_path = next();
         else if (a == "-h" || a == "--help") { usage_model("pjev"); return 0; }
         else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             usage_model("pjev");
             return 2;
         }
@@ -1168,7 +1168,7 @@ static int32_t cmd_model_inspect(int32_t argc, char** argv) {
         std::ofstream f(output_path);
         if (!f) { spdlog::error("cannot open output: {}", output_path.c_str()); return 1; }
         f << out_str << "\n";
-        fprintf(stderr, "wrote: %s\n", output_path.c_str());
+        spdlog::info("wrote: {}", output_path);
     }
     return 0;
 }
@@ -1203,7 +1203,7 @@ static int32_t cmd_model_evaluate(int32_t argc, char** argv) {
         else if (a == "--verbose")          llama_cfg.verbose = true;
         else if (a == "-h" || a == "--help") { usage_model("pjev"); return 0; }
         else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             usage_model("pjev");
             return 2;
         }
@@ -1378,7 +1378,7 @@ static int32_t cmd_model_evaluate(int32_t argc, char** argv) {
     std::ofstream f(output_path);
     if (!f) { spdlog::error("cannot open output: {}", output_path.c_str()); return 1; }
     f << vp.to_json().dump(2) << "\n";
-    fprintf(stderr, "wrote: %s\n", output_path.c_str());
+    spdlog::info("wrote: {}", output_path);
 
     // Print summary
     fprintf(stdout, "EN choice accuracy: %.4f  noul: %.4f  score MAE: %.4f\n",
@@ -1406,7 +1406,7 @@ static int32_t cmd_model(int32_t argc, char** argv) {
     if (subcmd == "inspect")  return cmd_model_inspect(argc, argv);
     if (subcmd == "evaluate") return cmd_model_evaluate(argc, argv);
 
-    fprintf(stderr, "unknown model subcommand: %s\n", subcmd.c_str());
+    spdlog::error("unknown model subcommand: {}", subcmd);
     usage_model("pjev");
     return 2;
 }
@@ -1442,14 +1442,14 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
         else if (a == "--no-batch-questions") srv_cfg.batch_questions = false;
         else if (a == "-h" || a == "--help") { usage_benchmark("pjev"); return 0; }
         else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             usage_benchmark("pjev");
             return 2;
         }
     }
 
     if (llama_cfg.model_path.empty()) {
-        fprintf(stderr, "--model is required\n");
+        spdlog::error("--model is required");
         return 1;
     }
 
@@ -1457,7 +1457,7 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
     try {
         backend = new LlamaBackend(llama_cfg);
     } catch (const std::exception& e) {
-        fprintf(stderr, "model load error: %s\n", e.what());
+        spdlog::error("model load error: {}", e.what());
         return 1;
     }
 
@@ -1467,7 +1467,7 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
     try {
         engine = new DecisionEngine(*backend, prompt_cfg, calib_cfg);
     } catch (const std::exception& e) {
-        fprintf(stderr, "engine init error: %s\n", e.what());
+        spdlog::error("engine init error: {}", e.what());
         delete backend;
         return 1;
     }
@@ -1551,7 +1551,7 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
         printf("%s\n", out_str.c_str());
     } else {
         std::ofstream f(output_path);
-        if (!f) { fprintf(stderr, "cannot open output: %s\n", output_path.c_str()); return 1; }
+        if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
         f << out_str << "\n";
     }
     return 0;
@@ -1564,7 +1564,7 @@ static int32_t cmd_benchmark(int32_t argc, char** argv) {
     }
     std::string subcmd = argv[0];
     if (subcmd == "latency") return cmd_benchmark_latency(argc - 1, argv + 1);
-    fprintf(stderr, "unknown benchmark subcommand: %s\n", subcmd.c_str());
+    spdlog::error("unknown benchmark subcommand: {}", subcmd);
     usage_benchmark("pjev");
     return 2;
 }
@@ -1590,7 +1590,7 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         else if (a == "--json")     json_out = true;
         else if (a == "-h" || a == "--help") { usage_diagnostics("pjev"); return 0; }
         else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             usage_diagnostics("pjev");
             return 2;
         }
@@ -1677,7 +1677,7 @@ static bool resolve_state(const std::string& state_inline,
                            std::string& out)
 {
     if (!state_inline.empty() && !state_file.empty()) {
-        fprintf(stderr, "error: --state and --state-file are mutually exclusive\n");
+        spdlog::error("--state and --state-file are mutually exclusive");
         return false;
     }
     if (!state_file.empty()) {
@@ -1689,7 +1689,7 @@ static bool resolve_state(const std::string& state_inline,
         } else {
             std::ifstream f(state_file);
             if (!f) {
-                fprintf(stderr, "error: cannot open state file: %s\n", state_file.c_str());
+                spdlog::error("cannot open state file: {}", state_file);
                 return false;
             }
             out.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
@@ -1712,25 +1712,25 @@ static bool load_engine_for_cli(const LlamaConfig& llama_cfg,
     try {
         backend = std::make_unique<LlamaBackend>(llama_cfg);
     } catch (const std::exception& e) {
-        fprintf(stderr, "error: model load failed: %s\n", e.what());
+        spdlog::error("model load failed: {}", e.what());
         return false;
     }
 
     if (!calibration_path.empty()) {
         std::ifstream cf(calibration_path);
         if (!cf) {
-            fprintf(stderr, "error: cannot open calibration file: %s\n", calibration_path.c_str());
+            spdlog::error("cannot open calibration file: {}", calibration_path);
             return false;
         }
         nlohmann::json cj;
         try { cf >> cj; } catch (const std::exception& e) {
-            fprintf(stderr, "error: calibration JSON parse error: %s\n", e.what());
+            spdlog::error("calibration JSON parse error: {}", e.what());
             return false;
         }
         CalibrationArtifact art;
         std::string calib_err;
         if (!CalibrationArtifact::from_json(cj, art, calib_err)) {
-            fprintf(stderr, "error: calibration artifact: %s\n", calib_err.c_str());
+            spdlog::error("calibration artifact: {}", calib_err);
             return false;
         }
         calib_cfg = art.to_config();
@@ -1739,7 +1739,7 @@ static bool load_engine_for_cli(const LlamaConfig& llama_cfg,
     try {
         engine = std::make_unique<DecisionEngine>(*backend, PromptConfig{}, calib_cfg);
     } catch (const std::exception& e) {
-        fprintf(stderr, "error: engine init failed: %s\n", e.what());
+        spdlog::error("engine init failed: {}", e.what());
         return false;
     }
     return true;
@@ -1775,11 +1775,11 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
         else if (a == "--json")          json_out = true;
         else if (a == "--direct")        direct_mode = true;
         else if (a == "-h" || a == "--help") { usage_noul("pjev"); return 0; }
-        else { fprintf(stderr, "error: unknown option: %s\n", a.c_str()); usage_noul("pjev"); return 2; }
+        else { spdlog::error("unknown option: {}", a); usage_noul("pjev"); return 2; }
     }
 
     if (question.empty()) {
-        fprintf(stderr, "error: --question is required\n");
+        spdlog::error("--question is required");
         usage_noul("pjev");
         return 2;
     }
@@ -1798,7 +1798,7 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
     input.type     = "noul";
     input.state    = state;
     input.question = question;
-    input.options  = {{"false", ""}, {"true", ""}};
+    input.options  = {{"true", ""}, {"false", ""}};
 
     DecisionOutput out;
 
@@ -1813,7 +1813,7 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
             WorkerClient client(cli_cfg);
             out = client.decide(input);
         } catch (const std::exception& e) {
-            fprintf(stderr, "error: worker decision failed: %s\n", e.what());
+            spdlog::error("worker decision failed: {}", e.what());
             return 1;
         }
     } else {
@@ -1829,13 +1829,13 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
         try {
             out = engine->decide(input);
         } catch (const std::exception& e) {
-            fprintf(stderr, "error: decision failed: %s\n", e.what());
+            spdlog::error("decision failed: {}", e.what());
             return 1;
         }
     }
 
     if (!out.ok) {
-        fprintf(stderr, "error: %s\n", out.error.c_str());
+        spdlog::error("{}", out.error);
         return 1;
     }
 
@@ -1884,16 +1884,16 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
             }
         }
         else if (a == "-h" || a == "--help") { usage_choice("pjev"); return 0; }
-        else { fprintf(stderr, "error: unknown option: %s\n", a.c_str()); usage_choice("pjev"); return 2; }
+        else { spdlog::error("unknown option: {}", a); usage_choice("pjev"); return 2; }
     }
 
     if (question.empty()) {
-        fprintf(stderr, "error: --question is required\n");
+        spdlog::error("--question is required");
         usage_choice("pjev");
         return 2;
     }
     if (options.size() < 2) {
-        fprintf(stderr, "error: choice requires at least 2 --option values\n");
+        spdlog::error("choice requires at least 2 --option values");
         usage_choice("pjev");
         return 2;
     }
@@ -1927,7 +1927,7 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
             WorkerClient client(cli_cfg);
             out = client.decide(input);
         } catch (const std::exception& e) {
-            fprintf(stderr, "error: worker decision failed: %s\n", e.what());
+            spdlog::error("worker decision failed: {}", e.what());
             return 1;
         }
     } else {
@@ -1943,13 +1943,13 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
         try {
             out = engine->decide(input);
         } catch (const std::exception& e) {
-            fprintf(stderr, "error: decision failed: %s\n", e.what());
+            spdlog::error("decision failed: {}", e.what());
             return 1;
         }
     }
 
     if (!out.ok) {
-        fprintf(stderr, "error: %s\n", out.error.c_str());
+        spdlog::error("{}", out.error);
         return 1;
     }
 
@@ -1993,16 +1993,16 @@ static int32_t cmd_score(int32_t argc, char** argv) {
             options.push_back({std::to_string(options.size()), desc});
         }
         else if (a == "-h" || a == "--help") { usage_score("pjev"); return 0; }
-        else { fprintf(stderr, "error: unknown option: %s\n", a.c_str()); usage_score("pjev"); return 2; }
+        else { spdlog::error("unknown option: {}", a); usage_score("pjev"); return 2; }
     }
 
     if (question.empty()) {
-        fprintf(stderr, "error: --question is required\n");
+        spdlog::error("--question is required");
         usage_score("pjev");
         return 2;
     }
     if (options.size() < 2) {
-        fprintf(stderr, "error: score requires at least 2 --level values\n");
+        spdlog::error("score requires at least 2 --level values");
         usage_score("pjev");
         return 2;
     }
@@ -2036,7 +2036,7 @@ static int32_t cmd_score(int32_t argc, char** argv) {
             WorkerClient client(cli_cfg);
             out = client.decide(input);
         } catch (const std::exception& e) {
-            fprintf(stderr, "error: worker decision failed: %s\n", e.what());
+            spdlog::error("worker decision failed: {}", e.what());
             return 1;
         }
     } else {
@@ -2052,13 +2052,13 @@ static int32_t cmd_score(int32_t argc, char** argv) {
         try {
             out = engine->decide(input);
         } catch (const std::exception& e) {
-            fprintf(stderr, "error: decision failed: %s\n", e.what());
+            spdlog::error("decision failed: {}", e.what());
             return 1;
         }
     }
 
     if (!out.ok) {
-        fprintf(stderr, "error: %s\n", out.error.c_str());
+        spdlog::error("{}", out.error);
         return 1;
     }
 
@@ -2131,11 +2131,12 @@ static int32_t cmd_stop(int32_t argc, char** argv) {
 
 static int32_t cmd_internal_worker(int32_t argc, char** argv) {
     WorkerConfig cfg;
+    cfg.model_path = "models/bonsai.gguf";
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
             if (i + 1 >= argc) {
-                fprintf(stderr, "error: %s requires an argument\n", a.c_str());
+                spdlog::error("{} requires an argument", a);
                 exit(2);
             }
             return argv[++i];
@@ -2147,13 +2148,13 @@ static int32_t cmd_internal_worker(int32_t argc, char** argv) {
         else if (a == "--idle-timeout") cfg.idle_timeout_secs = std::stoi(next());
         else if (a == "--max-queued")   cfg.max_queued = std::stoi(next());
         else {
-            fprintf(stderr, "error: unknown option: %s\n", a.c_str());
+            spdlog::error("unknown option: {}", a);
             return 2;
         }
     }
 
     if (cfg.model_path.empty()) {
-        fprintf(stderr, "error: --model is required for internal-worker\n");
+        spdlog::error("--model is required for internal-worker");
         return 1;
     }
 
@@ -2212,7 +2213,7 @@ int32_t main(int32_t argc, char** argv) {
         // Legacy: no subcommand, treat all args as server args
         return cmd_server(argc - 1, argv + 1);
     } else {
-        fprintf(stderr, "unknown command: %s\n", cmd.c_str());
+        spdlog::error("unknown command: {}", cmd);
         usage(argv[0]);
         return 2;
     }

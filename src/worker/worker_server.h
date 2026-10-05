@@ -16,7 +16,7 @@ struct WorkerConfig {
     std::string calibration_path;
     int threads = 8;
     int ctx_size = 4096;
-    int idle_timeout_secs = 600; // 5 minutes default
+    int idle_timeout_secs = 600; // 10 minutes default
     int max_queued = 8;
 };
 

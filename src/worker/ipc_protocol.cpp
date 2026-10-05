@@ -114,12 +114,9 @@ WorkerInfo ipc_worker_info_from_json(const nlohmann::json& j)
     return info;
 }
 
-std::string make_config_hash(const std::string& model_path,
-                              int threads, int ctx_size,
-                              const std::string& calibration_path)
+const std::string& make_config_hash(const std::string& model_path)
 {
-    return model_path + "|" + std::to_string(threads) + "|"
-         + std::to_string(ctx_size) + "|" + calibration_path;
+    return model_path;
 }
 
 } // namespace pjev

@@ -30,9 +30,7 @@ DecisionOutput ipc_output_from_json(const nlohmann::json& j);
 nlohmann::json ipc_worker_info_to_json(const WorkerInfo& info);
 WorkerInfo     ipc_worker_info_from_json(const nlohmann::json& j);
 
-// Config hash: canonical string from model_path + threads + ctx_size + calibration_path
-std::string make_config_hash(const std::string& model_path,
-                              int threads, int ctx_size,
-                              const std::string& calibration_path);
+// Config hash: canonical string from model_path
+const std::string& make_config_hash(const std::string& model_path);
 
 } // namespace pjev

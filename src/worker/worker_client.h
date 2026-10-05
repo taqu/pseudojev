@@ -52,6 +52,8 @@ private:
     // Wait for worker to become available (poll endpoint).
     std::unique_ptr<ILocalConn> wait_for_worker(int timeout_ms);
 
+    bool validate_compatibility(std::unique_ptr<ILocalConn>& conn);
+
     // Validate WorkerInfo compatibility against our config.
     bool is_compatible(const WorkerInfo& info) const;
 
