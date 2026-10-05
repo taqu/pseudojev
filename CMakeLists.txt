@@ -21,7 +21,7 @@ target_include_directories(pjev-httplib PUBLIC
 )
 find_package(Threads REQUIRED)
 target_link_libraries(pjev-httplib PUBLIC Threads::Threads)
-target_compile_features(pjev-httplib PRIVATE cxx_std_17)
+target_compile_features(pjev-httplib PRIVATE cxx_std_20)
 if (MSVC)
     target_compile_options(pjev-httplib PRIVATE /w)
 else()
@@ -73,12 +73,14 @@ set(PJEV_HEADER
     src/worker/local_transport.h
     src/worker/worker_server.h
     src/worker/worker_client.h
+    src/murmur3/murmur3.h
 )
 source_group(include FILES ${PJEV_HEADER})
 
 set(PJEV_SOURCE
     src/main.cpp
     src/util/timer.cpp
+    src/util/platform.cpp
     src/inference/llama_backend.cpp
     src/calibration/calibration.cpp
     src/calibration/calibration_metrics.cpp
@@ -99,9 +101,9 @@ set(PJEV_SOURCE
     src/worker/local_transport.cpp
     src/worker/worker_server.cpp
     src/worker/worker_client.cpp
+    src/murmur3/murmur3.c
 )
 source_group(src FILES ${PJEV_SOURCE})
-
 add_executable(pjev
     ${PJEV_SOURCE}
     ${PJEV_HEADER}
@@ -110,6 +112,7 @@ if (MSVC)
     target_compile_options(pjev PRIVATE /utf-8)
 else()
 endif()
+target_compile_features(pjev PRIVATE cxx_std_20)
 
 # Embed git commit and llama.cpp revision as compile-time strings
 execute_process(

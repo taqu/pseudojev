@@ -10,6 +10,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <sddl.h>
 
 namespace pjev {
 
@@ -122,6 +123,26 @@ private:
     HANDLE h_ = INVALID_HANDLE_VALUE;
 };
 
+namespace
+{
+    SECURITY_ATTRIBUTES GetSecureLocalSecurityAttributes()
+    {
+        SECURITY_ATTRIBUTES sa = {};
+        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+        sa.bInheritHandle = FALSE;
+
+        // 「D:」= DACL (アクセス制御リスト)
+        // 「A;;GA;;;BA」 = 組み込み管理者 (BA: Built-in Admins) にフルコントロール (GA) を許可
+        // 「A;;GA;;;IU」 = ログイン中のローカルユーザー (IU: Interactive User) にフルコントロール (GA) を許可
+        PSECURITY_DESCRIPTOR pSD = nullptr;
+        if(ConvertStringSecurityDescriptorToSecurityDescriptorA(
+               "D:(A;;GA;;;BA)(A;;GA;;;IU)", SDDL_REVISION_1, &pSD, nullptr)) {
+            sa.lpSecurityDescriptor = pSD;
+        }
+        return sa;
+    }
+}
+
 class WinPipeServer : public ILocalServer {
 public:
     WinPipeServer() = default;
@@ -131,13 +152,17 @@ public:
     {
         endpoint_ = endpoint;
         std::wstring wep(endpoint.begin(), endpoint.end());
+        SECURITY_ATTRIBUTES sa = GetSecureLocalSecurityAttributes();
         pipe_h_ = CreateNamedPipeW(
             wep.c_str(),
             PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
-            1, // max instances
+            PIPE_UNLIMITED_INSTANCES, // max instances
             65536, 65536,
-            0, nullptr);
+            0, &sa);
+        if(sa.lpSecurityDescriptor){
+            LocalFree(sa.lpSecurityDescriptor);
+        }
         if (pipe_h_ == INVALID_HANDLE_VALUE) {
             DWORD err = GetLastError();
             // ERROR_ACCESS_DENIED means another server has this pipe
@@ -147,7 +172,7 @@ public:
         return true;
     }
 
-    std::unique_ptr<ILocalConn> accept(int timeout_ms = -1) override
+    std::unique_ptr<ILocalConn> accept(int32_t timeout_ms = -1) override
     {
         if (pipe_h_ == INVALID_HANDLE_VALUE) return nullptr;
 
@@ -175,11 +200,24 @@ public:
                     }
                 }
             } else if (err != ERROR_PIPE_CONNECTED) {
+                // Check pipe state
+                DWORD flags = 0;
+                if(!GetNamedPipeInfo(pipe_h_, &flags, nullptr, nullptr, nullptr)) {
+                    // Invalid pipe
+                    CloseHandle(ov.hEvent);
+                    return nullptr;
+                }
+            }else{
                 CloseHandle(ov.hEvent);
                 return nullptr;
             }
         }
         CloseHandle(ov.hEvent);
+
+        DWORD state = 0;
+        if(!GetNamedPipeHandleStateW(pipe_h_, &state, nullptr, nullptr, nullptr, nullptr, 0)) {
+            return nullptr;
+        }
 
         // Transfer ownership of pipe_h_ to connection
         HANDLE conn_h = pipe_h_;
@@ -187,12 +225,16 @@ public:
 
         // Re-create the server pipe for next connection
         std::wstring wep(endpoint_.begin(), endpoint_.end());
+        SECURITY_ATTRIBUTES sa = GetSecureLocalSecurityAttributes();
         pipe_h_ = CreateNamedPipeW(
             wep.c_str(),
             PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
-            1, 65536, 65536, 0, nullptr);
+            PIPE_UNLIMITED_INSTANCES, 65536, 65536, 0, &sa);
         // If this fails, the server can no longer accept new connections (acceptable for our use case)
+        if(sa.lpSecurityDescriptor){
+            LocalFree(sa.lpSecurityDescriptor);
+        }
 
         return std::make_unique<WinPipeConn>(conn_h);
     }

@@ -6,12 +6,13 @@
 namespace pjev
 {
 struct LlamaConfig {
+    LlamaConfig();
     std::string model_path;
-    int n_ctx     = 4096;
-    int n_batch   = 4096;
-    int n_threads = 8;
-    int n_threads_batch = -1;
-    bool verbose  = false;
+    int32_t n_ctx;
+    int32_t n_batch;
+    int32_t n_threads;
+    int32_t n_threads_batch;
+    bool verbose;
 };
 
 class LlamaBackend : public ILlamaBackend {

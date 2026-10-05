@@ -2,24 +2,29 @@
 #include "../decision/decision_engine.h"
 #include "ipc_protocol.h"
 #include "local_transport.h"
-#include <string>
 #include <memory>
+#include <string>
 
-namespace pjev {
+namespace pjev
+{
 
-struct ClientConfig {
+struct ClientConfig
+{
+    ClientConfig();
     std::string model_path;
     std::string calibration_path;
-    int threads = 8;
-    int ctx_size = 4096;
-    int idle_timeout_secs = 600;     // worker idle timeout
-    int startup_timeout_ms = 30000;  // 30s for worker to start
-    int request_timeout_ms = 120000; // 2 min for inference
+    int32_t threads;
+    int32_t ctx_size;
+    int32_t idle_timeout_secs;  // worker idle timeout
+    int32_t startup_timeout_ms; // 30s for worker to start
+    int32_t request_timeout_ms; // 2 min for inference
+    int32_t retry_count; // 3 times for retry
 };
 
 // Connects to background worker (spawning it if needed), sends request, gets result.
 // Handles stale worker detection and one-shot recovery.
-class WorkerClient {
+class WorkerClient
+{
 public:
     explicit WorkerClient(const ClientConfig& cfg);
 

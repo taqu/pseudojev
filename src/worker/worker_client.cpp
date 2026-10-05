@@ -1,7 +1,5 @@
 #include "worker_client.h"
-#include "runtime_dir.h"
-#include "local_transport.h"
-#include "../util/platform.h"
+
 #include <chrono>
 #include <thread>
 
@@ -22,7 +20,22 @@
 #include <cerrno>
 #endif
 
+#include "runtime_dir.h"
+#include "local_transport.h"
+#include "../util/platform.h"
+
+
 namespace pjev {
+ClientConfig::ClientConfig()
+    : threads(8)
+    , ctx_size(4096)
+    , idle_timeout_secs(600)
+    , startup_timeout_ms(30000)
+    , request_timeout_ms(120000)
+    , retry_count(3)
+{
+    threads = get_physical_core_count();
+}
 
 WorkerClient::WorkerClient(const ClientConfig& cfg)
     : cfg_(cfg)
@@ -43,7 +56,7 @@ std::string WorkerClient::get_exe_path() const
     DWORD len = GetModuleFileNameW(nullptr, buf, (DWORD)(MAX_PATH * 2));
     if (len == 0) return "";
     // Convert to UTF-8
-    int needed = WideCharToMultiByte(CP_UTF8, 0, buf, -1, nullptr, 0, nullptr, nullptr);
+    int32_t needed = WideCharToMultiByte(CP_UTF8, 0, buf, -1, nullptr, 0, nullptr, nullptr);
     if (needed <= 0) return "";
     std::string s(needed - 1, '\0');
     WideCharToMultiByte(CP_UTF8, 0, buf, -1, &s[0], needed, nullptr, nullptr);
@@ -119,7 +132,7 @@ bool WorkerClient::spawn_worker()
     }
 
     // Convert to wstring
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, cmdline.c_str(), -1, nullptr, 0);
+    int32_t wlen = MultiByteToWideChar(CP_UTF8, 0, cmdline.c_str(), -1, nullptr, 0);
     std::wstring wcmd(wlen - 1, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, cmdline.c_str(), -1, &wcmd[0], wlen);
 
@@ -160,7 +173,7 @@ bool WorkerClient::spawn_worker()
         setsid();
 
         // Redirect stdin/stdout to /dev/null
-        int devnull = open("/dev/null", O_RDWR);
+        int32_t devnull = open("/dev/null", O_RDWR);
         if (devnull >= 0) {
             dup2(devnull, STDIN_FILENO);
             dup2(devnull, STDOUT_FILENO);
@@ -170,7 +183,7 @@ bool WorkerClient::spawn_worker()
 
         // Close all fds > 2
         // (simplified: just close a reasonable range)
-        for (int fd = 3; fd < 1024; fd++) {
+        for (int32_t fd = 3; fd < 1024; fd++) {
             close(fd);
         }
 
@@ -187,13 +200,13 @@ bool WorkerClient::spawn_worker()
 #endif
 }
 
-std::unique_ptr<ILocalConn> WorkerClient::wait_for_worker(int timeout_ms)
+std::unique_ptr<ILocalConn> WorkerClient::wait_for_worker(int32_t timeout_ms)
 {
     std::string endpoint = get_worker_endpoint();
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
 
     while (std::chrono::steady_clock::now() < deadline) {
-        auto conn = make_local_client(endpoint, 100);
+        std::unique_ptr<ILocalConn> conn = make_local_client(endpoint, 100);
         if (conn) return conn;
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
@@ -211,51 +224,53 @@ void WorkerClient::clean_stale_endpoint()
 
 DecisionOutput WorkerClient::decide(const DecisionInput& input)
 {
-    // Try connecting to existing worker
-    auto conn = try_connect_compatible();
+    for(int32_t i = 0; i < cfg_.retry_count; ++i) {
+        // Try connecting to existing worker
+        std::unique_ptr<ILocalConn> conn = try_connect_compatible();
 
-    bool spawned = false;
-    if (!conn) {
-        // No compatible worker — spawn one
-        if (!spawn_worker()) {
-            throw std::runtime_error("pjev worker: failed to spawn worker process");
+        bool spawned = false;
+        if(!conn) {
+            // No compatible worker — spawn one
+            if(!spawn_worker()) {
+                throw std::runtime_error("pjev worker: failed to spawn worker process");
+            }
+            spawned = true;
+            // Wait for it to become available
+            auto raw_conn = wait_for_worker(cfg_.startup_timeout_ms);
+            if(!raw_conn) {
+                throw std::runtime_error("pjev worker: worker did not start in time");
+            }
+            // Now validate compatibility
+            conn = try_connect_compatible();
+            if(!conn) {
+                throw std::runtime_error("pjev worker: worker is not compatible after spawn");
+            }
         }
-        spawned = true;
-        // Wait for it to become available
-        auto raw_conn = wait_for_worker(cfg_.startup_timeout_ms);
-        if (!raw_conn) {
-            throw std::runtime_error("pjev worker: worker did not start in time");
-        }
-        // Now validate compatibility
-        conn = try_connect_compatible();
-        if (!conn) {
-            throw std::runtime_error("pjev worker: worker is not compatible after spawn");
-        }
-    }
 
-    // Send decide request
-    nlohmann::json req;
-    req["type"]             = "decide";
-    req["protocol_version"] = IPC_PROTOCOL_VERSION;
-    req["input"]            = ipc_input_to_json(input);
+        // Send decide request
+        nlohmann::json req;
+        req["type"] = "decide";
+        req["protocol_version"] = IPC_PROTOCOL_VERSION;
+        req["input"] = ipc_input_to_json(input);
 
-    if (!conn->send_frame(req.dump())) {
-        // Broken connection — retry once (if we didn't just spawn)
-        if (spawned) {
-            throw std::runtime_error("pjev worker: broken connection after spawn");
+        if(!conn->send_frame(req.dump())) {
+            // Broken connection — retry once (if we didn't just spawn)
+            if(spawned) {
+                throw std::runtime_error("pjev worker: broken connection after spawn");
+            }
+            clean_stale_endpoint();
+            // Retry once
+            return decide(input);
         }
-        clean_stale_endpoint();
-        // Retry once
-        return decide(input);
-    }
 
-    std::string resp_str;
-    if (!conn->recv_frame(resp_str, cfg_.request_timeout_ms)) {
-        if (spawned) {
-            throw std::runtime_error("pjev worker: no response from worker");
+        std::string resp_str;
+        if(!conn->recv_frame(resp_str, cfg_.request_timeout_ms)) {
+            if(spawned) {
+                throw std::runtime_error("pjev worker: no response from worker");
+            }
+            clean_stale_endpoint();
+            return decide(input);
         }
-        clean_stale_endpoint();
-        return decide(input);
     }
 
     nlohmann::json resp;

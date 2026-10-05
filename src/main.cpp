@@ -37,6 +37,7 @@
 #include "worker/local_transport.h"
 #include "worker/worker_server.h"
 #include "worker/worker_client.h"
+#include "worker/runtime_dir.h"
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -2169,6 +2170,7 @@ int32_t main(int32_t argc, char** argv) {
         usage(argv[0]);
         return 2;
     }
+    initialize_strings();
 
     std::string cmd = argv[1];
 

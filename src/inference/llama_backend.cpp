@@ -1,11 +1,24 @@
 #include "llama_backend.h"
-#include "llama.h"
+
 #include <stdexcept>
 #include <cstdio>
 #include <cstring>
 
+#include "llama.h"
+#include "util/platform.h"
+
 namespace pjev
 {
+LlamaConfig::LlamaConfig()
+    : n_ctx(4096)
+    , n_batch(4096)
+    , n_threads(8)
+    , n_threads_batch(-1)
+    , verbose(false)
+{
+    n_threads = get_physical_core_count();
+}
+
 struct LlamaBackend::Impl {
     llama_model*       model  = nullptr;
     llama_context*     ctx    = nullptr;

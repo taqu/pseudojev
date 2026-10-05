@@ -1,101 +1,135 @@
 #include "runtime_dir.h"
+#include <format>
 
 #ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#include <shlobj.h>
-#include <string>
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <shlobj.h>
+#    include <string>
+#    include <windows.h>
 
-namespace pjev {
+#    include <murmur3/murmur3.h>
 
-static std::string utf16_to_utf8(const std::wstring& ws)
+namespace pjev
 {
-    if (ws.empty()) return {};
-    int len = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    if (len <= 0) return {};
-    std::string s(len - 1, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, &s[0], len, nullptr, nullptr);
-    return s;
-}
 
-static std::string get_windows_username()
+namespace
 {
-    wchar_t buf[256] = {};
-    DWORD sz = 256;
-    if (GetUserNameW(buf, &sz) && sz > 1) {
-        return utf16_to_utf8(std::wstring(buf, sz - 1));
+    std::string worker_endpoint;
+    std::string worker_lock_path;
+    std::string worker_runtime_dir;
+
+    std::string utf16_to_utf8(const std::wstring& ws)
+    {
+        if(ws.empty())
+            return {};
+        int len = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        if(len <= 0)
+            return {};
+        std::string s(len - 1, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, &s[0], len, nullptr, nullptr);
+        return s;
     }
-    return "user";
-}
 
-std::string get_worker_runtime_dir()
+    std::string get_windows_username()
+    {
+        wchar_t buf[256] = {};
+        DWORD sz = 256;
+        if(GetUserNameW(buf, &sz) && sz > 1) {
+            uint64_t hash[2];
+            MurmurHash3_x64_128(buf, static_cast<int32_t>((sz-1) * 2), 42, hash);
+            return std::format("{:X}", hash[0]);
+        }
+        return "user";
+    }
+} // namespace
+
+void initialize_strings()
 {
     wchar_t tmp[MAX_PATH] = {};
     DWORD len = GetTempPathW(MAX_PATH, tmp);
     std::string base;
-    if (len > 0) {
+    if(len > 0) {
         base = utf16_to_utf8(std::wstring(tmp, len));
     } else {
         base = "C:\\Temp\\";
     }
     std::string username = get_windows_username();
-    std::string dir = base + "pjev-" + username + "\\";
+    worker_runtime_dir = base + "pjev-" + username + "\\";
     // Create if needed
-    CreateDirectoryA(dir.c_str(), nullptr);
-    return dir;
+    CreateDirectoryA(worker_runtime_dir.c_str(), nullptr);
+
+    worker_endpoint = "\\\\.\\pipe\\pjev-" + username + "-worker-v1";
 }
 
-std::string get_worker_endpoint()
+const std::string& get_worker_runtime_dir()
 {
-    std::string username = get_windows_username();
-    return "\\\\.\\pipe\\pjev-" + username + "-worker-v1";
+    return worker_runtime_dir;
 }
 
-std::string get_worker_lock_path()
+const std::string& get_worker_endpoint()
 {
-    return {}; // Windows pipes are exclusive by design
+    return worker_endpoint;
+}
+
+const std::string& get_worker_lock_path()
+{
+    return worker_lock_path; // Windows pipes are exclusive by design
 }
 
 } // namespace pjev
 
 #else // Unix
 
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <sys/stat.h>
-#include <unistd.h>
+#    include <cstdlib>
+#    include <cstring>
+#    include <string>
+#    include <sys/stat.h>
+#    include <unistd.h>
 
-namespace pjev {
+namespace pjev
+{
 
-std::string get_worker_runtime_dir()
+namespace
+{
+    std::string worker_endpoint;
+    std::string worker_lock_path;
+    std::string worker_runtime_dir;
+} // namespace
+
+void initialize_strings()
 {
     std::string base;
     const char* xdg = std::getenv("XDG_RUNTIME_DIR");
-    if (xdg && xdg[0] != '\0') {
+    if(xdg && xdg[0] != '\0') {
         base = xdg;
     } else {
         base = "/tmp";
     }
     uid_t uid = getuid();
-    std::string dir = base + "/pjev-" + std::to_string((unsigned)uid) + "/";
-    mkdir(dir.c_str(), 0700);
-    return dir;
+    worker_runtime_dir = base + "/pjev-" + std::to_string((unsigned)uid) + "/";
+    mkdir(worker_runtime_dir.c_str(), 0700);
+    worker_endpoint = worker_runtime_dir + "worker-v1.sock";
+    worker_lock_path = worker_runtime_dir + "worker-v1.lock";
 }
 
-std::string get_worker_endpoint()
+const std::string& get_worker_runtime_dir()
 {
-    return get_worker_runtime_dir() + "worker-v1.sock";
+    return worker_runtime_dir;
 }
 
-std::string get_worker_lock_path()
+const std::string& get_worker_endpoint()
 {
-    return get_worker_runtime_dir() + "worker-v1.lock";
+    return worker_endpoint;
+}
+
+const std::string& get_worker_lock_path()
+{
+    return worker_lock_path;
 }
 
 } // namespace pjev
