@@ -1,0 +1,24 @@
+---
+State: The sky is blue.
+Question: Is it daytime?
+
+{"decision_us":64,"error":"","eval_us":3909418,"expected_score":0.0,"keys":["true","false"],"ok":true,"p_true":0.6589723706884996,"probs":[0.6589723706884996,0.3410276293115003],"prompt_token_count":51,"raw_probs":[0.6589723706884996,0.3410276293115003],"selected":0,"tokenize_us":6707}
+
+---
+State: The sky is dark.
+Question: Is it daytime?
+
+{"decision_us":24,"error":"","eval_us":3900384,"expected_score":0.0,"keys":["true","false"],"ok":true,"p_true":0.5071234651230218,"probs":[0.5071234651230218,0.49287653487697825],"prompt_token_count":51,"raw_probs":[0.5071234651230218,0.49287653487697825],"selected":0,"tokenize_us":3921}
+
+---
+State: It is noon. The sun is shining brightly in a clear sky.
+Question: Is it daytime?
+
+{"decision_us":26,"error":"","eval_us":4972530,"expected_score":0.0,"keys":["true","false"],"ok":true,"p_true":0.861647386655511,"probs":[0.861647386655511,0.13835261334448903],"prompt_token_count":60,"raw_probs":[0.861647386655511,0.13835261334448903],"selected":0,"tokenize_us":11835}
+
+---
+State: It is midnight. The sun has set and the sky is completely dark.
+Question: Is it daytime?
+
+{"decision_us":25,"error":"","eval_us":4526927,"expected_score":0.0,"keys":["true","false"],"ok":true,"p_true":0.3155670485027412,"probs":[0.3155670485027412,0.6844329514972587],"prompt_token_count":61,"raw_probs":[0.3155670485027412,0.6844329514972587],"selected":1,"tokenize_us":7044}
+

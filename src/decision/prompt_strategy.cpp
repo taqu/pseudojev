@@ -111,7 +111,8 @@ std::vector<PromptSegment> PromptStrategy::build_prompt_segments(
     segs.push_back(seg1);
     // Chat template suffix — trusted, contains special tokens
     PromptSegment seg2;
-    seg2.text    = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
+    //seg2.text    = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
+    seg2.text    = "<|im_end|>\n<|im_start|>assistant\n\n";
     seg2.trusted = true;
     segs.push_back(seg2);
     return segs;

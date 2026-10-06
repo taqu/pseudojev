@@ -222,6 +222,9 @@ bool WorkerServer::handle_decide(ILocalConn& conn, const nlohmann::json& req)
     active_requests_.fetch_sub(1);
 
     nlohmann::json resp = ipc_output_to_json(out);
+    #ifdef _DEBUG
+    spdlog::info(resp.dump());
+    #endif
     return conn.send_frame(resp.dump());
 }
 
