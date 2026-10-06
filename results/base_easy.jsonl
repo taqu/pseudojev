@@ -1,0 +1,36 @@
+{
+  "experiment": "run",
+  "layout": "auto",
+  "metrics": {
+    "choice": {
+      "accuracy": 0.9722222222222222,
+      "eval_ms": 19089,
+      "labeled": 36,
+      "n": 36
+    },
+    "n_errors": 0,
+    "n_total": 48,
+    "noul": {
+      "accuracy": 0.6666666666666666,
+      "eval_ms": 5607,
+      "labeled": 12,
+      "n": 12
+    },
+    "score": {
+      "accuracy": -1.0,
+      "eval_ms": 0,
+      "labeled": 0,
+      "mae": -1.0,
+      "n": 0,
+      "qwk": -1.0
+    }
+  },
+  "option_order": "original",
+  "prior_correction": false,
+  "scheme": "natural",
+  "stability": {
+    "n_questions": 0,
+    "n_stable": 0,
+    "stability_rate": -1.0
+  }
+}
