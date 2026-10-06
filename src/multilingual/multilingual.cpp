@@ -193,7 +193,8 @@ MultilingualResult compare_runs(const RunResult& reference,
 
         PairedRecord rec;
         rec.pair_id   = lookup_key;
-        rec.type      = tgt_ir.type;
+        rec.type = to_string(tgt_ir.type);
+
         rec.difficulty = tgt_ir.difficulty.empty() ? ref_ir.difficulty : tgt_ir.difficulty;
         rec.ref_correct    = ref_ir.correct;
         rec.target_correct = tgt_ir.correct;
@@ -240,16 +241,16 @@ MultilingualResult compare_runs(const RunResult& reference,
             CalibrationSample s;
             s.logits        = ir.corrected_logits;
             s.correct_index = ir.correct_index;
-            s.type          = ir.type;
+            s.type = to_string(ir.type);
             s.expected_score = ir.expected_score;
             bucket.push_back(s);
         };
 
-        if (tgt_ir.type == "noul") {
+        if (tgt_ir.type == Type::Noul) {
             add_sample(ref_ir, ref_noul_s); add_sample(tgt_ir, tgt_noul_s);
-        } else if (tgt_ir.type == "choice") {
+        } else if (tgt_ir.type == Type::Choice) {
             add_sample(ref_ir, ref_choice_s); add_sample(tgt_ir, tgt_choice_s);
-        } else if (tgt_ir.type == "score") {
+        } else if (tgt_ir.type == Type::Score) {
             add_sample(ref_ir, ref_score_s); add_sample(tgt_ir, tgt_score_s);
         }
     }
@@ -291,7 +292,7 @@ std::vector<std::string> validate_pairs(
 
         if (ref.input.type != tgt.input.type)
             violations.push_back("pair " + k + ": type mismatch (" +
-                                  ref.input.type + " vs " + tgt.input.type + ")");
+                                  std::string(to_string(ref.input.type)) + " vs " + std::string(to_string(tgt.input.type)) + ")");
 
         if (ref.input.options.size() != tgt.input.options.size())
             violations.push_back("pair " + k + ": option count mismatch (" +

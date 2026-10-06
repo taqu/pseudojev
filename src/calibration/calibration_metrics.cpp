@@ -176,4 +176,103 @@ nlohmann::json CalibrationReport::to_json() const
     };
 }
 
+// Apply alpha to raw_logits to produce corrected logits in place
+static std::vector<CalibrationSample> apply_alpha(
+    const std::vector<CalibrationSample>& samples, double alpha)
+{
+    std::vector<CalibrationSample> out;
+    out.reserve(samples.size());
+    for (const auto& s : samples) {
+        CalibrationSample cs = s;
+        if (!s.raw_logits.empty() && s.raw_logits.size() == s.prior_logits.size()) {
+            cs.logits.resize(s.raw_logits.size());
+            for (size_t i = 0; i < s.raw_logits.size(); i++)
+                cs.logits[i] = s.raw_logits[i] - (float)(alpha * (double)s.prior_logits[i]);
+        }
+        out.push_back(std::move(cs));
+    }
+    return out;
+}
+
+nlohmann::json CalibrationComparisonRow::to_json() const
+{
+    return {
+        {"label",       label},
+        {"alpha",       alpha},
+        {"temperature", temperature},
+        {"metrics",     metrics.to_json()}
+    };
+}
+
+nlohmann::json CalibrationComparisonReport::to_json() const
+{
+    auto rows_to_json = [](const std::vector<CalibrationComparisonRow>& rows) {
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& r : rows) arr.push_back(r.to_json());
+        return arr;
+    };
+    return {
+        {"noul",   rows_to_json(noul_rows)},
+        {"choice", rows_to_json(choice_rows)},
+        {"score",  rows_to_json(score_rows)}
+    };
+}
+
+CalibrationComparisonReport build_comparison_report(
+    const std::vector<CalibrationSample>& noul_samples,
+    const std::vector<CalibrationSample>& choice_samples,
+    const std::vector<CalibrationSample>& score_samples,
+    double T_noul,   double T_choice,   double T_score,
+    double A_noul,   double A_choice,   double A_score,
+    int n_bins)
+{
+    CalibrationComparisonReport rep;
+
+    struct PrimCtx {
+        const std::vector<CalibrationSample>* samples;
+        double T, A;
+        std::vector<CalibrationComparisonRow>* rows;
+    };
+
+    for (auto& ctx : std::vector<PrimCtx>{
+        {&noul_samples,   T_noul,   A_noul,   &rep.noul_rows},
+        {&choice_samples, T_choice, A_choice, &rep.choice_rows},
+        {&score_samples,  T_score,  A_score,  &rep.score_rows}
+    }) {
+        // raw: alpha=0, T=1
+        {
+            auto s0 = apply_alpha(*ctx.samples, 0.0);
+            CalibrationComparisonRow r;
+            r.label = "raw"; r.alpha = 0.0; r.temperature = 1.0;
+            r.metrics = compute_primitive_metrics(s0, 1.0, n_bins);
+            ctx.rows->push_back(r);
+        }
+        // temperature only: alpha=0, T=fitted
+        {
+            auto s0 = apply_alpha(*ctx.samples, 0.0);
+            CalibrationComparisonRow r;
+            r.label = "temperature"; r.alpha = 0.0; r.temperature = ctx.T;
+            r.metrics = compute_primitive_metrics(s0, ctx.T, n_bins);
+            ctx.rows->push_back(r);
+        }
+        // prior correction only: alpha=best, T=1
+        {
+            auto sA = apply_alpha(*ctx.samples, ctx.A);
+            CalibrationComparisonRow r;
+            r.label = "prior"; r.alpha = ctx.A; r.temperature = 1.0;
+            r.metrics = compute_primitive_metrics(sA, 1.0, n_bins);
+            ctx.rows->push_back(r);
+        }
+        // prior + temperature: alpha=best, T=fitted
+        {
+            auto sA = apply_alpha(*ctx.samples, ctx.A);
+            CalibrationComparisonRow r;
+            r.label = "prior+temperature"; r.alpha = ctx.A; r.temperature = ctx.T;
+            r.metrics = compute_primitive_metrics(sA, ctx.T, n_bins);
+            ctx.rows->push_back(r);
+        }
+    }
+    return rep;
+}
+
 } // namespace pjev

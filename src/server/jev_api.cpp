@@ -8,6 +8,31 @@
 namespace pjev {
 using json = nlohmann::ordered_json;
 
+Type to_type(const std::string& str)
+{
+    if(str == "choice")
+        return Type::Choice;
+    if(str == "noul")
+        return Type::Noul;
+    if(str == "score")
+        return Type::Score;
+    return Type::Unknown;
+}
+
+const char* to_string(Type type)
+{
+    switch(type) {
+    case Type::Choice:
+        return "choice";
+    case Type::Noul:
+        return "noul";
+    case Type::Score:
+        return "score";
+    default:
+        return "unknown";
+    }
+}
+
 // Input size limits
 namespace {
 static constexpr size_t MAX_STATE_LEN    = 32 * 1024;
@@ -41,7 +66,7 @@ static bool build_input(DecisionInput& input,
 
     input.state    = state;
     input.question = question["instructions"].get<std::string>();
-    input.type     = question["type"].get<std::string>();
+    input.type     = to_type(question["type"].get<std::string>());
 
     if (input.question.size() > MAX_QUESTION_LEN) {
         status_out   = 400;
@@ -52,7 +77,7 @@ static bool build_input(DecisionInput& input,
 
     const json* criteria = question.contains("criteria") ? &question["criteria"] : nullptr;
 
-    if (input.type == "noul") {
+    if (input.type == Type::Noul) {
         std::string false_desc, true_desc;
         if (criteria && criteria->is_object()) {
             if (criteria->contains("false") && (*criteria)["false"].is_string())
@@ -62,7 +87,7 @@ static bool build_input(DecisionInput& input,
         }
         input.options.push_back({"false", false_desc});
         input.options.push_back({"true",  true_desc});
-    } else if (input.type == "choice") {
+    } else if (input.type == Type::Choice) {
         if (!criteria || !criteria->is_object()) {
             status_out   = 400;
             response_out = make_error(ErrorCode::INVALID_REQUEST,
@@ -86,7 +111,7 @@ static bool build_input(DecisionInput& input,
                                       req_id);
             return false;
         }
-    } else if (input.type == "score") {
+    } else if (input.type == Type::Score) {
         if (!criteria || !criteria->is_array()) {
             status_out   = 400;
             response_out = make_error(ErrorCode::INVALID_REQUEST,
@@ -107,7 +132,7 @@ static bool build_input(DecisionInput& input,
     } else {
         status_out   = 422;
         response_out = make_error(ErrorCode::UNSUPPORTED_PRIMITIVE,
-                                  "unknown question type: " + input.type, req_id);
+                                  "unknown question type: " + std::string(to_string(input.type)), req_id);
         return false;
     }
 
@@ -241,13 +266,13 @@ void JevApiHandler::handle(const std::string& request_body,
 
             json answer;
             answer["type"] = input.type;
-            if (input.type == "noul") {
+            if (input.type == Type::Noul) {
                 answer["noul"] = out.p_true;
             } else {
                 json probs_obj = json::object();
                 for (size_t i = 0; i < out.keys.size(); i++) probs_obj[out.keys[i]] = out.probs[i];
                 answer["probabilities"] = probs_obj;
-                if (input.type == "choice") answer["choice"] = out.keys[out.selected];
+                if (input.type == Type::Choice) answer["choice"] = out.keys[out.selected];
             }
             int64_t q_total_us = out.tokenize_us + out.eval_us + out.decision_us;
             answer["duration"] = std::to_string(q_total_us / 1000);

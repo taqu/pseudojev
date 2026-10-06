@@ -25,6 +25,14 @@ std::string parse_row(const nlohmann::ordered_json& j, DatasetRow& row);
 
 // Load JSONL/JSON file into rows. Returns false on I/O or parse error.
 bool load_dataset(const std::string& path, std::vector<DatasetRow>& rows, std::string& err);
+
+enum class DataSplit { Tuning, Validation, HeldOut };
+
+// Deterministically assigns a split based on FNV-1a hash of source_id XOR'd with seed.
+// Bucket distribution: 0-59 → Tuning (60%), 60-79 → Validation (20%), 80-99 → HeldOut (20%).
+DataSplit assign_split(const std::string& source_id, uint32_t seed = 42);
+
+std::string split_name(DataSplit s);
 }
 #endif //INC_PJEV_DATASET_H_
 

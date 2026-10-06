@@ -5,14 +5,24 @@
 #include "prompt_strategy.h"
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace pjev
 {
+
+enum class NoulEnsembleMode { NONE, BINARY_ORDER };
+
+struct EnsembleConfig
+{
+    NoulEnsembleMode noul_mode = NoulEnsembleMode::NONE;
+};
+
 struct DecisionInput
 {
-    std::string type; // "noul" | "choice" | "score"
+    //std::string type; // "noul" | "choice" | "score"
+    Type type;
     std::string state;
     std::string question; // from "instructions"
     // ordered list of (key, description) — order matters for candidate assignment
@@ -37,6 +47,18 @@ struct DecisionOutput
     int64_t tokenize_us = 0;  // microseconds for prompt tokenization
     int64_t eval_us     = 0;  // microseconds for llama_decode
     int64_t decision_us = 0;  // microseconds for logit extraction + softmax
+
+    // E1 ensemble diagnostics (only populated when NoulEnsembleMode::BINARY_ORDER is active)
+    struct EnsembleDiag {
+        double m1 = 0.0;               // semantic margin for ordering 1
+        double m2 = 0.0;               // semantic margin for ordering 2
+        double m_ensemble = 0.0;       // combined semantic margin
+        double p_true_ord1 = 0.0;      // P(true) from ordering 1 alone (T=1)
+        double p_true_ord2 = 0.0;      // P(true) from ordering 2 alone (T=1)
+        std::vector<float> ord1_corrected_logits;
+        std::vector<float> ord2_corrected_logits;
+    };
+    std::optional<EnsembleDiag> ensemble_diag;
 };
 
 struct BatchConfig {
@@ -48,9 +70,11 @@ class DecisionEngine
 public:
     // Throws std::runtime_error if candidate token verification fails.
     DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg = {},
-                   const CalibrationConfig& calib = {});
+                   const CalibrationConfig& calib = {},
+                   const EnsembleConfig& ensemble = {});
 
     // Not thread-safe. External callers must serialize access.
+    // Dispatches to decide_noul_ensemble when ensemble mode is BINARY_ORDER and type=="noul".
     DecisionOutput decide(const DecisionInput& input);
 
     // Process multiple questions, reusing the shared-state KV prefix when possible.
@@ -62,12 +86,13 @@ public:
     // Compute candidate logits for a blank (empty state/question) prompt of the given type and n_options.
     // Returns per-candidate raw logits (size = n_options), or empty vector on failure.
     // Used by the experiment framework for prior correction.
-    std::vector<float> compute_blank_logits(const std::string& type, int n_options);
+    std::vector<float> compute_blank_logits(Type type, int n_options);
 
 private:
     ILlamaBackend&   backend_;
     PromptStrategy   strategy_;
     CalibrationConfig calib_cfg_;
+    EnsembleConfig    ensemble_cfg_;
     std::map<std::string, int> cand_token_map_; // internal_text -> token_id
 
     static std::string restricted_softmax(const std::vector<float>& logits,
@@ -79,8 +104,6 @@ private:
     std::vector<int32_t> make_prompt_tokens(const DecisionInput& input,
                                              const std::vector<Candidate>& candidates);
     // Complete a DecisionOutput from already-computed logits pointer.
-    // cand_ids: token ids of candidates in order.
-    // candidates: full candidate metadata (noul_value used for p_true).
     DecisionOutput finish_from_logits(const DecisionInput& input,
                                        const std::vector<std::string>& keys,
                                        const std::vector<Candidate>& candidates,
@@ -89,6 +112,13 @@ private:
                                        int32_t token_count,
                                        int64_t tokenize_us_val,
                                        int64_t eval_us_val);
+
+    // Single-ordering inference path (no ensemble dispatch).
+    DecisionOutput decide_single(const DecisionInput& input);
+
+    // Binary option-order ensemble for noul: evaluates both candidate orderings and combines
+    // semantic margins. Input must be type=="noul" with exactly 2 options (false/true).
+    DecisionOutput decide_noul_ensemble(const DecisionInput& input);
 };
 } // namespace pjev
 #endif // INC_PJEV_DECISION_ENGINE_H_

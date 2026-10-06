@@ -5,21 +5,20 @@ namespace pjev
 {
 PromptStrategy::PromptStrategy(const PromptConfig& cfg) : cfg_(cfg) {}
 
-bool PromptStrategy::use_state_last(const std::string& type) const {
+bool PromptStrategy::use_state_last(Type type) const {
     return cfg_.layout == Layout::STATE_LAST ||
-           (cfg_.layout == Layout::AUTO && type == "score");
+           (cfg_.layout == Layout::AUTO && type == Type::Score);
     // Note: QUESTION_FIRST is handled separately in build_user_content.
 }
 
-void PromptStrategy::assign_labels(const std::string& type,
-                                   std::vector<Candidate>& candidates) const {
+void PromptStrategy::assign_labels(Type type, std::vector<Candidate>& candidates) const {
     for (size_t i = 0; i < candidates.size(); i++) {
         std::string s = std::string(1, (char)('A' + i));
-        if (cfg_.scheme == Scheme::NATURAL && type == "score") {
+        if (cfg_.scheme == Scheme::NATURAL && type == Type::Score) {
             s = std::to_string(i);
         }
         candidates[i].internal = s;
-        if (type == "noul") {
+        if (type == Type::Noul) {
             if (candidates[i].key == "true")  candidates[i].noul_value = NoulValue::True;
             else if (candidates[i].key == "false") candidates[i].noul_value = NoulValue::False;
         }
@@ -38,7 +37,7 @@ std::vector<std::string> PromptStrategy::all_internal_texts() const {
 }
 
 std::string PromptStrategy::build_user_content(
-    const std::string& type,
+    Type type,
     const std::string& state,
     const std::string& question,
     const std::vector<Candidate>& candidates) const
@@ -50,13 +49,13 @@ std::string PromptStrategy::build_user_content(
     }
 
     // Build options block
-    std::string opts = (type == "score")
+    std::string opts = (type == Type::Score)
         ? "Possible answers (ordered from lowest to highest):\n"
         : "Possible answers:\n";
     for (size_t i = 0; i < candidates.size(); i++) {
         const auto& c = candidates[i];
         std::string desc = c.description;
-        if (type == "noul") {
+        if (type == Type::Noul) {
             const std::string word = c.noul_value.has_value()
                 ? (*c.noul_value == NoulValue::True ? "Yes" : "No")
                 : (i == 0 ? "No" : "Yes"); // positional fallback when noul_value unset
@@ -79,7 +78,7 @@ std::string PromptStrategy::build_user_content(
 }
 
 PromptStrategy::PrefixInfo PromptStrategy::build_prefix_info(
-    const std::string& type, const std::string& state) const
+    Type type, const std::string& state) const
 {
     PrefixInfo info;
     if (use_state_last(type) || cfg_.layout == Layout::QUESTION_FIRST) {
@@ -92,7 +91,7 @@ PromptStrategy::PrefixInfo PromptStrategy::build_prefix_info(
 }
 
 std::vector<PromptSegment> PromptStrategy::build_prompt_segments(
-    const std::string& type,
+    Type type,
     const std::string& state,
     const std::string& question,
     const std::vector<Candidate>& candidates) const
@@ -111,7 +110,6 @@ std::vector<PromptSegment> PromptStrategy::build_prompt_segments(
     segs.push_back(seg1);
     // Chat template suffix — trusted, contains special tokens
     PromptSegment seg2;
-    //seg2.text    = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
     seg2.text    = "<|im_end|>\n<|im_start|>assistant\n\n";
     seg2.trusted = true;
     segs.push_back(seg2);

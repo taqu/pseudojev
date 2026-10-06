@@ -19,10 +19,12 @@ namespace
 } // namespace
 
 DecisionEngine::DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg,
-                               const CalibrationConfig& calib)
+                               const CalibrationConfig& calib,
+                               const EnsembleConfig& ensemble)
     : backend_(backend)
     , strategy_(cfg)
     , calib_cfg_(calib)
+    , ensemble_cfg_(ensemble)
 {
     // Verify all candidate tokens for the configured scheme
     std::set<int32_t> seen;
@@ -132,8 +134,9 @@ DecisionOutput DecisionEngine::finish_from_logits(
     for(int32_t id: cand_ids) cand_logits.push_back(logits[id]);
 
     if(input.prior_correction && input.prior_logits.size() == cand_ids.size()) {
+        double alpha = calib_cfg_.prior_alpha_for(input.type);
         for(size_t i = 0; i < cand_logits.size(); i++) {
-            cand_logits[i] -= input.prior_logits[i];
+            cand_logits[i] -= (float)(alpha * (double)input.prior_logits[i]);
         }
     }
 
@@ -165,9 +168,9 @@ DecisionOutput DecisionEngine::finish_from_logits(
 
     out.probs = probs;
     out.selected = argmax(probs);
-    if(input.type == "score")
+    if(input.type == Type::Score)
         out.expected_score = expected_level(probs);
-    if(input.type == "noul") {
+    if(input.type == Type::Noul) {
         for(size_t i = 0; i < candidates.size(); ++i) {
             if(candidates[i].noul_value.has_value() && *candidates[i].noul_value == NoulValue::True) {
                 out.p_true = probs[i];
@@ -180,14 +183,14 @@ DecisionOutput DecisionEngine::finish_from_logits(
     return out;
 }
 
-DecisionOutput DecisionEngine::decide(const DecisionInput& input)
+DecisionOutput DecisionEngine::decide_single(const DecisionInput& input)
 {
     DecisionOutput out;
     out.keys.reserve(input.options.size());
     for(const auto& kv: input.options) out.keys.push_back(kv.first);
 
-    if(input.type != "noul" && input.type != "choice" && input.type != "score") {
-        out.error = "unknown decision type: " + input.type;
+    if(input.type != Type::Noul && input.type != Type::Choice && input.type != Type::Score) {
+        out.error = "unknown decision type: " + std::string(to_string(input.type));
         return out;
     }
     if(input.options.size() < 2) {
@@ -246,6 +249,92 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input)
                               out.prompt_token_count, out.tokenize_us, out.eval_us);
 }
 
+DecisionOutput DecisionEngine::decide(const DecisionInput& input)
+{
+    if(input.type == Type::Noul && ensemble_cfg_.noul_mode == NoulEnsembleMode::BINARY_ORDER)
+        return decide_noul_ensemble(input);
+    return decide_single(input);
+}
+
+DecisionOutput DecisionEngine::decide_noul_ensemble(const DecisionInput& input)
+{
+    // Validate
+    if(input.type != Type::Noul || input.options.size() != 2) {
+        DecisionOutput out;
+        out.error = "ensemble: requires noul with exactly 2 options";
+        return out;
+    }
+
+    // Ordering 1: original option order; always collect corrected logits
+    DecisionInput inp1 = input;
+    inp1.collect_corrected_logits = true;
+
+    // Ordering 2: reversed options; prior_logits unchanged (same tokens A/B regardless of semantic binding)
+    DecisionInput inp2 = input;
+    inp2.options = {input.options[1], input.options[0]};
+    inp2.collect_corrected_logits = true;
+
+    DecisionOutput out1 = decide_single(inp1);
+    DecisionOutput out2 = decide_single(inp2);
+
+    if(!out1.ok) return out1;
+    if(!out2.ok) return out2;
+
+    // Find semantic true/false indices by key
+    auto key_idx = [](const std::vector<std::string>& keys, const std::string& k) -> int {
+        for(int i = 0; i < (int)keys.size(); i++) if(keys[i] == k) return i;
+        return -1;
+    };
+
+    int ti1 = key_idx(out1.keys, "true"),  fi1 = key_idx(out1.keys, "false");
+    int ti2 = key_idx(out2.keys, "true"),  fi2 = key_idx(out2.keys, "false");
+
+    if(ti1 < 0 || fi1 < 0 || ti2 < 0 || fi2 < 0 ||
+       ti1 >= (int)out1.corrected_logits.size() || fi1 >= (int)out1.corrected_logits.size() ||
+       ti2 >= (int)out2.corrected_logits.size() || fi2 >= (int)out2.corrected_logits.size()) {
+        DecisionOutput out;
+        out.error = "ensemble: cannot locate true/false corrected logits";
+        return out;
+    }
+
+    double m1 = (double)out1.corrected_logits[ti1] - (double)out1.corrected_logits[fi1];
+    double m2 = (double)out2.corrected_logits[ti2] - (double)out2.corrected_logits[fi2];
+    double m_ensemble = (m1 + m2) / 2.0;
+
+    double T      = calib_cfg_.temperature_for(Type::Noul);
+    double p_true = 1.0 / (1.0 + std::exp(-m_ensemble / T));
+
+    // Build output in the original option order
+    DecisionOutput out;
+    out.ok   = true;
+    out.keys = out1.keys;
+    out.probs.resize(input.options.size());
+    out.raw_probs.resize(input.options.size());
+    for(size_t i = 0; i < input.options.size(); i++) {
+        bool is_true = (input.options[i].first == "true");
+        out.probs[i]     = is_true ? p_true : 1.0 - p_true;
+        double p_raw     = 1.0 / (1.0 + std::exp(-m_ensemble));  // T=1
+        out.raw_probs[i] = is_true ? p_raw : 1.0 - p_raw;
+    }
+    out.p_true  = p_true;
+    out.selected = (p_true >= 0.5) ? ti1 : fi1;
+    out.prompt_token_count = out1.prompt_token_count + out2.prompt_token_count;
+    out.eval_us = out1.eval_us + out2.eval_us;
+
+    // Diagnostics
+    DecisionOutput::EnsembleDiag diag;
+    diag.m1       = m1;
+    diag.m2       = m2;
+    diag.m_ensemble = m_ensemble;
+    diag.p_true_ord1 = 1.0 / (1.0 + std::exp(-m1));   // T=1
+    diag.p_true_ord2 = 1.0 / (1.0 + std::exp(-m2));
+    diag.ord1_corrected_logits = out1.corrected_logits;
+    diag.ord2_corrected_logits = out2.corrected_logits;
+    out.ensemble_diag = diag;
+
+    return out;
+}
+
 std::vector<DecisionOutput> DecisionEngine::decide_batch(
     const std::vector<DecisionInput>& inputs, const BatchConfig& cfg)
 {
@@ -292,8 +381,8 @@ std::vector<DecisionOutput> DecisionEngine::decide_batch(
         out.keys.reserve(input.options.size());
         for(const auto& kv: input.options) out.keys.push_back(kv.first);
 
-        if(input.type != "noul" && input.type != "choice" && input.type != "score") {
-            out.error = "unknown decision type: " + input.type;
+        if(input.type != Type::Noul && input.type != Type::Choice && input.type != Type::Score) {
+            out.error = "unknown decision type: " + std::string(to_string(input.type));
             results.push_back(out);
             continue;
         }
@@ -369,7 +458,7 @@ std::vector<DecisionOutput> DecisionEngine::decide_batch(
     return results;
 }
 
-std::vector<float> DecisionEngine::compute_blank_logits(const std::string& type, int n_options)
+std::vector<float> DecisionEngine::compute_blank_logits(Type type, int n_options)
 {
     if(n_options < 2 || n_options > PromptStrategy::MAX_CANDIDATES)
         return {};

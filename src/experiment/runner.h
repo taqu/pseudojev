@@ -1,43 +1,46 @@
 #ifndef INC_PJEV_RUNNER_H_
 #define INC_PJEV_RUNNER_H_
+#include "../decision/decision_engine.h"
+#include "../inference/backend.h"
 #include "config.h"
 #include "dataset.h"
 #include "metrics.h"
 #include "permute.h"
-#include "../decision/decision_engine.h"
-#include "../inference/backend.h"
 #include <nlohmann/json.hpp>
+
 namespace pjev
 {
-struct ItemResult {
+struct ItemResult
+{
     std::string id;
-    std::string type;
-    bool        ok       = false;
+    Type type;
+    bool ok = false;
     std::string error;
-    int         selected = -1;
-    int         correct_index = -1;      // ground-truth candidate index (for calibration)
-    double      expected_score = 0.0;    // ground-truth score level (score items)
+    int selected = -1;
+    int correct_index = -1;              // ground-truth candidate index (for calibration)
+    double expected_score = 0.0;         // ground-truth score level (score items)
     std::vector<double> probs;           // calibrated (or raw if disabled)
     std::vector<double> raw_probs;       // before temperature scaling
-    std::vector<float>  corrected_logits; // post prior-correction, pre temperature
+    std::vector<float> corrected_logits; // post prior-correction, pre temperature
     std::vector<std::string> keys;
-    bool        correct  = false;
+    bool correct = false;
     // Option ordering experiment
     std::string stable_key; // the key selected in this run (for stability check)
     // Multilingual metadata (from DatasetRow)
-    std::string language;               // "en", "ja", etc.
-    std::string pair_id;                // shared ID for cross-language pairing
-    std::string difficulty;             // "easy", "original", "hard"
+    std::string language;   // "en", "ja", etc.
+    std::string pair_id;    // shared ID for cross-language pairing
+    std::string difficulty; // "easy", "original", "hard"
     // Per-item performance
     int32_t prompt_token_count = 0;
     int64_t eval_ms = 0;
 };
 
-struct RunResult {
-    ExperimentConfig    config;
-    std::string         dataset_path;
-    RunMetrics          metrics;
-    StabilityMetrics    stability;
+struct RunResult
+{
+    ExperimentConfig config;
+    std::string dataset_path;
+    RunMetrics metrics;
+    StabilityMetrics stability;
     std::vector<ItemResult> items;
     nlohmann::json to_json() const;
 };
@@ -48,7 +51,8 @@ RunResult run_experiment(ILlamaBackend& backend,
                          const ExperimentConfig& cfg);
 
 // Comparison across multiple configs (for named experiments).
-struct CompareResult {
+struct CompareResult
+{
     std::string experiment_name;
     std::string model_path;
     std::vector<RunResult> runs;
@@ -79,6 +83,5 @@ CompareResult exp_prior_correction(ILlamaBackend& backend,
 CompareResult exp_score_formulation(ILlamaBackend& backend,
                                     const std::vector<DatasetRow>& rows,
                                     const std::string& model_path);
-}
-#endif //INC_PJEV_RUNNER_H_
-
+} // namespace pjev
+#endif // INC_PJEV_RUNNER_H_

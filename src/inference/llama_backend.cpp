@@ -49,6 +49,8 @@ LlamaBackend::LlamaBackend(const LlamaConfig& cfg) : impl_(new Impl) {
     cp.n_batch         = (uint32_t)cfg.n_batch;
     cp.n_threads       = cfg.n_threads;
     cp.n_threads_batch = (cfg.n_threads_batch < 0) ? cfg.n_threads : cfg.n_threads_batch;
+    cp.n_outputs_max = 4;
+    cp.n_outputs_max_per_seq = 4;
     cp.no_perf         = true;
     impl_->ctx = llama_init_from_model(impl_->model, cp);
     if (!impl_->ctx) {

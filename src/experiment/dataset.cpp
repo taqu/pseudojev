@@ -24,16 +24,16 @@ std::string parse_row(const nlohmann::ordered_json& j, DatasetRow& row)
     const bool jevbench = j.contains("question") && j["question"].is_object();
     if(jevbench) {
         const json& q = j["question"];
-        row.input.type = str_or(q, "type");
+        row.input.type = to_type(str_or(q, "type"));
         row.input.question = str_or(q, "instructions");
         const json& c = q.contains("criteria") ? q["criteria"] : json::object();
-        if(row.input.type == "noul") {
+        if(row.input.type == Type::Noul) {
             row.input.options = {{"false", str_or(c, "false")}, {"true", str_or(c, "true")}};
             if(row.expected.is_string()) {
                 std::string s = row.expected.get<std::string>();
                 row.expected = (s == "yes") ? "true" : "false";
             }
-        } else if(row.input.type == "choice") {
+        } else if(row.input.type == Type::Choice) {
             if(j.contains("labels") && j["labels"].is_array()) {
                 for(const auto& lab: j["labels"]) {
                     const std::string k2 = lab.get<std::string>();
@@ -44,21 +44,21 @@ std::string parse_row(const nlohmann::ordered_json& j, DatasetRow& row)
                     row.input.options.push_back({k2, v.is_string() ? v.get<std::string>() : ""});
                 }
             }
-        } else if(row.input.type == "score") {
+        } else if(row.input.type == Type::Score) {
             for(size_t i = 0; i < c.size(); i++) {
                 row.input.options.push_back({std::to_string(i), c[i].is_string() ? c[i].get<std::string>() : ""});
             }
         }
     } else {
-        row.input.type = str_or(j, "type");
+        row.input.type = to_type(str_or(j, "type"));
         row.input.question = str_or(j, "question");
-        if(row.input.type == "noul") {
+        if(row.input.type == Type::Noul) {
             row.input.options = {{"false", ""}, {"true", ""}};
-        } else if(row.input.type == "choice" && j.contains("choices") && j["choices"].is_object()) {
+        } else if(row.input.type == Type::Choice && j.contains("choices") && j["choices"].is_object()) {
             for(const auto& [k2, v]: j["choices"].items()) {
                 row.input.options.push_back({k2, v.is_string() ? v.get<std::string>() : ""});
             }
-        } else if(row.input.type == "score" && j.contains("levels") && j["levels"].is_array()) {
+        } else if(row.input.type == Type::Score && j.contains("levels") && j["levels"].is_array()) {
             for(size_t i = 0; i < j["levels"].size(); i++) {
                 const auto& d = j["levels"][i];
                 row.input.options.push_back({std::to_string(i), d.is_string() ? d.get<std::string>() : ""});
@@ -66,8 +66,8 @@ std::string parse_row(const nlohmann::ordered_json& j, DatasetRow& row)
         }
     }
 
-    if(row.input.type != "noul" && row.input.type != "choice" && row.input.type != "score") {
-        return "unknown type: " + row.input.type;
+    if(row.input.type != Type::Noul && row.input.type != Type::Choice && row.input.type != Type::Score) {
+        return "unknown type: " + std::string(to_string(row.input.type));
     }
     if(row.input.options.size() < 2) {
         return "need at least 2 candidates";
@@ -145,5 +145,25 @@ bool load_dataset(const std::string& path, std::vector<DatasetRow>& rows, std::s
         }
     }
     return true;
+}
+
+DataSplit assign_split(const std::string& source_id, uint32_t seed)
+{
+    uint32_t h = 2166136261u ^ seed;
+    for (unsigned char c : source_id) {
+        h ^= (uint32_t)c;
+        h *= 16777619u;
+    }
+    int bucket = (int)(h % 100u);
+    if (bucket < 60) return DataSplit::Tuning;
+    if (bucket < 80) return DataSplit::Validation;
+    return DataSplit::HeldOut;
+}
+
+std::string split_name(DataSplit s)
+{
+    if (s == DataSplit::Tuning)     return "tuning";
+    if (s == DataSplit::Validation) return "validation";
+    return "held_out";
 }
 } // namespace pjev

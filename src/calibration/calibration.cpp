@@ -5,12 +5,19 @@
 namespace pjev
 {
 
-double CalibrationConfig::temperature_for(const std::string& type) const
+double CalibrationConfig::temperature_for(Type type) const
 {
     if (!enabled) return 1.0;
-    if (type == "noul")  return noul_temperature;
-    if (type == "score") return score_temperature;
+    if (type == Type::Noul)  return noul_temperature;
+    if (type == Type::Score) return score_temperature;
     return choice_temperature;
+}
+
+double CalibrationConfig::prior_alpha_for(Type type) const
+{
+    if (type == Type::Noul)  return noul_prior_alpha;
+    if (type == Type::Score) return score_prior_alpha;
+    return choice_prior_alpha;
 }
 
 std::string temperature_softmax(const std::vector<float>& logits, double T,
@@ -62,11 +69,14 @@ std::vector<double> log_softmax(const std::vector<float>& logits)
 CalibrationConfig CalibrationArtifact::to_config() const
 {
     CalibrationConfig cfg;
-    cfg.enabled           = true;
-    cfg.method            = method;
-    cfg.noul_temperature  = noul_temperature;
+    cfg.enabled            = true;
+    cfg.method             = method;
+    cfg.noul_temperature   = noul_temperature;
     cfg.choice_temperature = choice_temperature;
-    cfg.score_temperature = score_temperature;
+    cfg.score_temperature  = score_temperature;
+    cfg.noul_prior_alpha   = noul_prior_alpha;
+    cfg.choice_prior_alpha = choice_prior_alpha;
+    cfg.score_prior_alpha  = score_prior_alpha;
     return cfg;
 }
 
@@ -84,7 +94,10 @@ nlohmann::json CalibrationArtifact::to_json() const
         {"parameters", {
             {"noul_temperature",   noul_temperature},
             {"choice_temperature", choice_temperature},
-            {"score_temperature",  score_temperature}
+            {"score_temperature",  score_temperature},
+            {"noul_prior_alpha",   noul_prior_alpha},
+            {"choice_prior_alpha", choice_prior_alpha},
+            {"score_prior_alpha",  score_prior_alpha}
         }}
     };
 }
@@ -125,6 +138,12 @@ bool CalibrationArtifact::from_json(const nlohmann::json& j,
         art.score_temperature  = p.value("score_temperature",  1.0);
         if (art.noul_temperature <= 0.0 || art.choice_temperature <= 0.0 || art.score_temperature <= 0.0) {
             err = "temperature values must be > 0"; return false;
+        }
+        art.noul_prior_alpha   = p.value("noul_prior_alpha",   1.0);
+        art.choice_prior_alpha = p.value("choice_prior_alpha", 1.0);
+        art.score_prior_alpha  = p.value("score_prior_alpha",  1.0);
+        if (art.noul_prior_alpha < 0.0 || art.choice_prior_alpha < 0.0 || art.score_prior_alpha < 0.0) {
+            err = "prior_alpha values must be >= 0"; return false;
         }
     } catch (const std::exception& e) {
         err = std::string("JSON parse error: ") + e.what();

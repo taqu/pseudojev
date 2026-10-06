@@ -1,9 +1,12 @@
 #include "runner.h"
-#include "../util/timer.h"
+
 #include <algorithm>
 #include <cmath>
 #include <map>
 #include <utility>
+
+#include "../util/timer.h"
+#include "spdlog/spdlog.h"
 
 namespace pjev
 {
@@ -14,20 +17,20 @@ namespace
     // Helpers
     // ---------------------------------------------------------------------------
 
-    bool check_correct(const ItemResult& ir, const json& expected, const std::string& type)
+    bool check_correct(const ItemResult& ir, const json& expected, Type type)
     {
         if(!ir.ok)
             return false;
         if(expected.is_null())
             return false;
-        if(type == "noul" || type == "choice") {
+        if(type == Type::Noul || type == Type::Choice) {
             if(!expected.is_string())
                 return false;
             if(ir.selected < 0 || ir.selected >= (int)ir.keys.size())
                 return false;
             return ir.keys[ir.selected] == expected.get<std::string>();
         }
-        if(type == "score") {
+        if(type == Type::Score) {
             if(!expected.is_number_integer())
                 return false;
             return ir.selected == expected.get<int>();
@@ -35,7 +38,7 @@ namespace
         return false;
     }
 
-    void accumulate(RunMetrics& m, const ItemResult& ir, const json& expected, const std::string& type, int n_levels)
+    void accumulate(RunMetrics& m, const ItemResult& ir, const json& expected, Type type, int n_levels)
     {
         m.n_total++;
         if(!ir.ok) {
@@ -44,11 +47,11 @@ namespace
         }
 
         TypeMetrics* tm = nullptr;
-        if(type == "choice")
+        if(type == Type::Choice)
             tm = &m.choice;
-        else if(type == "noul")
+        else if(type == Type::Noul)
             tm = &m.noul;
-        else if(type == "score") {
+        else if(type == Type::Score) {
             tm = &m.score;
             if(n_levels > m.score_n_levels)
                 m.score_n_levels = n_levels;
@@ -60,13 +63,13 @@ namespace
         if(expected.is_null())
             return;
 
-        if(type == "noul" || type == "choice") {
+        if(type == Type::Noul || type == Type::Choice) {
             if(!expected.is_string())
                 return;
             tm->labeled++;
             if(ir.correct)
                 tm->correct++;
-        } else if(type == "score") {
+        } else if(type == Type::Score) {
             if(!expected.is_number_integer())
                 return;
             int actual = expected.get<int>();
@@ -92,20 +95,22 @@ RunResult run_experiment(ILlamaBackend& backend,
     RunResult result;
     result.config = cfg;
 
-    DecisionEngine engine(backend, PromptConfig{cfg.layout, cfg.scheme}, cfg.calibration);
+    DecisionEngine engine(backend, PromptConfig{cfg.layout, cfg.scheme}, cfg.calibration, cfg.ensemble);
 
     // Pre-compute blank logits cache per (type, n_options) if prior correction enabled
-    std::map<std::pair<std::string, int>, std::vector<float>> prior_cache;
+    std::map<std::pair<int32_t, int32_t>, std::vector<float>> prior_cache;
     if(cfg.prior_correction) {
         for(const auto& row: rows) {
-            auto key = std::make_pair(row.input.type, (int)row.input.options.size());
+            auto key = std::make_pair(static_cast<int32_t>(row.input.type), static_cast<int32_t>(row.input.options.size()));
             if(prior_cache.find(key) == prior_cache.end()) {
                 prior_cache[key] = engine.compute_blank_logits(row.input.type, (int)row.input.options.size());
             }
         }
     }
 
-    for(const auto& row: rows) {
+    for(size_t i = 0; i < rows.size(); ++i) {
+        const DatasetRow& row = rows[i];
+        spdlog::info("{} {} {}/{}", row.id, static_cast<int32_t>(row.input.type), i + 1, rows.size());
         ItemResult ir;
         ir.id = row.id;
         ir.type = row.input.type;
@@ -115,7 +120,7 @@ RunResult run_experiment(ILlamaBackend& backend,
         inp.prior_correction = cfg.prior_correction;
         inp.collect_corrected_logits = cfg.collect_corrected_logits;
         if(cfg.prior_correction) {
-            auto key = std::make_pair(row.input.type, (int)row.input.options.size());
+            auto key = std::make_pair(static_cast<int32_t>(row.input.type), static_cast<int32_t>(row.input.options.size()));
             auto it = prior_cache.find(key);
             if(it != prior_cache.end() && !it->second.empty()) {
                 inp.prior_logits = it->second;
@@ -149,7 +154,7 @@ RunResult run_experiment(ILlamaBackend& backend,
 
         // Populate correct_index and expected_score for calibration use
         if(!row.expected.is_null()) {
-            if(row.input.type == "noul" || row.input.type == "choice") {
+            if(row.input.type == Type::Noul || row.input.type == Type::Choice) {
                 if(row.expected.is_string()) {
                     std::string exp_key = row.expected.get<std::string>();
                     for(int ki = 0; ki < (int)ir.keys.size(); ki++) {
@@ -159,7 +164,7 @@ RunResult run_experiment(ILlamaBackend& backend,
                         }
                     }
                 }
-            } else if(row.input.type == "score") {
+            } else if(row.input.type == Type::Score) {
                 if(row.expected.is_number_integer()) {
                     ir.correct_index = row.expected.get<int>();
                     ir.expected_score = (double)ir.correct_index;
@@ -177,26 +182,47 @@ RunResult run_experiment(ILlamaBackend& backend,
 // ---------------------------------------------------------------------------
 // RunResult::to_json
 // ---------------------------------------------------------------------------
-
 json RunResult::to_json() const
 {
     const auto& m = metrics;
     const auto& c = config;
 
+    int64_t choice_eval_ms = 0;
+    int64_t noul_eval_ms = 0;
+    int64_t score_eval_ms = 0;
+    for(auto&& item: items) {
+        switch(item.type) {
+        case Type::Choice:
+            choice_eval_ms += item.eval_ms;
+            break;
+        case Type::Noul:
+            noul_eval_ms += item.eval_ms;
+            break;
+        case Type::Score:
+            score_eval_ms += item.eval_ms;
+            break;
+        default:
+            break;
+        }
+    }
+
     json choice_j = {
         {"n", m.choice.n},
         {"labeled", m.choice.labeled},
-        {"accuracy", m.choice.accuracy()}};
+        {"accuracy", m.choice.accuracy()},
+        {"eval_ms", choice_eval_ms}};
     json noul_j = {
         {"n", m.noul.n},
         {"labeled", m.noul.labeled},
-        {"accuracy", m.noul.accuracy()}};
+        {"accuracy", m.noul.accuracy()},
+        {"eval_ms", noul_eval_ms}};
     json score_j = {
         {"n", m.score.n},
         {"labeled", m.score.labeled},
         {"accuracy", m.score.accuracy()},
         {"mae", m.score.mae()},
-        {"qwk", m.score.qwk(m.score_n_levels)}};
+        {"qwk", m.score.qwk(m.score_n_levels)},
+        {"eval_ms", score_eval_ms}};
 
     json stab_j = {
         {"n_questions", stability.n_questions},
@@ -283,7 +309,7 @@ CompareResult exp_option_order(ILlamaBackend& backend,
         const auto& a = run_orig.items[i];
         const auto& b = run_rev.items[i];
         // Only count choice and noul items (skip score — reordering changes key positions)
-        if(a.type == "score")
+        if(a.type == Type::Score)
             continue;
         if(!a.ok || !b.ok)
             continue;
@@ -359,7 +385,7 @@ CompareResult exp_score_formulation(ILlamaBackend& backend,
     // Filter to score rows only
     std::vector<DatasetRow> score_rows;
     for(const auto& r: rows) {
-        if(r.input.type == "score")
+        if(r.input.type == Type::Score)
             score_rows.push_back(r);
     }
 

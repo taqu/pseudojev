@@ -1,6 +1,7 @@
 #ifndef INC_PJEV_CONFIG_H_
 #define INC_PJEV_CONFIG_H_
 #include "../calibration/calibration.h"
+#include "../decision/decision_engine.h"
 #include "../decision/prompt_strategy.h"
 #include <string>
 
@@ -22,6 +23,7 @@ struct ExperimentConfig
     int32_t random_seed = 42;
     bool prior_correction = false;
     CalibrationConfig calibration;
+    EnsembleConfig ensemble;
     bool collect_corrected_logits = false; // populate corrected_logits in ItemResult
 
     std::string layout_str() const

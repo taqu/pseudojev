@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "server/jev_api.h"
+
 namespace pjev
 {
 enum class Layout { AUTO, STATE_FIRST, STATE_LAST, QUESTION_FIRST };
@@ -41,8 +43,7 @@ public:
     explicit PromptStrategy(const PromptConfig& cfg = {});
 
     // Assign internal labels to candidates in-place.
-    void assign_labels(const std::string& type,
-                       std::vector<Candidate>& candidates) const;
+    void assign_labels(Type type, std::vector<Candidate>& candidates) const;
 
     // All possible internal texts for the scheme (for token verification at startup).
     std::vector<std::string> all_internal_texts() const;
@@ -56,7 +57,7 @@ public:
     //   [1] untrusted = full user content (our framing + user state/question/descriptions)
     //   [2] trusted  = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
     std::vector<PromptSegment> build_prompt_segments(
-        const std::string& type,
+        Type type,
         const std::string& state,
         const std::string& question,
         const std::vector<Candidate>& candidates) const;
@@ -69,17 +70,17 @@ public:
     };
     // Returns a PrefixInfo for this (type, state) pair.
     // valid=true only when layout puts state before per-question content (STATE_FIRST for noul/choice).
-    PrefixInfo build_prefix_info(const std::string& type,
+    PrefixInfo build_prefix_info(Type type,
                                   const std::string& state) const;
 
 private:
     PromptConfig cfg_;
 
-    bool use_state_last(const std::string& type) const;
+    bool use_state_last(Type type) const;
 
     // Build the user-visible content string (no chat template wrapping).
     std::string build_user_content(
-        const std::string& type,
+        Type type,
         const std::string& state,
         const std::string& question,
         const std::vector<Candidate>& candidates) const;

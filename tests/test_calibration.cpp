@@ -1,6 +1,7 @@
 #include "calibration/calibration.h"
 #include "calibration/calibration_fit.h"
 #include "calibration/calibration_metrics.h"
+#include "experiment/dataset.h"
 #include <cmath>
 #include <cstdio>
 #include <vector>
@@ -402,6 +403,169 @@ int main() {
             check(b.confidence_min >= 0.0 && b.confidence_max <= 1.0, "reliability bin: valid confidence range");
             check(b.accuracy >= 0.0 && b.accuracy <= 1.0, "reliability bin: valid accuracy");
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // 24. Prior alpha: corrected_logit = raw - alpha * prior
+    // -----------------------------------------------------------------------
+    {
+        // raw=[2.0, 0.0], prior=[1.0, 0.5], alpha=0.5
+        // corrected = [2.0 - 0.5, 0.0 - 0.25] = [1.5, -0.25]
+        std::vector<float> raw    = {2.0f, 0.0f};
+        std::vector<float> prior  = {1.0f, 0.5f};
+        double alpha = 0.5;
+        std::vector<float> corr(raw.size());
+        for (size_t i = 0; i < raw.size(); i++)
+            corr[i] = raw[i] - (float)(alpha * prior[i]);
+        check_near((double)corr[0], 1.5,   1e-6, "prior alpha: corrected[0] = 1.5");
+        check_near((double)corr[1], -0.25, 1e-6, "prior alpha: corrected[1] = -0.25");
+
+        // alpha=0 means no correction
+        std::vector<float> corr0(raw.size());
+        for (size_t i = 0; i < raw.size(); i++)
+            corr0[i] = raw[i] - (float)(0.0 * prior[i]);
+        check_near((double)corr0[0], 2.0, 1e-6, "alpha=0: no correction applied");
+        check_near((double)corr0[1], 0.0, 1e-6, "alpha=0: no correction applied");
+    }
+
+    // -----------------------------------------------------------------------
+    // 25. CalibrationConfig::prior_alpha_for routing
+    // -----------------------------------------------------------------------
+    {
+        CalibrationConfig cfg;
+        cfg.noul_prior_alpha   = 0.3;
+        cfg.choice_prior_alpha = 0.7;
+        cfg.score_prior_alpha  = 1.2;
+        check_near(cfg.prior_alpha_for("noul"),   0.3, 1e-9, "prior_alpha_for noul");
+        check_near(cfg.prior_alpha_for("choice"), 0.7, 1e-9, "prior_alpha_for choice");
+        check_near(cfg.prior_alpha_for("score"),  1.2, 1e-9, "prior_alpha_for score");
+        // Unknown type falls back to choice_prior_alpha
+        check_near(cfg.prior_alpha_for("other"),  0.7, 1e-9, "prior_alpha_for unknown falls back to choice");
+    }
+
+    // -----------------------------------------------------------------------
+    // 26. CalibrationArtifact round-trip with alpha fields
+    // -----------------------------------------------------------------------
+    {
+        CalibrationArtifact art;
+        art.noul_temperature   = 1.1;
+        art.noul_prior_alpha   = 0.4;
+        art.choice_prior_alpha = 0.8;
+        art.score_prior_alpha  = 0.0;
+        nlohmann::json j = art.to_json();
+        CalibrationArtifact art2;
+        std::string err;
+        bool ok = CalibrationArtifact::from_json(j, art2, err);
+        check(ok, "alpha round-trip: from_json succeeds");
+        check_near(art2.noul_prior_alpha,   0.4, 1e-9, "alpha round-trip: noul_prior_alpha");
+        check_near(art2.choice_prior_alpha, 0.8, 1e-9, "alpha round-trip: choice_prior_alpha");
+        check_near(art2.score_prior_alpha,  0.0, 1e-9, "alpha round-trip: score_prior_alpha");
+        // to_config copies alpha
+        CalibrationConfig cfg = art2.to_config();
+        check_near(cfg.noul_prior_alpha,   0.4, 1e-9, "alpha to_config: noul_prior_alpha");
+    }
+
+    // -----------------------------------------------------------------------
+    // 27. CalibrationArtifact: negative alpha rejected
+    // -----------------------------------------------------------------------
+    {
+        nlohmann::json j = {{"version", 1}, {"method", "temperature"},
+                            {"parameters", {{"noul_temperature", 1.0},
+                                            {"choice_temperature", 1.0},
+                                            {"score_temperature", 1.0},
+                                            {"noul_prior_alpha", -0.5}}}};
+        CalibrationArtifact art;
+        std::string err;
+        check(!CalibrationArtifact::from_json(j, art, err), "negative alpha rejected");
+    }
+
+    // -----------------------------------------------------------------------
+    // 28. fit_alpha_temperature: converges on a simple dataset
+    // -----------------------------------------------------------------------
+    {
+        // Tuning: 20 samples where alpha=0 correction and correct index 0
+        std::vector<CalibrationSample> tuning, val;
+        for (int i = 0; i < 20; i++) {
+            CalibrationSample s;
+            s.raw_logits   = {2.0f, 0.0f};
+            s.prior_logits = {1.0f, 0.5f};
+            s.logits       = s.raw_logits;
+            s.correct_index = 0;
+            s.type = "choice";
+            tuning.push_back(s);
+        }
+        // Val: 10 samples same setup
+        for (int i = 0; i < 10; i++) {
+            CalibrationSample s;
+            s.raw_logits   = {2.0f, 0.0f};
+            s.prior_logits = {1.0f, 0.5f};
+            s.logits       = s.raw_logits;
+            s.correct_index = 0;
+            s.type = "choice";
+            val.push_back(s);
+        }
+        AlphaTResult r = fit_alpha_temperature(tuning, val);
+        check(r.converged, "fit_alpha_temperature: converged");
+        check(r.alpha >= 0.0 && r.alpha <= 2.0, "fit_alpha_temperature: alpha in range");
+        check(r.temperature > 0.0, "fit_alpha_temperature: T > 0");
+        check(r.n_tuning == 20, "fit_alpha_temperature: n_tuning correct");
+        check(r.n_val == 10, "fit_alpha_temperature: n_val correct");
+    }
+
+    // -----------------------------------------------------------------------
+    // 29. assign_split: deterministic and covers all three buckets
+    // -----------------------------------------------------------------------
+    {
+        using namespace pjev;
+        // Same ID + seed always gives same split
+        DataSplit s1 = assign_split("item-001", 42);
+        DataSplit s2 = assign_split("item-001", 42);
+        check(s1 == s2, "assign_split: deterministic");
+
+        // Different seed gives potentially different split
+        int seen_tuning = 0, seen_val = 0, seen_held = 0;
+        for (int i = 0; i < 100; i++) {
+            DataSplit s = assign_split("item-" + std::to_string(i), 42);
+            if (s == DataSplit::Tuning)     seen_tuning++;
+            else if (s == DataSplit::Validation) seen_val++;
+            else                            seen_held++;
+        }
+        check(seen_tuning > 0,  "assign_split: some items are Tuning");
+        check(seen_val > 0,     "assign_split: some items are Validation");
+        check(seen_held > 0,    "assign_split: some items are HeldOut");
+        check(seen_tuning + seen_val + seen_held == 100, "assign_split: all items assigned");
+
+        // split_name
+        check(split_name(DataSplit::Tuning)     == "tuning",     "split_name: tuning");
+        check(split_name(DataSplit::Validation) == "validation",  "split_name: validation");
+        check(split_name(DataSplit::HeldOut)    == "held_out",    "split_name: held_out");
+    }
+
+    // -----------------------------------------------------------------------
+    // 30. build_comparison_report: 4 rows per primitive, expected labels
+    // -----------------------------------------------------------------------
+    {
+        // Create samples with raw and prior logits
+        std::vector<CalibrationSample> samples;
+        for (int i = 0; i < 10; i++) {
+            CalibrationSample s;
+            s.raw_logits   = {3.0f, 0.0f};
+            s.prior_logits = {1.0f, 0.5f};
+            s.logits       = s.raw_logits;
+            s.correct_index = 0;
+            s.type = "choice";
+            samples.push_back(s);
+        }
+        auto rep = build_comparison_report({}, samples, {}, 1.0, 1.2, 1.0, 0.0, 0.5, 0.0);
+        check(rep.choice_rows.size() == 4, "comparison report: 4 rows for choice");
+        check(rep.choice_rows[0].label == "raw",               "comparison report: row0=raw");
+        check(rep.choice_rows[1].label == "temperature",       "comparison report: row1=temperature");
+        check(rep.choice_rows[2].label == "prior",             "comparison report: row2=prior");
+        check(rep.choice_rows[3].label == "prior+temperature", "comparison report: row3=prior+temperature");
+        check(rep.choice_rows[0].alpha == 0.0,  "comparison report: raw alpha=0");
+        check(rep.choice_rows[2].alpha == 0.5,  "comparison report: prior alpha=0.5");
+        check(rep.noul_rows.size()  == 4, "comparison report: 4 rows for noul (empty samples ok)");
+        check(rep.score_rows.size() == 4, "comparison report: 4 rows for score (empty samples ok)");
     }
 
     printf("\n%s (%d failure(s))\n", fails ? "FAIL" : "PASS", fails);

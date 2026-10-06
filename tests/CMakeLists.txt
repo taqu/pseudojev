@@ -65,11 +65,12 @@ add_executable(test_metrics test_metrics.cpp)
 target_include_directories(test_metrics PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_metrics COMMAND test_metrics)
 
-# test_calibration: tests calibration temperature scaling, metrics, fitting, artifacts
+# test_calibration: tests calibration temperature scaling, metrics, fitting, artifacts, splits
 add_executable(test_calibration test_calibration.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
-    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_fit.cpp)
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_fit.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/dataset.cpp)
 target_include_directories(test_calibration PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_calibration COMMAND test_calibration)
 
@@ -139,6 +140,15 @@ add_executable(test_cli test_cli.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp)
 target_include_directories(test_cli PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_cli COMMAND test_cli)
+
+# test_ensemble: tests E1 binary option-order ensemble for noul
+add_executable(test_ensemble test_ensemble.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp)
+target_include_directories(test_ensemble PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_ensemble COMMAND test_ensemble)
 
 # test_worker: tests Phase 10 IPC framing, protocol serialization, runtime dir, config hash, WorkerInfo JSON
 add_executable(test_worker test_worker.cpp

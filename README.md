@@ -19,7 +19,7 @@ It runs entirely on your CPU — no GPU, no network, no cloud required.
 - **Direct CLI** — run decisions as shell commands, pipe results, script with `--json`
 - **Background worker** — model loads once, stays resident, exits automatically after idle timeout
 - **Calibrated probabilities** — temperature scaling for well-calibrated confidence
-- **English and Japanese** validated
+- **English** validated
 - **Native binaries** for Windows, Linux, and macOS
 
 ---

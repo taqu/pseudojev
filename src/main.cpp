@@ -94,23 +94,37 @@ static void usage_run(const char* prog) {
 
 static void usage_calibration(const char* prog) {
     fprintf(stderr,
-        "usage: %s calibration <fit|evaluate> [options]\n"
+        "usage: %s calibration <collect|fit|evaluate> [options]\n"
         "\n"
-        "  fit     fit per-primitive temperatures from a calibration dataset\n"
+        "  collect  run inference and write derived JSONL dataset (raw logits + prior logits)\n"
         "    --model PATH        path to .gguf model file (required)\n"
-        "    --input FILE        JSONL/JSON calibration dataset (required)\n"
-        "    --output FILE       write calibration artifact JSON here (required)\n"
-        "    --model-id NAME     model identifier stored in artifact (default: model path)\n"
+        "    --input FILE        JSONL/JSON dataset (required)\n"
+        "    --output FILE       write derived JSONL here (required)\n"
+        "    --model-id NAME     model identifier stored in records (default: model path)\n"
         "    --layout LAYOUT     auto|state-first|state-last|question-first (default: auto)\n"
         "    --scheme SCHEME     natural|letters (default: natural)\n"
-        "    --prior-correction  enable prior correction\n"
+        "    --seed N            split seed for reproducibility (default: 42)\n"
         "    --threads N         CPU threads (default: 8)\n"
         "    --ctx-size N        context size (default: 4096)\n"
         "    --verbose           enable llama.cpp verbose logging\n"
         "\n"
-        "  evaluate  compare raw vs calibrated metrics on a dataset\n"
-        "    --model PATH        path to .gguf model file (required)\n"
-        "    --input FILE        JSONL/JSON evaluation dataset (required)\n"
+        "  fit     fit per-primitive alpha+temperature from a calibration dataset\n"
+        "    --model PATH        path to .gguf model file (required, unless --collected given)\n"
+        "    --input FILE        JSONL/JSON calibration dataset (required, unless --collected given)\n"
+        "    --collected FILE    derived JSONL from 'collect' (skips inference; preferred)\n"
+        "    --output FILE       write calibration artifact JSON here (required)\n"
+        "    --model-id NAME     model identifier stored in artifact (default: model path)\n"
+        "    --layout LAYOUT     auto|state-first|state-last|question-first (default: auto)\n"
+        "    --scheme SCHEME     natural|letters (default: natural)\n"
+        "    --prior-correction  enable prior correction (also searched via alpha)\n"
+        "    --threads N         CPU threads (default: 8)\n"
+        "    --ctx-size N        context size (default: 4096)\n"
+        "    --verbose           enable llama.cpp verbose logging\n"
+        "\n"
+        "  evaluate  compare raw/prior/temperature/combined metrics on a dataset\n"
+        "    --model PATH        path to .gguf model file (required, unless --collected given)\n"
+        "    --input FILE        JSONL/JSON evaluation dataset (required, unless --collected given)\n"
+        "    --collected FILE    derived JSONL from 'collect' (skips inference; preferred)\n"
         "    --calibration FILE  calibration artifact (required)\n"
         "    --output FILE       write report JSON here (default: stdout)\n"
         "    --layout LAYOUT     auto|state-first|state-last|question-first (default: auto)\n"
@@ -366,7 +380,7 @@ static int32_t cmd_server(int32_t argc, char** argv) {
     llama_cfg.model_path = "models/bonsai.gguf";
     ServerConfig srv_cfg;
     std::string  model_name      = "pseudojev";
-    std::string  calibration_path;
+    std::string  calibration_path = "models/calibration.json";
     bool         model_explicitly_set = false;
 
     for (int32_t i = 0; i < argc; i++) {
@@ -564,9 +578,10 @@ static int32_t cmd_run(int32_t argc, char** argv) {
     llama_cfg.model_path = "models/bonsai.gguf";
     ExperimentConfig exp_cfg;
     exp_cfg.name = "run";
+    bool ensemble_binary = false;
     std::string input_path;
     std::string output_path;
-    std::string calibration_path;
+    std::string calibration_path = "models/calibration.json";
 
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -586,6 +601,7 @@ static int32_t cmd_run(int32_t argc, char** argv) {
         else if (a == "--scheme")          exp_cfg.scheme = parse_scheme(next());
         else if (a == "--prior-correction") exp_cfg.prior_correction = true;
         else if (a == "--option-order")    exp_cfg.option_order = parse_order(next());
+        else if (a == "--ensemble")        ensemble_binary = true;
         else if (a == "-h" || a == "--help") { usage_run("pjev"); return 0; }
         else {
             spdlog::error("unknown option: {}", a);
@@ -593,6 +609,9 @@ static int32_t cmd_run(int32_t argc, char** argv) {
             return 2;
         }
     }
+
+    if (ensemble_binary)
+        exp_cfg.ensemble.noul_mode = NoulEnsembleMode::BINARY_ORDER;
 
     if (!calibration_path.empty()) {
         CalibrationArtifact art;
@@ -677,7 +696,7 @@ static int32_t cmd_experiment(int32_t argc, char** argv) {
     std::string ref_language   = "en";
     std::string target_language = "ja";
     std::string output_dir;
-    std::string calibration_path;
+    std::string calibration_path = "models/calibration.json";
 
     for (int32_t i = 1; i < argc; i++) {
         std::string a = argv[i];
@@ -864,7 +883,7 @@ static int32_t cmd_experiment(int32_t argc, char** argv) {
 // ---------------------------------------------------------------------------
 
 static std::vector<CalibrationSample>
-collect_samples(const std::vector<ItemResult>& items, const std::string& type)
+collect_samples(const std::vector<ItemResult>& items, Type type)
 {
     std::vector<CalibrationSample> out;
     for (const auto& ir : items) {
@@ -873,7 +892,7 @@ collect_samples(const std::vector<ItemResult>& items, const std::string& type)
         CalibrationSample s;
         s.logits        = ir.corrected_logits;
         s.correct_index = ir.correct_index;
-        s.type          = ir.type;
+        s.type          = to_string(ir.type);
         s.expected_score = ir.expected_score;
         out.push_back(s);
     }
@@ -884,6 +903,46 @@ collect_samples(const std::vector<ItemResult>& items, const std::string& type)
 // calibration subcommand
 // ---------------------------------------------------------------------------
 
+// Parse a derived JSONL (from 'collect') into per-primitive CalibrationSamples.
+// Fills tuning_* and val_* vectors by the 'split' field; skips held_out.
+static void load_collected_jsonl(
+    const std::string& path,
+    std::vector<CalibrationSample>& tuning_noul,   std::vector<CalibrationSample>& val_noul,
+    std::vector<CalibrationSample>& tuning_choice, std::vector<CalibrationSample>& val_choice,
+    std::vector<CalibrationSample>& tuning_score,  std::vector<CalibrationSample>& val_score)
+{
+    std::ifstream f(path);
+    std::string line;
+    while (std::getline(f, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        nlohmann::json j;
+        try { j = nlohmann::json::parse(line); } catch (...) { continue; }
+        std::string prim  = j.value("primitive", "");
+        std::string split = j.value("split", "tuning");
+        if (split == "held_out") continue;
+        bool is_val = (split == "validation");
+
+        CalibrationSample s;
+        s.type = prim;
+        s.correct_index = j.value("correct_index", -1);
+        if (j.contains("raw_logits") && j["raw_logits"].is_array())
+            s.raw_logits = j["raw_logits"].get<std::vector<float>>();
+        if (j.contains("prior_logits") && j["prior_logits"].is_array())
+            s.prior_logits = j["prior_logits"].get<std::vector<float>>();
+        s.logits = s.raw_logits;
+        if (prim == "score") s.expected_score = (double)s.correct_index;
+
+        if (s.correct_index < 0 || s.raw_logits.empty()) continue;
+
+        auto& noul_v   = is_val ? val_noul   : tuning_noul;
+        auto& choice_v = is_val ? val_choice : tuning_choice;
+        auto& score_v  = is_val ? val_score  : tuning_score;
+        if      (prim == "noul")   noul_v.push_back(s);
+        else if (prim == "choice") choice_v.push_back(s);
+        else if (prim == "score")  score_v.push_back(s);
+    }
+}
+
 static int32_t cmd_calibration(int32_t argc, char** argv) {
     if (argc < 1 || std::string(argv[0]) == "-h" || std::string(argv[0]) == "--help") {
         usage_calibration("pjev");
@@ -893,12 +952,15 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
     argc--; argv++;
 
     LlamaConfig llama_cfg;
+    llama_cfg.model_path = "models/bonsai.gguf";
     ExperimentConfig exp_cfg;
     exp_cfg.collect_corrected_logits = true;
     std::string input_path;
     std::string output_path;
     std::string calibration_path;
+    std::string collected_path;
     std::string model_id;
+    uint32_t    split_seed = 42;
 
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -906,16 +968,18 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
             if (i + 1 >= argc) { usage_calibration("pjev"); exit(2); }
             return argv[++i];
         };
-        if      (a == "--model")           llama_cfg.model_path = next();
-        else if (a == "--input")           input_path = next();
-        else if (a == "--output")          output_path = next();
-        else if (a == "--calibration")     calibration_path = next();
-        else if (a == "--model-id")        model_id = next();
-        else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--verbose")         llama_cfg.verbose = true;
-        else if (a == "--layout")          exp_cfg.layout = parse_layout(next());
-        else if (a == "--scheme")          exp_cfg.scheme = parse_scheme(next());
+        if      (a == "--model")            llama_cfg.model_path = next();
+        else if (a == "--input")            input_path = next();
+        else if (a == "--output")           output_path = next();
+        else if (a == "--calibration")      calibration_path = next();
+        else if (a == "--collected")        collected_path = next();
+        else if (a == "--model-id")         model_id = next();
+        else if (a == "--seed")             split_seed = (uint32_t)std::stoul(next());
+        else if (a == "--threads")          llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")         llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--verbose")          llama_cfg.verbose = true;
+        else if (a == "--layout")           exp_cfg.layout = parse_layout(next());
+        else if (a == "--scheme")           exp_cfg.scheme = parse_scheme(next());
         else if (a == "--prior-correction") exp_cfg.prior_correction = true;
         else if (a == "-h" || a == "--help") { usage_calibration("pjev"); return 0; }
         else {
@@ -930,21 +994,123 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
     if (llama_cfg.verbose) spdlog::set_level(spdlog::level::trace);
     else                   spdlog::set_level(spdlog::level::warn);
 
-    if (subcmd != "fit" && subcmd != "evaluate") {
+    if (subcmd != "collect" && subcmd != "fit" && subcmd != "evaluate") {
         spdlog::error("unknown calibration subcommand: {}", subcmd.c_str());
         usage_calibration("pjev");
         return 2;
     }
-    if (llama_cfg.model_path.empty()) {
-        spdlog::error("--model is required");
-        return 1;
-    }
-    if (input_path.empty()) {
-        spdlog::error("--input is required");
-        return 1;
+
+    // -----------------------------------------------------------------------
+    // collect: run inference, write derived JSONL with raw + prior logits
+    // -----------------------------------------------------------------------
+    if (subcmd == "collect") {
+        if (llama_cfg.model_path.empty()) { spdlog::error("--model is required for collect"); return 1; }
+        if (input_path.empty())           { spdlog::error("--input is required for collect");  return 1; }
+        if (output_path.empty())          { spdlog::error("--output is required for collect"); return 1; }
+
+        std::vector<DatasetRow> rows;
+        std::string load_err;
+        if (!load_dataset(input_path, rows, load_err)) {
+            spdlog::error("dataset error: {}", load_err.c_str());
+            return 1;
+        }
+
+        LlamaBackend* backend = nullptr;
+        try { backend = new LlamaBackend(llama_cfg); }
+        catch (const std::exception& e) { spdlog::error("model load error: {}", e.what()); return 1; }
+
+        // Run inference without prior correction to capture raw logits
+        exp_cfg.name = "calibration-collect";
+        exp_cfg.prior_correction = false;
+        RunResult run = run_experiment(*backend, rows, exp_cfg);
+
+        // Compute prior logits for each (type, n_options)
+        PromptConfig pcfg{exp_cfg.layout, exp_cfg.scheme};
+        DecisionEngine prior_engine(*backend, pcfg, {});
+        std::map<std::pair<std::string,int>, std::vector<float>> prior_cache;
+        for (const char* type : {"noul", "choice", "score"}) {
+            for (int n = 2; n <= PromptStrategy::MAX_CANDIDATES; n++) {
+                auto pl = prior_engine.compute_blank_logits(to_type(type), n);
+                if (!pl.empty()) prior_cache[{std::string(type), n}] = pl;
+            }
+        }
+        delete backend;
+
+        PromptStrategy ps(pcfg);
+        std::string mid = model_id.empty() ? llama_cfg.model_path : model_id;
+
+        std::ofstream outf(output_path);
+        if (!outf) { spdlog::error("cannot open output: {}", output_path); return 1; }
+
+        for (size_t ri = 0; ri < rows.size() && ri < run.items.size(); ri++) {
+            const DatasetRow& row = rows[ri];
+            const ItemResult&  ir = run.items[ri];
+            if (!ir.ok || ir.corrected_logits.empty()) continue;
+
+            int n_opts = (int)row.input.options.size();
+            DataSplit sp = assign_split(row.id, split_seed);
+
+            std::vector<float> prior_logits;
+            auto pit = prior_cache.find({to_string(ir.type), n_opts});
+            if (pit != prior_cache.end()) prior_logits = pit->second;
+
+            // Compute internal labels via PromptStrategy
+            std::vector<Candidate> cands;
+            cands.reserve(n_opts);
+            for (const auto& kv : row.input.options) {
+                Candidate c; c.key = kv.first; c.description = kv.second; c.internal = "";
+                cands.push_back(c);
+            }
+            ps.assign_labels(ir.type, cands);
+
+            nlohmann::json rec;
+            rec["source_id"]    = row.id;
+            rec["split"]        = split_name(sp);
+            rec["primitive"]    = ir.type;
+            if (!row.difficulty.empty()) rec["difficulty"] = row.difficulty;
+            rec["state"]        = row.input.state;
+            rec["question"]     = row.input.question;
+
+            nlohmann::json opts_j = nlohmann::json::array();
+            for (const auto& kv : row.input.options) opts_j.push_back({kv.first, kv.second});
+            rec["options"]      = opts_j;
+
+            if (!row.expected.is_null()) rec["ground_truth"] = row.expected;
+            rec["correct_index"] = ir.correct_index;
+
+            rec["prompt_config"] = {{"layout", exp_cfg.layout_str()}, {"scheme", exp_cfg.scheme_str()}};
+
+            nlohmann::json mapping = nlohmann::json::array();
+            for (const auto& c : cands) {
+                nlohmann::json m = {{"key", c.key}, {"internal", c.internal}};
+                if (c.noul_value.has_value())
+                    m["noul_value"] = (*c.noul_value == NoulValue::True) ? "true" : "false";
+                mapping.push_back(m);
+            }
+            rec["candidate_mapping"] = mapping;
+            rec["raw_logits"]        = ir.corrected_logits;
+            rec["prior_logits"]      = prior_logits;
+
+            if (!prior_logits.empty() && prior_logits.size() == ir.corrected_logits.size()) {
+                std::vector<float> corr = ir.corrected_logits;
+                for (size_t k = 0; k < corr.size(); k++) corr[k] -= prior_logits[k];
+                rec["corrected_logits"] = corr;
+            }
+            rec["raw_probs"]          = ir.raw_probs;
+            if (ir.selected >= 0 && ir.selected < (int)ir.keys.size())
+                rec["prediction"] = ir.keys[ir.selected];
+            rec["model"]              = mid;
+            rec["prompt_token_count"] = ir.prompt_token_count;
+            rec["eval_ms"]            = ir.eval_ms;
+            outf << rec.dump() << "\n";
+        }
+        spdlog::info("wrote {} records to {}", run.items.size(), output_path);
+        return 0;
     }
 
-    // For evaluate, also load calibration artifact
+    // -----------------------------------------------------------------------
+    // fit and evaluate: optionally load from --collected (no inference needed)
+    // -----------------------------------------------------------------------
     CalibrationArtifact eval_art;
     if (subcmd == "evaluate") {
         if (calibration_path.empty()) {
@@ -958,44 +1124,115 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
         }
     }
 
+    // --- path A: collected JSONL supplied (no inference) ---
+    if (!collected_path.empty()) {
+        std::vector<CalibrationSample> tun_noul, val_noul, tun_choice, val_choice, tun_score, val_score;
+        load_collected_jsonl(collected_path, tun_noul, val_noul, tun_choice, val_choice, tun_score, val_score);
+
+        if (subcmd == "fit") {
+            if (output_path.empty()) { spdlog::error("--output is required for fit"); return 1; }
+
+            AlphaTResult at_noul   = fit_alpha_temperature(tun_noul,   val_noul);
+            AlphaTResult at_choice = fit_alpha_temperature(tun_choice, val_choice);
+            AlphaTResult at_score  = fit_alpha_temperature(tun_score,  val_score);
+
+            CalibrationArtifact art;
+            art.model_identifier           = model_id;
+            art.formulation.layout         = exp_cfg.layout_str();
+            art.formulation.candidate_scheme = exp_cfg.scheme_str();
+            art.formulation.prior_correction = true;
+            art.noul_temperature    = at_noul.converged   ? at_noul.temperature   : 1.0;
+            art.choice_temperature  = at_choice.converged ? at_choice.temperature : 1.0;
+            art.score_temperature   = at_score.converged  ? at_score.temperature  : 1.0;
+            art.noul_prior_alpha    = at_noul.converged   ? at_noul.alpha   : 1.0;
+            art.choice_prior_alpha  = at_choice.converged ? at_choice.alpha : 1.0;
+            art.score_prior_alpha   = at_score.converged  ? at_score.alpha  : 1.0;
+
+            auto at_json = [](const AlphaTResult& r) {
+                return nlohmann::json{
+                    {"n_tuning", r.n_tuning}, {"n_val", r.n_val},
+                    {"alpha", r.alpha}, {"temperature", r.temperature},
+                    {"tuning_nll", r.tuning_nll}, {"val_nll", r.val_nll},
+                    {"converged", r.converged}
+                };
+            };
+            nlohmann::json result = {
+                {"artifact", art.to_json()},
+                {"fit", {{"noul", at_json(at_noul)}, {"choice", at_json(at_choice)}, {"score", at_json(at_score)}}}
+            };
+
+            std::ofstream f(output_path);
+            if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
+            f << art.to_json().dump(2) << "\n";
+            printf("%s\n", result.dump(2).c_str());
+            return 0;
+        }
+
+        // evaluate with collected
+        double T_noul   = eval_art.noul_temperature;
+        double T_choice = eval_art.choice_temperature;
+        double T_score  = eval_art.score_temperature;
+        double A_noul   = eval_art.noul_prior_alpha;
+        double A_choice = eval_art.choice_prior_alpha;
+        double A_score  = eval_art.score_prior_alpha;
+
+        // Merge tuning+val for evaluation
+        auto merge = [](std::vector<CalibrationSample> a, const std::vector<CalibrationSample>& b) {
+            a.insert(a.end(), b.begin(), b.end());
+            return a;
+        };
+        auto all_noul   = merge(tun_noul,   val_noul);
+        auto all_choice = merge(tun_choice, val_choice);
+        auto all_score  = merge(tun_score,  val_score);
+
+        CalibrationComparisonReport report = build_comparison_report(
+            all_noul, all_choice, all_score, T_noul, T_choice, T_score, A_noul, A_choice, A_score);
+
+        nlohmann::json result = {{"calibration", eval_art.to_json()}, {"comparison", report.to_json()}};
+        std::string output_str = result.dump(2);
+        if (output_path.empty()) {
+            printf("%s\n", output_str.c_str());
+        } else {
+            std::ofstream f(output_path);
+            if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
+            f << output_str << "\n";
+        }
+        return 0;
+    }
+
+    // --- path B: classic inference-based fit/evaluate ---
+    if (llama_cfg.model_path.empty()) { spdlog::error("--model is required"); return 1; }
+    if (input_path.empty())           { spdlog::error("--input is required");  return 1; }
+
     std::vector<DatasetRow> rows;
     std::string load_err;
     if (!load_dataset(input_path, rows, load_err)) {
         spdlog::error("dataset error: {}", load_err.c_str());
         return 1;
     }
-    if (rows.empty()) {
-        spdlog::warn("dataset is empty");
-    }
+    if (rows.empty()) spdlog::warn("dataset is empty");
 
     LlamaBackend* backend = nullptr;
-    try {
-        backend = new LlamaBackend(llama_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("model load error: {}", e.what());
-        return 1;
-    }
+    try { backend = new LlamaBackend(llama_cfg); }
+    catch (const std::exception& e) { spdlog::error("model load error: {}", e.what()); return 1; }
 
-    // Run with calibration disabled and corrected logits collection enabled
     exp_cfg.name = (subcmd == "fit") ? "calibration-fit-collect" : "calibration-eval-collect";
     RunResult collected = run_experiment(*backend, rows, exp_cfg);
     delete backend;
 
-    auto noul_s   = collect_samples(collected.items, "noul");
-    auto choice_s = collect_samples(collected.items, "choice");
-    auto score_s  = collect_samples(collected.items, "score");
+    auto noul_s   = collect_samples(collected.items, Type::Noul);
+    auto choice_s = collect_samples(collected.items, Type::Choice);
+    auto score_s  = collect_samples(collected.items, Type::Score);
 
     if (subcmd == "fit") {
-        if (output_path.empty()) {
-            spdlog::error("--output is required for fit");
-            return 1;
-        }
+        if (output_path.empty()) { spdlog::error("--output is required for fit"); return 1; }
+
         FitResult fr_noul   = fit_temperature(noul_s);
         FitResult fr_choice = fit_temperature(choice_s);
         FitResult fr_score  = fit_temperature(score_s);
 
         CalibrationArtifact art;
-        art.model_identifier  = model_id.empty() ? llama_cfg.model_path : model_id;
+        art.model_identifier             = model_id.empty() ? llama_cfg.model_path : model_id;
         art.formulation.layout           = exp_cfg.layout_str();
         art.formulation.candidate_scheme = exp_cfg.scheme_str();
         art.formulation.prior_correction = exp_cfg.prior_correction;
@@ -1012,12 +1249,8 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
             }}
         };
 
-        // Write artifact to output
         std::ofstream f(output_path);
-        if (!f) {
-            spdlog::error("cannot open output: {}", output_path.c_str());
-            return 1;
-        }
+        if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
         f << art.to_json().dump(2) << "\n";
         printf("%s\n", result.dump(2).c_str());
         return 0;
@@ -1040,10 +1273,7 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
             printf("%s\n", output_str.c_str());
         } else {
             std::ofstream f(output_path);
-            if (!f) {
-                spdlog::error("cannot open output: {}", output_path.c_str());
-                return 1;
-            }
+            if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
             f << output_str << "\n";
         }
         return 0;
@@ -1129,7 +1359,7 @@ static int32_t cmd_model_inspect(int32_t argc, char** argv) {
             try {
                 DecisionEngine eng(*backend);
                 DecisionInput inp;
-                inp.type    = type;
+                inp.type    = to_type(type);
                 inp.state   = "Test";
                 inp.question = "Test question";
                 inp.options = opts;
@@ -1276,9 +1506,9 @@ static int32_t cmd_model_evaluate(int32_t argc, char** argv) {
     spdlog::info("EN run: {}/{} ok", en_run.metrics.n_total - en_run.metrics.n_errors, en_run.metrics.n_total);
 
     // Collect EN calibration samples
-    auto en_noul_s   = collect_samples(en_run.items, "noul");
-    auto en_choice_s = collect_samples(en_run.items, "choice");
-    auto en_score_s  = collect_samples(en_run.items, "score");
+    auto en_noul_s   = collect_samples(en_run.items, Type::Noul);
+    auto en_choice_s = collect_samples(en_run.items, Type::Choice);
+    auto en_score_s  = collect_samples(en_run.items, Type::Score);
 
     // Determine temperatures
     double T_noul = 1.0, T_choice = 1.0, T_score = 1.0;
@@ -1322,9 +1552,9 @@ static int32_t cmd_model_evaluate(int32_t argc, char** argv) {
         ja_run = run_experiment(*backend, rows_ja, ja_cfg);
         spdlog::info("JA run: {}/{} ok", ja_run.metrics.n_total - ja_run.metrics.n_errors, ja_run.metrics.n_total);
 
-        auto ja_noul_s   = collect_samples(ja_run.items, "noul");
-        auto ja_choice_s = collect_samples(ja_run.items, "choice");
-        auto ja_score_s  = collect_samples(ja_run.items, "score");
+        auto ja_noul_s   = collect_samples(ja_run.items, Type::Noul);
+        auto ja_choice_s = collect_samples(ja_run.items, Type::Choice);
+        auto ja_score_s  = collect_samples(ja_run.items, Type::Score);
 
         double jT_noul = T_noul, jT_choice = T_choice, jT_score = T_score;
         if (fit_calibration) {
@@ -1477,7 +1707,7 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
         std::vector<DecisionInput> inputs;
         for (int32_t q = 0; q < n_questions; q++) {
             DecisionInput inp;
-            inp.type     = "noul";
+            inp.type     = Type::Noul;
             inp.state    = state_text;
             inp.question = "Is this a benchmark question " + std::to_string(q) + "?";
             inp.options  = {{"false", ""}, {"true", ""}};
@@ -1707,7 +1937,8 @@ static bool load_engine_for_cli(const LlamaConfig& llama_cfg,
                                  const std::string& calibration_path,
                                  std::unique_ptr<LlamaBackend>& backend,
                                  std::unique_ptr<DecisionEngine>& engine,
-                                 CalibrationConfig& calib_cfg)
+                                 CalibrationConfig& calib_cfg,
+                                 const EnsembleConfig& ensemble_cfg = {})
 {
     try {
         backend = std::make_unique<LlamaBackend>(llama_cfg);
@@ -1737,7 +1968,7 @@ static bool load_engine_for_cli(const LlamaConfig& llama_cfg,
     }
 
     try {
-        engine = std::make_unique<DecisionEngine>(*backend, PromptConfig{}, calib_cfg);
+        engine = std::make_unique<DecisionEngine>(*backend, PromptConfig{}, calib_cfg, ensemble_cfg);
     } catch (const std::exception& e) {
         spdlog::error("engine init failed: {}", e.what());
         return false;
@@ -1751,11 +1982,12 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
     std::string question;
     std::string state_inline;
     std::string state_file;
-    std::string calibration_path;
+    std::string calibration_path = "models/calibration.json";
     int32_t idle_timeout_secs = 600;
     bool json_out = false;
     bool model_explicitly_set = false;
     bool direct_mode = false;
+    bool ensemble_binary = false;
 
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -1774,6 +2006,7 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
         else if (a == "--verbose")       llama_cfg.verbose = true;
         else if (a == "--json")          json_out = true;
         else if (a == "--direct")        direct_mode = true;
+        else if (a == "--ensemble")      ensemble_binary = true;
         else if (a == "-h" || a == "--help") { usage_noul("pjev"); return 0; }
         else { spdlog::error("unknown option: {}", a); usage_noul("pjev"); return 2; }
     }
@@ -1795,7 +2028,7 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
     }
 
     DecisionInput input;
-    input.type     = "noul";
+    input.type     = Type::Noul;
     input.state    = state;
     input.question = question;
     input.options  = {{"true", ""}, {"false", ""}};
@@ -1824,7 +2057,9 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
         std::unique_ptr<LlamaBackend> backend;
         std::unique_ptr<DecisionEngine> engine;
         CalibrationConfig calib_cfg;
-        if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
+        EnsembleConfig ensemble_cfg;
+        if (ensemble_binary) ensemble_cfg.noul_mode = NoulEnsembleMode::BINARY_ORDER;
+        if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg, ensemble_cfg)) return 1;
 
         try {
             out = engine->decide(input);
@@ -1850,7 +2085,7 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
     std::string question;
     std::string state_inline;
     std::string state_file;
-    std::string calibration_path;
+    std::string calibration_path = "models/calibration.json";
     std::vector<std::pair<std::string, std::string>> options; // key, desc
     int32_t idle_timeout_secs = 600;
     bool json_out = false;
@@ -1909,7 +2144,7 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
     }
 
     DecisionInput input;
-    input.type     = "choice";
+    input.type     = Type::Choice;
     input.state    = state;
     input.question = question;
     input.options  = options;
@@ -1964,7 +2199,7 @@ static int32_t cmd_score(int32_t argc, char** argv) {
     std::string question;
     std::string state_inline;
     std::string state_file;
-    std::string calibration_path;
+    std::string calibration_path = "models/calibration.json";
     std::vector<std::pair<std::string, std::string>> options; // key (auto "0".."N-1"), desc
     int32_t idle_timeout_secs = 600;
     bool json_out = false;
@@ -2018,7 +2253,7 @@ static int32_t cmd_score(int32_t argc, char** argv) {
     }
 
     DecisionInput input;
-    input.type     = "score";
+    input.type     = Type::Score;
     input.state    = state;
     input.question = question;
     input.options  = options;
@@ -2132,6 +2367,7 @@ static int32_t cmd_stop(int32_t argc, char** argv) {
 static int32_t cmd_internal_worker(int32_t argc, char** argv) {
     WorkerConfig cfg;
     cfg.model_path = "models/bonsai.gguf";
+    cfg.calibration_path = "models/calibration.json";
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {

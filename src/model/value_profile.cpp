@@ -69,12 +69,12 @@ QualityStats compute_quality_stats(const RunResult& result)
     QualityStats qs;
 
     auto fill = [&](PrimitiveQuality& pq, const TypeMetrics& tm,
-                    const std::string& type, int n_levels) {
+                    Type type, int n_levels) {
         pq.n        = tm.labeled;
         pq.accuracy = tm.accuracy();
         pq.mae      = tm.mae();
         pq.n_levels = n_levels;
-        if (type == "score" && n_levels >= 2)
+        if (type == Type::Score && n_levels >= 2)
             pq.qwk = tm.qwk(n_levels);
 
         // Difficulty breakdown
@@ -91,9 +91,9 @@ QualityStats compute_quality_stats(const RunResult& result)
         }
     };
 
-    fill(qs.noul,   result.metrics.noul,   "noul",   0);
-    fill(qs.choice, result.metrics.choice, "choice", 0);
-    fill(qs.score,  result.metrics.score,  "score",  result.metrics.score_n_levels);
+    fill(qs.noul,   result.metrics.noul,   Type::Noul,   0);
+    fill(qs.choice, result.metrics.choice, Type::Choice, 0);
+    fill(qs.score,  result.metrics.score,  Type::Score,  result.metrics.score_n_levels);
 
     return qs;
 }

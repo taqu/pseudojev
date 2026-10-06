@@ -24,7 +24,7 @@ nlohmann::json ipc_input_to_json(const DecisionInput& in)
 DecisionInput ipc_input_from_json(const nlohmann::json& j)
 {
     DecisionInput in;
-    in.type     = j.value("type", "");
+    in.type     = to_type(j.value("type", ""));
     in.state    = j.value("state", "");
     in.question = j.value("question", "");
     if (j.contains("options") && j["options"].is_array()) {

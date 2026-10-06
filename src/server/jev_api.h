@@ -9,6 +9,16 @@ namespace pjev {
 
 class DecisionEngine;
 
+enum class Type
+{
+    Choice,
+    Noul,
+    Score,
+    Unknown,
+};
+Type to_type(const std::string& str);
+const char* to_string(Type type);
+
 // Stable machine-readable error codes returned in {"error":{"code":"...","message":"..."}}
 namespace ErrorCode {
     constexpr const char* INVALID_JSON          = "invalid_json";

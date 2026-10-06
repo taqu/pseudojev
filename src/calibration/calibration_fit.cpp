@@ -1,4 +1,5 @@
 #include "calibration_fit.h"
+#include "calibration_metrics.h"
 #include <algorithm>
 #include <cmath>
 
@@ -61,6 +62,59 @@ FitResult fit_temperature(const std::vector<CalibrationSample>& samples,
     result.temperature = std::exp((log_a + log_b) / 2.0);
     result.nll         = nll_at_T(samples, result.temperature);
     return result;
+}
+
+AlphaTResult fit_alpha_temperature(
+    const std::vector<CalibrationSample>& tuning_samples,
+    const std::vector<CalibrationSample>& val_samples,
+    double alpha_min, double alpha_max, double alpha_step)
+{
+    AlphaTResult best;
+    best.n_tuning = (int)tuning_samples.size();
+    best.n_val    = (int)val_samples.size();
+
+    if (tuning_samples.empty()) return best;
+
+    bool use_val = !val_samples.empty();
+
+    for (double alpha = alpha_min; alpha <= alpha_max + alpha_step * 0.5; alpha += alpha_step) {
+        // Apply alpha correction to raw_logits
+        auto apply = [&](const std::vector<CalibrationSample>& src) {
+            std::vector<CalibrationSample> out;
+            out.reserve(src.size());
+            for (const auto& s : src) {
+                CalibrationSample cs = s;
+                if (!s.raw_logits.empty() && s.raw_logits.size() == s.prior_logits.size()) {
+                    cs.logits.resize(s.raw_logits.size());
+                    for (size_t i = 0; i < s.raw_logits.size(); i++)
+                        cs.logits[i] = s.raw_logits[i] - (float)(alpha * (double)s.prior_logits[i]);
+                }
+                out.push_back(std::move(cs));
+            }
+            return out;
+        };
+
+        auto corrected_tuning = apply(tuning_samples);
+        FitResult fr = fit_temperature(corrected_tuning);
+        if (!fr.converged) continue;
+
+        double score = fr.nll;  // fallback: use tuning NLL
+        if (use_val) {
+            auto corrected_val = apply(val_samples);
+            auto m = compute_primitive_metrics(corrected_val, fr.temperature);
+            score = m.nll;
+        }
+
+        bool better = !best.converged || score < (use_val ? best.val_nll : best.tuning_nll);
+        if (better) {
+            best.alpha      = alpha;
+            best.temperature = fr.temperature;
+            best.tuning_nll  = fr.nll;
+            best.val_nll     = use_val ? score : 1e30;
+            best.converged   = true;
+        }
+    }
+    return best;
 }
 
 } // namespace pjev

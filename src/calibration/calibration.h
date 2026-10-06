@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <server/jev_api.h>
+
 namespace pjev
 {
 
@@ -14,8 +16,12 @@ struct CalibrationConfig
     double noul_temperature   = 1.0;
     double choice_temperature = 1.0;
     double score_temperature  = 1.0;
+    double noul_prior_alpha   = 1.0;  // alpha for prior correction (0 = no correction)
+    double choice_prior_alpha = 1.0;
+    double score_prior_alpha  = 1.0;
 
-    double temperature_for(const std::string& type) const;
+    double temperature_for(Type type) const;
+    double prior_alpha_for(Type type) const;  // returns alpha regardless of enabled
 };
 
 struct CalibrationFormulation
@@ -34,11 +40,13 @@ struct CalibrationArtifact
     double noul_temperature   = 1.0;
     double choice_temperature = 1.0;
     double score_temperature  = 1.0;
+    double noul_prior_alpha   = 1.0;
+    double choice_prior_alpha = 1.0;
+    double score_prior_alpha  = 1.0;
 
     CalibrationConfig to_config() const;
     nlohmann::json to_json() const;
     static bool from_json(const nlohmann::json& j, CalibrationArtifact& art, std::string& err);
-    // Returns true if fully compatible; writes mismatch description to warn.
     bool check_compatible(const CalibrationFormulation& current, std::string& warn) const;
 };
 
