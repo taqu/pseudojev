@@ -32,7 +32,6 @@ install_manifest.txt
 # GGUF model files (large; obtain separately per README)
 *.gguf
 *.bin
-models/
 
 # Worker runtime artifacts
 /tmp/pjev-*/

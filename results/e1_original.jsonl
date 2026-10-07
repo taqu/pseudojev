@@ -3,26 +3,26 @@
   "layout": "auto",
   "metrics": {
     "choice": {
-      "accuracy": 0.4166666666666667,
-      "eval_ms": 22100,
+      "accuracy": 0.6944444444444444,
+      "eval_ms": 25329,
       "labeled": 36,
       "n": 36
     },
     "n_errors": 0,
     "n_total": 72,
     "noul": {
-      "accuracy": 0.5,
-      "eval_ms": 25873,
+      "accuracy": 0.5416666666666666,
+      "eval_ms": 28655,
       "labeled": 24,
       "n": 24
     },
     "score": {
-      "accuracy": 0.25,
-      "eval_ms": 7888,
+      "accuracy": 0.75,
+      "eval_ms": 9397,
       "labeled": 12,
-      "mae": 1.5,
+      "mae": 0.4166666666666667,
       "n": 12,
-      "qwk": 0.02941176470588236
+      "qwk": 0.7326732673267327
     }
   },
   "option_order": "original",

@@ -3,16 +3,16 @@
   "layout": "auto",
   "metrics": {
     "choice": {
-      "accuracy": 0.9722222222222222,
-      "eval_ms": 19089,
+      "accuracy": 1.0,
+      "eval_ms": 20960,
       "labeled": 36,
       "n": 36
     },
     "n_errors": 0,
     "n_total": 48,
     "noul": {
-      "accuracy": 0.6666666666666666,
-      "eval_ms": 5607,
+      "accuracy": 1.0,
+      "eval_ms": 6146,
       "labeled": 12,
       "n": 12
     },

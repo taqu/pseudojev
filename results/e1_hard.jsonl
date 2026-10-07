@@ -3,8 +3,8 @@
   "layout": "auto",
   "metrics": {
     "choice": {
-      "accuracy": 0.3283582089552239,
-      "eval_ms": 458068,
+      "accuracy": 0.23880597014925373,
+      "eval_ms": 648843,
       "labeled": 67,
       "n": 67
     },
@@ -12,17 +12,17 @@
     "n_total": 111,
     "noul": {
       "accuracy": 0.4473684210526316,
-      "eval_ms": 303547,
+      "eval_ms": 421890,
       "labeled": 38,
       "n": 38
     },
     "score": {
       "accuracy": 0.0,
-      "eval_ms": 64866,
+      "eval_ms": 91576,
       "labeled": 6,
-      "mae": 1.6666666666666667,
+      "mae": 1.8333333333333333,
       "n": 6,
-      "qwk": -0.1320754716981134
+      "qwk": -0.21052631578947367
     }
   },
   "option_order": "original",
