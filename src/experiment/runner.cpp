@@ -141,6 +141,7 @@ RunResult run_experiment(ILlamaBackend& backend,
         ir.keys = out.keys;
         ir.prompt_token_count = out.prompt_token_count;
         ir.eval_ms = t.elapsed().count();
+        ir.ensemble_diag = out.ensemble_diag;
         // Multilingual metadata from dataset row
         ir.language = row.language;
         ir.pair_id = row.pair_id;
@@ -175,6 +176,51 @@ RunResult run_experiment(ILlamaBackend& backend,
         accumulate(result.metrics, ir, row.expected, row.input.type, (int)inp.options.size());
         result.items.push_back(std::move(ir));
     }
+
+    // Build NoulSamples and compute confidence/calibration/margin metrics.
+    static constexpr double kMarginEps = 1e-12;
+    for(const auto& ir: result.items) {
+        if(ir.type != Type::Noul || !ir.ok)
+            continue;
+        // Locate true/false candidate indices by key
+        int true_idx = -1, false_idx = -1;
+        for(int i = 0; i < (int)ir.keys.size(); i++) {
+            if(ir.keys[i] == "true")       true_idx  = i;
+            else if(ir.keys[i] == "false") false_idx = i;
+        }
+        if(true_idx < 0 || false_idx < 0 ||
+           true_idx  >= (int)ir.raw_probs.size() ||
+           false_idx >= (int)ir.raw_probs.size() ||
+           true_idx  >= (int)ir.probs.size() ||
+           false_idx >= (int)ir.probs.size())
+            continue;
+
+        NoulSample ns;
+        ns.id             = ir.id;
+        ns.has_ground_truth = (ir.correct_index >= 0);
+        if(ns.has_ground_truth) {
+            ns.ground_truth = (ir.keys[ir.correct_index] == "true");
+            ns.correct      = ir.correct;
+        }
+        ns.p_true_calib   = ir.probs[true_idx];
+
+        // Semantic margin = log(p_true_raw / p_false_raw) = logit_true - logit_false (pre-temperature)
+        double pt = std::max(kMarginEps, ir.raw_probs[true_idx]);
+        double pf = std::max(kMarginEps, ir.raw_probs[false_idx]);
+        ns.semantic_margin = std::log(pt) - std::log(pf);
+
+        // E1 ensemble diagnostics
+        if(ir.ensemble_diag.has_value()) {
+            ns.has_ensemble = true;
+            ns.m1           = ir.ensemble_diag->m1;
+            ns.m2           = ir.ensemble_diag->m2;
+            ns.ord1_true    = (ir.ensemble_diag->m1 > 0.0);
+            ns.ord2_true    = (ir.ensemble_diag->m2 > 0.0);
+        }
+
+        result.noul_samples.push_back(ns);
+    }
+    result.noul_metrics = compute_noul_metrics(result.noul_samples);
 
     return result;
 }
@@ -216,6 +262,9 @@ json RunResult::to_json() const
         {"labeled", m.noul.labeled},
         {"accuracy", m.noul.accuracy()},
         {"eval_ms", noul_eval_ms}};
+    // Merge confidence/calibration/margin metrics
+    for(const auto& [k, v]: noul_metrics.to_json().items())
+        noul_j[k] = v;
     json score_j = {
         {"n", m.score.n},
         {"labeled", m.score.labeled},
@@ -252,10 +301,21 @@ json CompareResult::to_json() const
 {
     json runs_j = json::array();
     for(const auto& r: runs) runs_j.push_back(r.to_json());
-    return json{
+    json result = json{
         {"experiment", experiment_name},
         {"model", model_path},
         {"runs", runs_j}};
+
+    // When exactly 2 runs are present and have noul samples, compute margin gain.
+    // Convention: runs[0] = baseline, runs[1] = E1.
+    if(runs.size() == 2 &&
+       !runs[0].noul_samples.empty() && !runs[1].noul_samples.empty()) {
+        auto mg = compute_margin_gain(runs[1].noul_samples, runs[0].noul_samples);
+        if(mg.n_matched > 0)
+            result["noul_margin_gain"] = mg.to_json();
+    }
+
+    return result;
 }
 
 // ---------------------------------------------------------------------------

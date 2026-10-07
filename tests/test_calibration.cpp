@@ -260,13 +260,13 @@ int main() {
         cfg.noul_temperature  = 1.1;
         cfg.choice_temperature = 1.2;
         cfg.score_temperature = 0.9;
-        check_near(cfg.temperature_for("noul"),   1.1, 1e-9, "temperature_for noul");
-        check_near(cfg.temperature_for("choice"), 1.2, 1e-9, "temperature_for choice");
-        check_near(cfg.temperature_for("score"),  0.9, 1e-9, "temperature_for score");
+        check_near(cfg.temperature_for(pjev::Type::Noul),   1.1, 1e-9, "temperature_for noul");
+        check_near(cfg.temperature_for(pjev::Type::Choice), 1.2, 1e-9, "temperature_for choice");
+        check_near(cfg.temperature_for(pjev::Type::Score),  0.9, 1e-9, "temperature_for score");
 
         CalibrationConfig disabled;
-        check_near(disabled.temperature_for("noul"),  1.0, 1e-9, "disabled: T=1.0 for noul");
-        check_near(disabled.temperature_for("score"), 1.0, 1e-9, "disabled: T=1.0 for score");
+        check_near(disabled.temperature_for(pjev::Type::Noul),  1.0, 1e-9, "disabled: T=1.0 for noul");
+        check_near(disabled.temperature_for(pjev::Type::Score), 1.0, 1e-9, "disabled: T=1.0 for score");
     }
 
     // -----------------------------------------------------------------------
@@ -436,11 +436,11 @@ int main() {
         cfg.noul_prior_alpha   = 0.3;
         cfg.choice_prior_alpha = 0.7;
         cfg.score_prior_alpha  = 1.2;
-        check_near(cfg.prior_alpha_for("noul"),   0.3, 1e-9, "prior_alpha_for noul");
-        check_near(cfg.prior_alpha_for("choice"), 0.7, 1e-9, "prior_alpha_for choice");
-        check_near(cfg.prior_alpha_for("score"),  1.2, 1e-9, "prior_alpha_for score");
+        check_near(cfg.prior_alpha_for(pjev::Type::Noul),   0.3, 1e-9, "prior_alpha_for noul");
+        check_near(cfg.prior_alpha_for(pjev::Type::Choice), 0.7, 1e-9, "prior_alpha_for choice");
+        check_near(cfg.prior_alpha_for(pjev::Type::Score),  1.2, 1e-9, "prior_alpha_for score");
         // Unknown type falls back to choice_prior_alpha
-        check_near(cfg.prior_alpha_for("other"),  0.7, 1e-9, "prior_alpha_for unknown falls back to choice");
+        check_near(cfg.prior_alpha_for(pjev::Type::Unknown),  0.7, 1e-9, "prior_alpha_for unknown falls back to choice");
     }
 
     // -----------------------------------------------------------------------

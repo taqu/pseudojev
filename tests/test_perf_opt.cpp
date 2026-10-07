@@ -73,7 +73,7 @@ private:
 
 static pjev::DecisionInput make_noul_input(const std::string& state, const std::string& question) {
     pjev::DecisionInput inp;
-    inp.type     = "noul";
+    inp.type = pjev::Type::Noul;
     inp.state    = state;
     inp.question = question;
     inp.options  = {{"false", ""}, {"true", ""}};
@@ -82,7 +82,7 @@ static pjev::DecisionInput make_noul_input(const std::string& state, const std::
 
 static pjev::DecisionInput make_choice_input(const std::string& state, const std::string& question) {
     pjev::DecisionInput inp;
-    inp.type     = "choice";
+    inp.type = pjev::Type::Choice;
     inp.state    = state;
     inp.question = question;
     inp.options  = {{"opt1", "Option 1"}, {"opt2", "Option 2"}};
@@ -91,7 +91,7 @@ static pjev::DecisionInput make_choice_input(const std::string& state, const std
 
 static pjev::DecisionInput make_score_input(const std::string& state, const std::string& question) {
     pjev::DecisionInput inp;
-    inp.type     = "score";
+    inp.type = pjev::Type::Score;
     inp.state    = state;
     inp.question = question;
     inp.options  = {{"0", "low"}, {"1", "medium"}, {"2", "high"}};
@@ -106,30 +106,30 @@ static void test_prefix_info() {
     pjev::PromptStrategy strategy;
     const std::string state = "Some state text.";
 
-    auto noul_info = strategy.build_prefix_info("noul", state);
+    auto noul_info = strategy.build_prefix_info(pjev::Type::Noul, state);
     assert(noul_info.valid);
     assert(!noul_info.seg0_text.empty());
     assert(!noul_info.partial_content.empty());
     assert(noul_info.partial_content.find(state) != std::string::npos);
 
-    auto choice_info = strategy.build_prefix_info("choice", state);
+    auto choice_info = strategy.build_prefix_info(pjev::Type::Choice, state);
     assert(choice_info.valid);
 
-    auto score_info = strategy.build_prefix_info("score", state);
+    auto score_info = strategy.build_prefix_info(pjev::Type::Score, state);
     assert(!score_info.valid);
 
     // STATE_LAST layout disables prefix reuse
     pjev::PromptConfig cfg_sl;
     cfg_sl.layout = pjev::Layout::STATE_LAST;
     pjev::PromptStrategy strategy_sl(cfg_sl);
-    auto noul_sl = strategy_sl.build_prefix_info("noul", state);
+    auto noul_sl = strategy_sl.build_prefix_info(pjev::Type::Noul, state);
     assert(!noul_sl.valid);
 
     // QUESTION_FIRST layout disables prefix reuse
     pjev::PromptConfig cfg_qf;
     cfg_qf.layout = pjev::Layout::QUESTION_FIRST;
     pjev::PromptStrategy strategy_qf(cfg_qf);
-    auto noul_qf = strategy_qf.build_prefix_info("noul", state);
+    auto noul_qf = strategy_qf.build_prefix_info(pjev::Type::Noul, state);
     assert(!noul_qf.valid);
 
     printf("test_prefix_info: PASS\n");

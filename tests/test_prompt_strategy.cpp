@@ -19,7 +19,7 @@ int main() {
         Candidate c1; c1.key = "true";  c1.description = ""; c1.internal = "";
         cands.push_back(c0);
         cands.push_back(c1);
-        ps.assign_labels("noul", cands);
+        ps.assign_labels(pjev::Type::Noul, cands);
         // noul always uses letter labels (A/B) regardless of scheme
         check(cands[0].internal == "A",  "noul NATURAL: false=A");
         check(cands[1].internal == "B",  "noul NATURAL: true=B");
@@ -34,7 +34,7 @@ int main() {
             Candidate c; c.key = std::to_string(i); c.description = ""; c.internal = "";
             scands.push_back(c);
         }
-        ps.assign_labels("score", scands);
+        ps.assign_labels(pjev::Type::Score, scands);
         check(scands[0].internal == "0", "score NATURAL: 0=0");
         check(scands[1].internal == "1", "score NATURAL: 1=1");
         check(scands[2].internal == "2", "score NATURAL: 2=2");
@@ -44,7 +44,7 @@ int main() {
         Candidate cb; cb.key = "technical"; cb.description = ""; cb.internal = "";
         ccands.push_back(ca);
         ccands.push_back(cb);
-        ps.assign_labels("choice", ccands);
+        ps.assign_labels(pjev::Type::Choice, ccands);
         check(ccands[0].internal == "A", "choice NATURAL: 0=A");
         check(ccands[1].internal == "B", "choice NATURAL: 1=B");
     }
@@ -57,7 +57,7 @@ int main() {
         Candidate c1; c1.key = "true";  c1.description = ""; c1.internal = "";
         cands.push_back(c0);
         cands.push_back(c1);
-        ps.assign_labels("noul", cands);
+        ps.assign_labels(pjev::Type::Noul, cands);
         check(cands[0].internal == "A", "noul LETTERS: false=A");
         check(cands[1].internal == "B", "noul LETTERS: true=B");
 
@@ -66,7 +66,7 @@ int main() {
             Candidate c; c.key = std::to_string(i); c.description = ""; c.internal = "";
             scands.push_back(c);
         }
-        ps.assign_labels("score", scands);
+        ps.assign_labels(pjev::Type::Score, scands);
         check(scands[0].internal == "A", "score LETTERS: 0=A");
     }
 
@@ -78,8 +78,8 @@ int main() {
         Candidate c1; c1.key = "1"; c1.description = "Annoyed"; c1.internal = "";
         Candidate c2; c2.key = "2"; c2.description = "Angry";   c2.internal = "";
         cands.push_back(c0); cands.push_back(c1); cands.push_back(c2);
-        ps.assign_labels("score", cands);
-        auto segs = ps.build_prompt_segments("score", "Hello!", "How frustrated?", cands);
+        ps.assign_labels(pjev::Type::Score, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Score, "Hello!", "How frustrated?", cands);
         // Segment 1 (untrusted) should have "State:" AFTER question
         const std::string& content = segs[1].text;
         auto q_pos = content.find("Question:");
@@ -95,8 +95,8 @@ int main() {
         Candidate ca; ca.key = "a"; ca.description = "Alpha"; ca.internal = "";
         Candidate cb; cb.key = "b"; cb.description = "Beta";  cb.internal = "";
         cands.push_back(ca); cands.push_back(cb);
-        ps.assign_labels("choice", cands);
-        auto segs = ps.build_prompt_segments("choice", "Customer complaint", "Which dept?", cands);
+        ps.assign_labels(pjev::Type::Choice, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Choice, "Customer complaint", "Which dept?", cands);
         const std::string& content = segs[1].text;
         auto q_pos = content.find("Question:");
         auto s_pos = content.find("State:");
@@ -110,8 +110,8 @@ int main() {
         Candidate c0; c0.key = "0"; c0.description = "Low";  c0.internal = "";
         Candidate c1; c1.key = "1"; c1.description = "High"; c1.internal = "";
         cands.push_back(c0); cands.push_back(c1);
-        ps.assign_labels("score", cands);
-        auto segs = ps.build_prompt_segments("score", "S", "Q", cands);
+        ps.assign_labels(pjev::Type::Score, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Score, "S", "Q", cands);
         auto s_pos = segs[1].text.find("State:");
         auto q_pos = segs[1].text.find("Question:");
         check(s_pos < q_pos, "STATE_FIRST: state before question");
@@ -124,8 +124,8 @@ int main() {
         Candidate ca; ca.key = "a"; ca.description = "A"; ca.internal = "";
         Candidate cb; cb.key = "b"; cb.description = "B"; cb.internal = "";
         cands.push_back(ca); cands.push_back(cb);
-        ps.assign_labels("choice", cands);
-        auto segs = ps.build_prompt_segments("choice", "S", "Q", cands);
+        ps.assign_labels(pjev::Type::Choice, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Choice, "S", "Q", cands);
         auto s_pos = segs[1].text.find("State:");
         auto q_pos = segs[1].text.find("Question:");
         check(q_pos < s_pos, "STATE_LAST: question before state");
@@ -138,8 +138,8 @@ int main() {
         Candidate c0; c0.key = "false"; c0.description = ""; c0.internal = "";
         Candidate c1; c1.key = "true";  c1.description = ""; c1.internal = "";
         cands.push_back(c0); cands.push_back(c1);
-        ps.assign_labels("noul", cands);
-        auto segs = ps.build_prompt_segments("noul", "State text", "Question text", cands);
+        ps.assign_labels(pjev::Type::Noul, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Noul, "State text", "Question text", cands);
         check(segs.size() == 3, "build_prompt_segments returns 3 segments");
         check(segs[0].trusted,  "segment 0 is trusted (template prefix)");
         check(!segs[1].trusted, "segment 1 is untrusted (user content)");
@@ -169,8 +169,8 @@ int main() {
         Candidate c0; c0.key = "false"; c0.description = ""; c0.internal = "";
         Candidate c1; c1.key = "true";  c1.description = ""; c1.internal = "";
         cands.push_back(c0); cands.push_back(c1);
-        ps.assign_labels("noul", cands);
-        auto segs = ps.build_prompt_segments("noul", "S", "Q?", cands);
+        ps.assign_labels(pjev::Type::Noul, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Noul, "S", "Q?", cands);
         const std::string& content = segs[1].text;
         check(content.find("A: No")  != std::string::npos, "noul normal order: A: No in prompt");
         check(content.find("B: Yes") != std::string::npos, "noul normal order: B: Yes in prompt");
@@ -186,14 +186,14 @@ int main() {
         Candidate c0; c0.key = "true";  c0.description = ""; c0.internal = "";
         Candidate c1; c1.key = "false"; c1.description = ""; c1.internal = "";
         cands.push_back(c0); cands.push_back(c1);
-        ps.assign_labels("noul", cands);
+        ps.assign_labels(pjev::Type::Noul, cands);
         check(cands[0].internal == "A", "noul reversed: internal[0]=A");
         check(cands[1].internal == "B", "noul reversed: internal[1]=B");
         check(cands[0].noul_value.has_value() && *cands[0].noul_value == NoulValue::True,
               "noul reversed: noul_value[0]=True");
         check(cands[1].noul_value.has_value() && *cands[1].noul_value == NoulValue::False,
               "noul reversed: noul_value[1]=False");
-        auto segs = ps.build_prompt_segments("noul", "S", "Q?", cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Noul, "S", "Q?", cands);
         const std::string& content = segs[1].text;
         check(content.find("A: Yes") != std::string::npos, "noul reversed: A: Yes in prompt");
         check(content.find("B: No")  != std::string::npos, "noul reversed: B: No in prompt");

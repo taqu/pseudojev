@@ -64,7 +64,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{}, {}, ens);
 
         DecisionInput inp;
-        inp.type    = "noul";
+        inp.type = Type::Noul;
         inp.state   = "test";
         inp.question = "q";
         inp.options = {{"false",""}, {"true",""}};
@@ -95,7 +95,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{}, {}, ens);
 
         DecisionInput inp;
-        inp.type    = "noul";
+        inp.type = Type::Noul;
         inp.state   = "test";
         inp.question = "q";
         inp.options = {{"false",""}, {"true",""}};
@@ -121,7 +121,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{}, {}, ens);
 
         DecisionInput inp;
-        inp.type    = "noul";
+        inp.type = Type::Noul;
         inp.state   = "test";
         inp.question = "q";
         inp.options = {{"false",""}, {"true",""}};
@@ -144,7 +144,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{}, {}, ens);
 
         DecisionInput inp;
-        inp.type    = "noul";
+        inp.type = Type::Noul;
         inp.state   = "test";
         inp.question = "q";
         inp.options = {{"false",""}, {"true",""}};
@@ -171,7 +171,7 @@ int main() {
         EnsembleConfig ens; ens.noul_mode = NoulEnsembleMode::BINARY_ORDER;
         DecisionEngine eng1(mock1, PromptConfig{}, {}, ens);
         DecisionInput inp;
-        inp.type = "noul"; inp.state = "s"; inp.question = "q";
+        inp.type = Type::Noul; inp.state = "s"; inp.question = "q";
         inp.options = {{"false",""}, {"true",""}};
         auto out1 = eng1.decide(inp);
         check(out1.ok, "T5: T=1 ok");
@@ -198,7 +198,7 @@ int main() {
         // NONE mode — should call eval_tokens exactly once
         DecisionEngine eng(mock, PromptConfig{}, {}, {});  // default EnsembleConfig = NONE
         DecisionInput inp;
-        inp.type = "noul"; inp.state = "s"; inp.question = "q";
+        inp.type = Type::Noul; inp.state = "s"; inp.question = "q";
         inp.options = {{"false",""}, {"true",""}};
         auto out = eng.decide(inp);
         check(out.ok, "T6: NONE mode ok");

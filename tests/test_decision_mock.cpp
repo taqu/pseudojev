@@ -18,7 +18,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
         mock.set_winner(65); // "A"
         DecisionInput inp;
-        inp.type     = "choice";
+        inp.type = Type::Choice;
         inp.state    = "Customer complaint about billing.";
         inp.question = "Which queue?";
         inp.options  = {{"billing","Billing"}, {"technical","Technical"}, {"sales","Sales"}};
@@ -35,7 +35,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
         mock.set_winner(66); // "B"
         DecisionInput inp;
-        inp.type     = "choice";
+        inp.type = Type::Choice;
         inp.state    = "API returns 500 error.";
         inp.question = "Which queue?";
         inp.options  = {{"billing","Billing"}, {"technical","Technical"}};
@@ -50,7 +50,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
         mock.set_winner(66); // "B" = semantic true (index 1)
         DecisionInput inp;
-        inp.type     = "noul";
+        inp.type = Type::Noul;
         inp.state    = "Please refund the duplicate charge.";
         inp.question = "Is the user asking for a refund?";
         inp.options  = {{"false",""}, {"true",""}};
@@ -65,7 +65,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
         mock.set_winner(65); // "A" = semantic false (index 0)
         DecisionInput inp;
-        inp.type     = "noul";
+        inp.type = Type::Noul;
         inp.state    = "Thanks, working now.";
         inp.question = "Is user reporting a problem?";
         inp.options  = {{"false",""}, {"true",""}};
@@ -81,7 +81,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
         mock.set_winner(65); // "A" = semantic true (reversed order)
         DecisionInput inp;
-        inp.type     = "noul";
+        inp.type = Type::Noul;
         inp.state    = "The sky is blue.";
         inp.question = "Is it daytime?";
         inp.options  = {{"true",""}, {"false",""}};  // reversed
@@ -100,14 +100,14 @@ int main() {
         mock.set_winner(65); // A dominates
 
         DecisionInput normal_inp;
-        normal_inp.type    = "noul";
+        normal_inp.type = Type::Noul;
         normal_inp.state   = "Test state.";
         normal_inp.question = "Test question?";
         normal_inp.options = {{"false",""}, {"true",""}};   // A=false, B=true
         auto normal_out = eng_normal.decide(normal_inp);
 
         DecisionInput rev_inp;
-        rev_inp.type    = "noul";
+        rev_inp.type = Type::Noul;
         rev_inp.state   = "Test state.";
         rev_inp.question = "Test question?";
         rev_inp.options = {{"true",""}, {"false",""}};   // A=true, B=false
@@ -126,7 +126,7 @@ int main() {
         DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::NATURAL});
         mock.set_winner(204); // "2"
         DecisionInput inp;
-        inp.type     = "score";
+        inp.type = Type::Score;
         inp.state    = "I am furious!";
         inp.question = "How frustrated?";
         inp.options  = {{"0","Calm"},{"1","Mild"},{"2","Frustrated"},{"3","Furious"}};
@@ -142,7 +142,7 @@ int main() {
     {
         DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
         DecisionInput inp;
-        inp.type     = "invalid";
+        inp.type = Type::Unknown;
         inp.state    = "S";
         inp.question = "Q?";
         inp.options  = {{"a","A"},{"b","B"}};
@@ -155,7 +155,7 @@ int main() {
     {
         DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
         DecisionInput inp;
-        inp.type     = "choice";
+        inp.type = Type::Choice;
         inp.state    = "S";
         inp.question = "Q?";
         inp.options  = {{"a","A"}};  // only 1 candidate

@@ -20,8 +20,8 @@ int main() {
         Candidate c0; c0.key = "false"; c0.description = ""; c0.internal = "";
         Candidate c1; c1.key = "true";  c1.description = ""; c1.internal = "";
         cands.push_back(c0); cands.push_back(c1);
-        ps.assign_labels("noul", cands);
-        auto segs = ps.build_prompt_segments("noul", injection, "Normal question?", cands);
+        ps.assign_labels(pjev::Type::Noul, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Noul, injection, "Normal question?", cands);
 
         bool in_untrusted = segs[1].text.find(injection) != std::string::npos;
         bool in_trusted0  = segs[0].text.find(injection) != std::string::npos;
@@ -38,8 +38,8 @@ int main() {
         Candidate ca; ca.key = "a"; ca.description = "Alpha"; ca.internal = "";
         Candidate cb; cb.key = "b"; cb.description = "Beta";  cb.internal = "";
         cands.push_back(ca); cands.push_back(cb);
-        ps.assign_labels("choice", cands);
-        auto segs = ps.build_prompt_segments("choice", "Normal state.", injection, cands);
+        ps.assign_labels(pjev::Type::Choice, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Choice, "Normal state.", injection, cands);
         bool in_untrusted = segs[1].text.find(injection) != std::string::npos;
         check(in_untrusted, "injection in question is in untrusted segment");
         check(!segs[1].trusted, "question is in untrusted segment");
@@ -51,8 +51,8 @@ int main() {
         Candidate ca; ca.key = "a"; ca.description = injection;       ca.internal = "";
         Candidate cb; cb.key = "b"; cb.description = "Normal descr."; cb.internal = "";
         cands.push_back(ca); cands.push_back(cb);
-        ps.assign_labels("choice", cands);
-        auto segs = ps.build_prompt_segments("choice", "Normal state.", "Normal question?", cands);
+        ps.assign_labels(pjev::Type::Choice, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Choice, "Normal state.", "Normal question?", cands);
         bool in_untrusted = segs[1].text.find(injection) != std::string::npos;
         check(in_untrusted, "injection in option description is in untrusted segment");
         check(!segs[1].trusted, "option descriptions are in untrusted segment");
@@ -65,8 +65,8 @@ int main() {
         Candidate c0; c0.key = "false"; c0.description = ""; c0.internal = "";
         Candidate c1; c1.key = "true";  c1.description = ""; c1.internal = "";
         cands.push_back(c0); cands.push_back(c1);
-        ps.assign_labels("noul", cands);
-        auto segs = ps.build_prompt_segments("noul", "State", "Question?", cands);
+        ps.assign_labels(pjev::Type::Noul, cands);
+        auto segs = ps.build_prompt_segments(pjev::Type::Noul, "State", "Question?", cands);
         check(segs[0].trusted && segs[0].text.find("im_start") != std::string::npos,
               "trusted prefix has im_start");
         check(segs[2].trusted && segs[2].text.find("im_end") != std::string::npos,

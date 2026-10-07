@@ -55,6 +55,7 @@ add_executable(test_experiment test_experiment.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/dataset.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
     ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
 target_include_directories(test_experiment PRIVATE ${PJEV_TEST_INCS})
@@ -81,6 +82,7 @@ add_executable(test_multilingual test_multilingual.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration_fit.cpp
     ${CMAKE_SOURCE_DIR}/src/multilingual/multilingual.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/dataset.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
     ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
     ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
@@ -149,6 +151,12 @@ add_executable(test_ensemble test_ensemble.cpp
     ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp)
 target_include_directories(test_ensemble PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_ensemble COMMAND test_ensemble)
+
+# test_noul_metrics: tests NoulMetrics (NLL, Brier, ECE, semantic/signed margins, E1 disagreement)
+add_executable(test_noul_metrics test_noul_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp)
+target_include_directories(test_noul_metrics PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_noul_metrics COMMAND test_noul_metrics)
 
 # test_worker: tests Phase 10 IPC framing, protocol serialization, runtime dir, config hash, WorkerInfo JSON
 add_executable(test_worker test_worker.cpp

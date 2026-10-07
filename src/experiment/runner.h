@@ -5,6 +5,7 @@
 #include "config.h"
 #include "dataset.h"
 #include "metrics.h"
+#include "noul_metrics.h"
 #include "permute.h"
 #include <nlohmann/json.hpp>
 
@@ -24,6 +25,8 @@ struct ItemResult
     std::vector<float> corrected_logits; // post prior-correction, pre temperature
     std::vector<std::string> keys;
     bool correct = false;
+    // E1 ensemble diagnostics (populated when NoulEnsembleMode::BINARY_ORDER is active)
+    std::optional<DecisionOutput::EnsembleDiag> ensemble_diag;
     // Option ordering experiment
     std::string stable_key; // the key selected in this run (for stability check)
     // Multilingual metadata (from DatasetRow)
@@ -41,6 +44,8 @@ struct RunResult
     std::string dataset_path;
     RunMetrics metrics;
     StabilityMetrics stability;
+    NoulMetrics noul_metrics;          // confidence/calibration/margin metrics for noul
+    std::vector<NoulSample> noul_samples; // per-item noul data for cross-run comparison
     std::vector<ItemResult> items;
     nlohmann::json to_json() const;
 };

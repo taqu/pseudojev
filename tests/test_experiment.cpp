@@ -57,7 +57,7 @@ int main() {
         std::string err = parse_row(j, row);
         check(err.empty(), "parse_row choice: no error");
         check(row.id == "c1", "parse_row choice: id");
-        check(row.input.type == "choice", "parse_row choice: type");
+        check(row.input.type == pjev::Type::Choice, "parse_row choice: type");
         check(row.input.options.size() == 2, "parse_row choice: 2 options");
         check(row.input.options[0].first == "billing", "parse_row choice: key0");
         check(row.expected.is_string() && row.expected.get<std::string>() == "billing",
@@ -77,7 +77,7 @@ int main() {
         DatasetRow row;
         std::string err = parse_row(j, row);
         check(err.empty(), "parse_row JevBench choice: no error");
-        check(row.input.type == "choice", "parse_row JevBench choice: type");
+        check(row.input.type == pjev::Type::Choice, "parse_row JevBench choice: type");
         check(row.input.question == "Pick one.", "parse_row JevBench choice: question");
         check(row.input.options.size() == 2, "parse_row JevBench choice: 2 options");
         check(row.input.options[0].first == "a", "parse_row JevBench choice: key0");
@@ -96,7 +96,7 @@ int main() {
         DatasetRow row;
         std::string err = parse_row(j, row);
         check(err.empty(), "parse_row noul: no error");
-        check(row.input.type == "noul", "parse_row noul: type");
+        check(row.input.type == pjev::Type::Noul, "parse_row noul: type");
         check(row.input.options.size() == 2, "parse_row noul: 2 options");
         check(row.input.options[0].first == "false", "parse_row noul: key0=false");
         check(row.input.options[1].first == "true", "parse_row noul: key1=true");
@@ -117,7 +117,7 @@ int main() {
         DatasetRow row;
         std::string err = parse_row(j, row);
         check(err.empty(), "parse_row score: no error");
-        check(row.input.type == "score", "parse_row score: type");
+        check(row.input.type == pjev::Type::Score, "parse_row score: type");
         check(row.input.options.size() == 4, "parse_row score: 4 options");
         check(row.input.options[2].second == "Angry", "parse_row score: level2 desc");
         check(row.expected.is_number_integer() && row.expected.get<int>() == 2,
@@ -134,7 +134,7 @@ int main() {
         std::vector<DatasetRow> rows;
         DatasetRow row;
         row.id = "t1";
-        row.input.type     = "choice";
+        row.input.type = pjev::Type::Choice;
         row.input.state    = "Billing issue";
         row.input.question = "Which queue?";
         row.input.options  = {{"billing","Billing"},{"tech","Technical"}};
@@ -163,7 +163,7 @@ int main() {
         std::vector<DatasetRow> rows;
         DatasetRow row;
         row.id = "t2";
-        row.input.type     = "choice";
+        row.input.type = pjev::Type::Choice;
         row.input.state    = "S";
         row.input.question = "Q";
         row.input.options  = {{"billing","Billing"},{"tech","Technical"}};
@@ -198,7 +198,7 @@ int main() {
         std::vector<DatasetRow> rows;
         DatasetRow row;
         row.id = "cb1";
-        row.input.type     = "choice";
+        row.input.type = pjev::Type::Choice;
         row.input.state    = "S";
         row.input.question = "Q";
         row.input.options  = {{"a","Alpha"},{"b","Beta"}};

@@ -8,30 +8,6 @@
 namespace pjev {
 using json = nlohmann::ordered_json;
 
-Type to_type(const std::string& str)
-{
-    if(str == "choice")
-        return Type::Choice;
-    if(str == "noul")
-        return Type::Noul;
-    if(str == "score")
-        return Type::Score;
-    return Type::Unknown;
-}
-
-const char* to_string(Type type)
-{
-    switch(type) {
-    case Type::Choice:
-        return "choice";
-    case Type::Noul:
-        return "noul";
-    case Type::Score:
-        return "score";
-    default:
-        return "unknown";
-    }
-}
 
 // Input size limits
 namespace {

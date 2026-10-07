@@ -16,8 +16,23 @@ enum class Type
     Score,
     Unknown,
 };
-Type to_type(const std::string& str);
-const char* to_string(Type type);
+inline Type to_type(const std::string& str)
+{
+    if(str == "choice") return Type::Choice;
+    if(str == "noul")   return Type::Noul;
+    if(str == "score")  return Type::Score;
+    return Type::Unknown;
+}
+
+inline const char* to_string(Type type)
+{
+    switch(type) {
+    case Type::Choice:  return "choice";
+    case Type::Noul:    return "noul";
+    case Type::Score:   return "score";
+    default:            return "unknown";
+    }
+}
 
 // Stable machine-readable error codes returned in {"error":{"code":"...","message":"..."}}
 namespace ErrorCode {

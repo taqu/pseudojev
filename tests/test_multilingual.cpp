@@ -32,7 +32,7 @@ static pjev::ItemResult make_item(const std::string& id,
 {
     pjev::ItemResult ir;
     ir.id            = id;
-    ir.type          = type;
+    ir.type          = pjev::to_type(type);
     ir.ok            = true;
     ir.correct       = correct;
     ir.selected      = selected;

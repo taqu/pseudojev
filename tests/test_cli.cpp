@@ -126,7 +126,7 @@ static void test_noul_engine_false() {
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL});
 
     pjev::DecisionInput input;
-    input.type     = "noul";
+    input.type = pjev::Type::Noul;
     input.state    = "The sky is blue.";
     input.question = "Is it night?";
     input.options  = {{"false", ""}, {"true", ""}};
@@ -147,7 +147,7 @@ static void test_choice_engine() {
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS});
 
     pjev::DecisionInput input;
-    input.type     = "choice";
+    input.type = pjev::Type::Choice;
     input.state    = "Context here.";
     input.question = "Which option?";
     input.options  = {{"A", "Option A"}, {"B", "Option B"}, {"C", "Option C"}};
@@ -175,7 +175,7 @@ static void test_score_engine() {
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL});
 
     pjev::DecisionInput input;
-    input.type     = "score";
+    input.type = pjev::Type::Score;
     input.state    = "Essay text.";
     input.question = "Rate quality.";
     // keys: "0","1","2","3" — score uses numeric keys
@@ -224,7 +224,7 @@ static void test_option_order_preserved() {
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS});
 
     pjev::DecisionInput input;
-    input.type     = "choice";
+    input.type = pjev::Type::Choice;
     input.state    = "";
     input.question = "Pick?";
     // Intentional order: C, A, B (non-alphabetical)
@@ -248,7 +248,7 @@ static void test_japanese_input() {
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL});
 
     pjev::DecisionInput input;
-    input.type     = "noul";
+    input.type = pjev::Type::Noul;
     input.state    = "空は青い。"; // "The sky is blue." in Japanese
     input.question = "夜ですか?";  // "Is it night?"
     input.options  = {{"false", ""}, {"true", ""}};

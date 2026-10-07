@@ -52,26 +52,26 @@ struct MockBackend : public pjev::ILlamaBackend {
 // ---------------------------------------------------------------------------
 static pjev::RunResult make_run(const std::vector<std::tuple<std::string,std::string,bool,std::string,int64_t>>& items)
 {
-    // items: (id, type, correct, difficulty, eval_ms)
+    // items: (id, type_str, correct, difficulty, eval_ms)
     pjev::RunResult rr;
     rr.config.name = "synthetic";
     rr.dataset_path = "fake";
     for (const auto& tup : items) {
         pjev::ItemResult ir;
         ir.id         = std::get<0>(tup);
-        ir.type       = std::get<1>(tup);
+        ir.type       = pjev::to_type(std::get<1>(tup));
         ir.correct    = std::get<2>(tup);
         ir.difficulty = std::get<3>(tup);
         ir.eval_ms    = std::get<4>(tup);
         ir.ok         = true;
         if (std::get<2>(tup)) {
-            rr.metrics.choice.correct += (ir.type == "choice");
-            rr.metrics.noul.correct   += (ir.type == "noul");
-            rr.metrics.score.correct  += (ir.type == "score");
+            rr.metrics.choice.correct += (ir.type == pjev::Type::Choice);
+            rr.metrics.noul.correct   += (ir.type == pjev::Type::Noul);
+            rr.metrics.score.correct  += (ir.type == pjev::Type::Score);
         }
-        if (ir.type == "choice") { rr.metrics.choice.n++; rr.metrics.choice.labeled++; }
-        if (ir.type == "noul")   { rr.metrics.noul.n++;   rr.metrics.noul.labeled++; }
-        if (ir.type == "score")  { rr.metrics.score.n++;  rr.metrics.score.labeled++; }
+        if (ir.type == pjev::Type::Choice) { rr.metrics.choice.n++; rr.metrics.choice.labeled++; }
+        if (ir.type == pjev::Type::Noul)   { rr.metrics.noul.n++;   rr.metrics.noul.labeled++; }
+        if (ir.type == pjev::Type::Score)  { rr.metrics.score.n++;  rr.metrics.score.labeled++; }
         rr.metrics.n_total++;
         rr.items.push_back(ir);
     }

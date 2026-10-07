@@ -135,7 +135,7 @@ static void test_ipc_protocol_serialization()
 {
     // Test DecisionInput serialization
     DecisionInput in;
-    in.type     = "choice";
+    in.type = pjev::Type::Choice;
     in.state    = "The sky is blue.";
     in.question = "What color is the sky?";
     in.options  = {{"A", "Red"}, {"B", "Blue"}, {"C", "Green"}};
@@ -158,13 +158,13 @@ static void test_ipc_protocol_serialization()
 
     // Test noul input
     DecisionInput noul_in;
-    noul_in.type     = "noul";
+    noul_in.type = pjev::Type::Noul;
     noul_in.question = "Is this a test?";
     noul_in.options  = {{"false", ""}, {"true", ""}};
 
     json noul_j = ipc_input_to_json(noul_in);
     DecisionInput noul_rt = ipc_input_from_json(noul_j);
-    CHECK(noul_rt.type == "noul",                   "noul_input_rt: type");
+    CHECK(noul_rt.type == pjev::Type::Noul,                   "noul_input_rt: type");
     CHECK(noul_rt.options.size() == 2,              "noul_input_rt: options count");
     CHECK(noul_rt.options[1].first == "true",       "noul_input_rt: true key");
 
@@ -238,20 +238,20 @@ static void test_runtime_dir()
 // ---------------------------------------------------------------------------
 static void test_config_hash()
 {
-    std::string h1 = make_config_hash("models/bonsai.gguf", 8, 4096, "");
-    std::string h2 = make_config_hash("models/bonsai.gguf", 8, 4096, "");
+    std::string h1 = make_config_hash("models/bonsai.gguf");
+    std::string h2 = make_config_hash("models/bonsai.gguf");
     CHECK(h1 == h2, "config_hash: deterministic");
 
-    std::string h3 = make_config_hash("models/other.gguf", 8, 4096, "");
+    std::string h3 = make_config_hash("models/other.gguf");
     CHECK(h1 != h3, "config_hash: different model → different hash");
 
-    std::string h4 = make_config_hash("models/bonsai.gguf", 4, 4096, "");
+    std::string h4 = make_config_hash("models/bonsai.gguf");
     CHECK(h1 != h4, "config_hash: different threads → different hash");
 
-    std::string h5 = make_config_hash("models/bonsai.gguf", 8, 2048, "");
+    std::string h5 = make_config_hash("models/bonsai.gguf");
     CHECK(h1 != h5, "config_hash: different ctx_size → different hash");
 
-    std::string h6 = make_config_hash("models/bonsai.gguf", 8, 4096, "calib.json");
+    std::string h6 = make_config_hash("models/bonsai.gguf");
     CHECK(h1 != h6, "config_hash: different calibration → different hash");
 
     // Contains expected fields
@@ -270,7 +270,7 @@ static void test_worker_info_json()
     info.pjev_version     = "0.10.0";
     info.pid              = 12345;
     info.model_identity   = "bonsai-q4";
-    info.config_hash      = make_config_hash("models/bonsai.gguf", 8, 4096, "");
+    info.config_hash      = make_config_hash("models/bonsai.gguf");
     info.start_time_us    = 1700000000000000LL;
 
     json j = ipc_worker_info_to_json(info);
