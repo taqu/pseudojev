@@ -29,25 +29,25 @@ DecisionEngine::DecisionEngine(ILlamaBackend& backend, const PromptConfig& cfg,
 {
     // Verify all candidate tokens for the configured scheme
     std::set<int32_t> seen;
-    bool ok = true;
+    std::string bad; // offending candidates, reported in the exception
     for(const auto& s: strategy_.all_internal_texts()) {
         std::vector<int32_t> toks = backend_.tokenize(s, false, false);
         if(toks.size() != 1) {
-            ok = false;
             fprintf(stderr, "candidate %s: NOT a single token (%zu tokens)\n",
                     s.c_str(), toks.size());
+            bad += (bad.empty() ? "" : ", ") + ("\"" + s + "\" (" + std::to_string(toks.size()) + " tokens)");
             continue;
         }
         if(seen.count(toks[0])) {
-            ok = false;
             fprintf(stderr, "candidate %s: duplicate token id %d\n", s.c_str(), toks[0]);
+            bad += (bad.empty() ? "" : ", ") + ("\"" + s + "\" (duplicate token id " + std::to_string(toks[0]) + ")");
             continue;
         }
         seen.insert(toks[0]);
         cand_token_map_[s] = toks[0];
     }
-    if(!ok) {
-        throw std::runtime_error("candidate token verification failed — see stderr for details");
+    if(!bad.empty()) {
+        throw std::runtime_error("candidate token verification failed: " + bad);
     }
 }
 
@@ -597,6 +597,22 @@ std::vector<DecisionOutput> DecisionEngine::decide_batch(
                                              out.prompt_token_count, out.tokenize_us, out.eval_us));
     }
     return results;
+}
+
+std::vector<std::string> DecisionEngine::candidate_labels(Type type, int n_options) const
+{
+    std::vector<Candidate> candidates(std::max(0, n_options));
+    for(int32_t i = 0; i < n_options; i++) candidates[i].key = std::to_string(i);
+    strategy_.assign_labels(type, candidates);
+    std::vector<std::string> labels;
+    for(const auto& c: candidates) labels.push_back(c.internal);
+    return labels;
+}
+
+int32_t DecisionEngine::candidate_token_id(const std::string& internal) const
+{
+    auto it = cand_token_map_.find(internal);
+    return it == cand_token_map_.end() ? -1 : it->second;
 }
 
 std::vector<float> DecisionEngine::compute_blank_logits(Type type, int n_options)

@@ -171,3 +171,26 @@ Per item: `rotation_count`, `rotations[]` (`cand_to_sem`, `raw_logits`, `correct
 
 `pjev compare` (both primitives) also reports `correct_to_wrong_count` (baseline correct,
 target wrong) and `wrong_to_correct_count` over matched labeled samples.
+
+# score metrics (S0)
+
+Implementation: `src/experiment/score_metrics.{h,cpp}`. Records are stored as `score_items`.
+The frozen baseline configuration is described in [s0.md](s0.md). Compare runs with
+`pjev compare --primitive score` or `scripts/compare_results.py --primitive score`.
+
+| metric | definition |
+|---|---|
+| accuracy | argmax level == ground truth (existing field) |
+| `mae` | discrete `mean(abs(argmax_level - gt))` (existing field) |
+| `expected_score_mae` | `mean(abs(E[level] - gt))`, with `E[level] = sum_i level_i P_i` from the reported probabilities. `raw.expected_score_mae` uses `T = 1`. |
+| `qwk` | quadratic weighted kappa with weights `(i-j)^2 / (K-1)^2` (existing `TypeMetrics::qwk`). `K` is the largest level count in the run. |
+| NLL / Brier / ECE | shared `compute_primitive_metrics`. Brier is **summed over levels**, the same as choice. ECE uses 15 bins over the max probability, with correctness taken from the argmax. |
+| `*_signed_margin` | `L_gt - max_{i != gt} L_i` on pre-temperature logits (`signed_winner_margin`), summarized as mean / median / p10 (type 7) / min |
+| `mean_expected_argmax_distance` | `mean(abs(E[level] - argmax_level))` over all samples, a simple check of how non-local the probability mass is. The raw (`T = 1`) value is also reported. |
+| `error_distance_histogram` | counts of `abs(pred - gt)` = 0, 1, 2, ... over labeled samples |
+| `large_error_rate` | fraction with `abs(pred - gt) >= large_error_threshold` (2, recorded in the JSON) |
+| `prompt_tokens`, `evaluations_per_item` | cost baseline (S0: 1 evaluation per item) |
+
+With a high `T_score` (11.96 in the current artifact), the calibrated probabilities are close
+to flat. Their expected score drifts toward the middle of the scale, so `expected_score_mae`
+and `mean_expected_argmax_distance` should be read alongside the raw (`T = 1`) values.

@@ -30,6 +30,7 @@
 #include "experiment/config.h"
 #include "experiment/noul_metrics.h"
 #include "experiment/choice_metrics.h"
+#include "experiment/score_metrics.h"
 #include "experiment/dataset.h"
 #include "experiment/runner.h"
 #include "distribution/release_config.h"
@@ -105,7 +106,7 @@ static void usage_compare(const char* prog) {
         "  'run' result JSON files and print them side by side (no model needed).\n"
         "  --baseline FILE            result JSON of the baseline run (required)\n"
         "  --target FILE              result JSON of the compared run (required)\n"
-        "  --primitive TYPE           noul|choice (default: noul)\n"
+        "  --primitive TYPE           noul|choice|score (default: noul)\n"
         "  --baseline-label NAME      column label (default: baseline)\n"
         "  --target-label NAME        column label (default: target)\n"
         "  --title TEXT               table title (default: the primitive)\n"
@@ -601,6 +602,7 @@ static int32_t cmd_run(int32_t argc, char** argv) {
     llama_cfg.model_path = "models/bonsai.gguf";
     ExperimentConfig exp_cfg;
     exp_cfg.name = "run";
+    exp_cfg.record_score_candidates = true;
     bool ensemble_binary = true;
     std::string input_path;
     std::string output_path;
@@ -805,12 +807,16 @@ static int32_t cmd_compare(int32_t argc, char** argv) {
         }
     }
     if (args.baseline_path.empty() || args.target_path.empty() || args.ece_bins < 1 ||
-        (primitive != "noul" && primitive != "choice")) {
+        (primitive != "noul" && primitive != "choice" && primitive != "score")) {
         usage_compare("pjev");
         return 2;
     }
     if (args.title.empty()) args.title = primitive;
 
+    if (primitive == "score")
+        return run_compare<ScoreSample>(args, primitive,
+            [](const std::vector<ScoreSample>& s, int32_t bins) { return compute_score_metrics(s, bins); },
+            format_score_comparison);
     if (primitive == "choice")
         return run_compare<ChoiceSample>(args, primitive,
             [](const std::vector<ChoiceSample>& s, int32_t bins) { return compute_choice_metrics(s, bins); },

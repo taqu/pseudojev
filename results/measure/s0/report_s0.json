@@ -1,0 +1,227 @@
+{
+  "primitive": "score",
+  "splits": {
+    "easy": {
+      "baseline": {
+        "label": "S0",
+        "path": "results/measure/s0/s0_easy.json",
+        "metrics": {
+          "accuracy": -1.0,
+          "brier": null,
+          "brier_convention": "sum over levels",
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "expected_score_mae": null,
+            "mean_expected_argmax_distance": null,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "error_distance_histogram": [],
+          "eval_ms": 0,
+          "evaluations_per_item": null,
+          "expected_score_mae": null,
+          "labeled": 0,
+          "large_error_rate": null,
+          "large_error_threshold": 2,
+          "mae": -1.0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_expected_argmax_distance": null,
+          "mean_signed_margin": null,
+          "median_signed_margin": null,
+          "min_signed_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_margin": null,
+          "prompt_tokens": 0,
+          "qwk": -1.0,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "expected_score_mae": null,
+            "mean_expected_argmax_distance": null,
+            "n": 0,
+            "nll": null
+          },
+          "raw_expected_score_mae": null,
+          "raw_mean_expected_argmax_distance": null,
+          "temperature": 1.0
+        }
+      },
+      "targets": [],
+      "equivalence": [],
+      "verify_problems": []
+    },
+    "original": {
+      "baseline": {
+        "label": "S0",
+        "path": "results/measure/s0/s0_original.json",
+        "metrics": {
+          "accuracy": 0.75,
+          "brier": 0.6522680575163614,
+          "brier_convention": "sum over levels",
+          "calibrated": {
+            "brier": 0.6522680575163614,
+            "ece": 0.49017717431677205,
+            "ece_bins": 15,
+            "expected_score_mae": 0.9107537384834273,
+            "mean_expected_argmax_distance": 1.1446644603593918,
+            "n": 12,
+            "nll": 1.2027409670572002
+          },
+          "ece": 0.49017717431677205,
+          "ece_bins": 15,
+          "error_distance_histogram": [
+            9,
+            1,
+            2
+          ],
+          "eval_ms": 5908,
+          "evaluations_per_item": 1.0,
+          "expected_score_mae": 0.9107537384834273,
+          "labeled": 12,
+          "large_error_rate": 0.16666666666666666,
+          "large_error_threshold": 2,
+          "mae": 0.4166666666666667,
+          "margins": {
+            "corrected": {
+              "mean": 1.9534327189127605,
+              "median": 1.9390239715576172,
+              "min": -0.5434751510620117,
+              "n": 12,
+              "p10": -0.0760594367980957
+            },
+            "raw": {
+              "mean": 1.9534327189127605,
+              "median": 1.9390239715576172,
+              "min": -0.5434751510620117,
+              "n": 12,
+              "p10": -0.0760594367980957
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_expected_argmax_distance": 1.1446644603593918,
+          "mean_signed_margin": 1.9534327189127605,
+          "median_signed_margin": 1.9390239715576172,
+          "min_signed_margin": -0.5434751510620117,
+          "n": 12,
+          "nll": 1.2027409670572002,
+          "p10_signed_margin": -0.0760594367980957,
+          "prompt_tokens": 1514,
+          "qwk": 0.7326732673267327,
+          "raw": {
+            "brier": 0.23700775211650896,
+            "ece": 0.09231488208740977,
+            "ece_bins": 15,
+            "expected_score_mae": 0.3766372338687676,
+            "mean_expected_argmax_distance": 0.413493897413509,
+            "n": 12,
+            "nll": 0.43076750049948
+          },
+          "raw_expected_score_mae": 0.3766372338687676,
+          "raw_mean_expected_argmax_distance": 0.413493897413509,
+          "temperature": 11.960309669703673
+        }
+      },
+      "targets": [],
+      "equivalence": [],
+      "verify_problems": []
+    },
+    "hard": {
+      "baseline": {
+        "label": "S0",
+        "path": "results/measure/s0/s0_hard.json",
+        "metrics": {
+          "accuracy": 0.0,
+          "brier": 0.7703137357724863,
+          "brier_convention": "sum over levels",
+          "calibrated": {
+            "brier": 0.7703137357724863,
+            "ece": 0.27292035305149037,
+            "ece_bins": 15,
+            "expected_score_mae": 0.6081161908047303,
+            "mean_expected_argmax_distance": 1.5088533876970447,
+            "n": 6,
+            "nll": 1.44760569530909
+          },
+          "ece": 0.27292035305149037,
+          "ece_bins": 15,
+          "error_distance_histogram": [
+            0,
+            2,
+            3,
+            1
+          ],
+          "eval_ms": 61579,
+          "evaluations_per_item": 1.0,
+          "expected_score_mae": 0.6081161908047303,
+          "labeled": 6,
+          "large_error_rate": 0.6666666666666666,
+          "large_error_threshold": 2,
+          "mae": 1.8333333333333333,
+          "margins": {
+            "corrected": {
+              "mean": -1.7617768446604412,
+              "median": -1.6862869262695312,
+              "min": -3.403311252593994,
+              "n": 6,
+              "p10": -2.6227400302886963
+            },
+            "raw": {
+              "mean": -1.7617768446604412,
+              "median": -1.6862869262695312,
+              "min": -3.403311252593994,
+              "n": 6,
+              "p10": -2.6227400302886963
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_expected_argmax_distance": 1.5088533876970447,
+          "mean_signed_margin": -1.7617768446604412,
+          "median_signed_margin": -1.6862869262695312,
+          "min_signed_margin": -3.403311252593994,
+          "n": 6,
+          "nll": 1.44760569530909,
+          "p10_signed_margin": -2.6227400302886963,
+          "prompt_tokens": 10078,
+          "qwk": -0.21052631578947367,
+          "raw": {
+            "brier": 1.1933467832862619,
+            "ece": 0.6155752729278853,
+            "ece_bins": 15,
+            "expected_score_mae": 1.0789702056965675,
+            "mean_expected_argmax_distance": 0.7543631276367656,
+            "n": 6,
+            "nll": 2.2617606100482095
+          },
+          "raw_expected_score_mae": 1.0789702056965675,
+          "raw_mean_expected_argmax_distance": 0.7543631276367656,
+          "temperature": 11.960309669703673
+        }
+      },
+      "targets": [],
+      "equivalence": [],
+      "verify_problems": []
+    }
+  }
+}

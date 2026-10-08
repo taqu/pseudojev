@@ -6,6 +6,7 @@
 #include "dataset.h"
 #include "metrics.h"
 #include "choice_metrics.h"
+#include "score_metrics.h"
 #include "noul_metrics.h"
 #include "permute.h"
 #include <nlohmann/json.hpp>
@@ -40,6 +41,8 @@ struct ItemResult
     std::optional<NoulSample> noul;
     // Semantic option-space normalization of a successful choice decision, for metrics.
     std::optional<ChoiceSample> choice;
+    // Semantic level normalization of a successful score decision, for metrics.
+    std::optional<ScoreSample> score;
 };
 
 struct RunResult
@@ -51,6 +54,9 @@ struct RunResult
     std::vector<ItemResult> items;
     std::vector<NoulSample> noul_samples() const;
     std::vector<ChoiceSample> choice_samples() const;
+    std::vector<ScoreSample> score_samples() const;
+    // Score candidate diagnostics (only when ExperimentConfig::record_score_candidates).
+    nlohmann::json score_candidates = nlohmann::json::array();
     nlohmann::json to_json() const;
 };
 

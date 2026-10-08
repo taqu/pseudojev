@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <set>
 #include <utility>
 
 #include "../util/timer.h"
@@ -159,6 +160,83 @@ namespace
         }
         return s;
     }
+
+    // Maps a score DecisionOutput to semantic levels. The level of each position comes from its
+    // option key (the dataset's level index), not from the candidate label text.
+    ScoreSample make_score_sample(const DatasetRow& row, const DecisionOutput& out, double temperature,
+                                  const DecisionEngine& engine)
+    {
+        ScoreSample s;
+        s.source_id = row.id;
+        const int n = (int)out.keys.size();
+        s.labels = engine.candidate_labels(Type::Score, n);
+        for(const auto& k: out.keys) {
+            int32_t lv = -1;
+            try {
+                lv = std::stoi(k);
+            } catch(...) {
+            }
+            s.levels.push_back(lv);
+        }
+        for(const auto& l: s.labels) s.token_ids.push_back(engine.candidate_token_id(l));
+        if(row.expected.is_number_integer())
+            s.ground_truth = row.expected.get<int32_t>();
+        if(out.selected >= 0 && out.selected < n)
+            s.prediction = s.levels[out.selected];
+        s.temperature = temperature;
+        s.logits.assign(out.corrected_logits.begin(), out.corrected_logits.end());
+        s.raw_logits.assign(out.raw_logits.begin(), out.raw_logits.end());
+        s.probs = out.probs;
+        s.raw_probs = out.raw_probs;
+        s.prompt_tokens = out.prompt_token_count;
+        return s;
+    }
+
+    std::vector<int32_t> to_ids(const std::vector<int>& v)
+    {
+        return std::vector<int32_t>(v.begin(), v.end());
+    }
+
+    // Candidate labels / token ids for one score level count, how each label tokenizes in
+    // nearby forms, whether it stays a separate token right after the answer anchor, and the
+    // content-free (blank prompt) prior logits.
+    json score_candidate_diagnostics(ILlamaBackend& backend, DecisionEngine& engine, int n_levels)
+    {
+        const std::string anchor = PromptStrategy::ANSWER_ANCHOR;
+        const std::vector<int> anchor_toks = backend.tokenize(anchor, false, true);
+        std::vector<std::string> labels = engine.candidate_labels(Type::Score, n_levels);
+        json forms = json::array();
+        std::vector<int32_t> ids;
+        bool all_single = true, all_in_context = true;
+        for(const auto& l: labels) {
+            int32_t id = engine.candidate_token_id(l);
+            ids.push_back(id);
+            std::vector<int> plain = backend.tokenize(l, false, false);
+            std::vector<int> joined = backend.tokenize(anchor + l, false, true);
+            std::vector<int> expect = anchor_toks;
+            expect.push_back(id);
+            bool in_context = (joined == expect);
+            all_single = all_single && plain.size() == 1 && id >= 0;
+            all_in_context = all_in_context && in_context;
+            forms.push_back({
+                {"label", l},
+                {"token_id", id},
+                {"plain", to_ids(plain)},
+                {"leading_space", to_ids(backend.tokenize(" " + l, false, false))},
+                {"leading_newline", to_ids(backend.tokenize("\n" + l, false, false))},
+                {"separate_token_after_anchor", in_context}});
+        }
+        std::vector<float> prior = engine.compute_blank_logits(Type::Score, n_levels);
+        return json{
+            {"n_levels", n_levels},
+            {"labels", labels},
+            {"token_ids", ids},
+            {"answer_anchor", anchor},
+            {"all_single_token", all_single},
+            {"all_separate_after_anchor", all_in_context},
+            {"forms", forms},
+            {"prior_logits", prior.empty() ? json(nullptr) : json(prior)}};
+    }
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -185,6 +263,15 @@ RunResult run_experiment(ILlamaBackend& backend,
         }
     }
 
+    if(cfg.record_score_candidates) {
+        std::set<int> seen;
+        for(const auto& row: rows) {
+            int n = (int)row.input.options.size();
+            if(row.input.type == Type::Score && seen.insert(n).second)
+                result.score_candidates.push_back(score_candidate_diagnostics(backend, engine, n));
+        }
+    }
+
     for(size_t i = 0; i < rows.size(); ++i) {
         const DatasetRow& row = rows[i];
         spdlog::info("{} {} {}/{}", row.id, static_cast<int32_t>(row.input.type), i + 1, rows.size());
@@ -197,7 +284,7 @@ RunResult run_experiment(ILlamaBackend& backend,
         inp.prior_correction = cfg.prior_correction;
         // noul / choice always collect logits so semantic margins can be measured
         inp.collect_corrected_logits = cfg.collect_corrected_logits || row.input.type == Type::Noul ||
-                                       row.input.type == Type::Choice;
+                                       row.input.type == Type::Choice || row.input.type == Type::Score;
         if(cfg.prior_correction) {
             auto key = std::make_pair(static_cast<int32_t>(row.input.type), static_cast<int32_t>(row.input.options.size()));
             auto it = prior_cache.find(key);
@@ -235,6 +322,8 @@ RunResult run_experiment(ILlamaBackend& backend,
             ir.noul = make_noul_sample(row, out);
         if(out.ok && row.input.type == Type::Choice)
             ir.choice = make_choice_sample(row, out, cfg.calibration.temperature_for(Type::Choice));
+        if(out.ok && row.input.type == Type::Score)
+            ir.score = make_score_sample(row, out, cfg.calibration.temperature_for(Type::Score), engine);
 
         // Populate correct_index and expected_score for calibration use
         if(!row.expected.is_null()) {
@@ -281,6 +370,15 @@ std::vector<ChoiceSample> RunResult::choice_samples() const
     for(const auto& item: items)
         if(item.choice)
             samples.push_back(*item.choice);
+    return samples;
+}
+
+std::vector<ScoreSample> RunResult::score_samples() const
+{
+    std::vector<ScoreSample> samples;
+    for(const auto& item: items)
+        if(item.score)
+            samples.push_back(*item.score);
     return samples;
 }
 
@@ -333,6 +431,10 @@ json RunResult::to_json() const
         {"mae", m.score.mae()},
         {"qwk", m.score.qwk(m.score_n_levels)},
         {"eval_ms", score_eval_ms}};
+    const std::vector<ScoreSample> score_samples_v = score_samples();
+    compute_score_metrics(score_samples_v).merge_into(score_j);
+    json score_items_j = json::array();
+    for(const auto& s: score_samples_v) score_items_j.push_back(s.to_json());
 
     json stab_j = {
         {"n_questions", stability.n_questions},
@@ -357,7 +459,9 @@ json RunResult::to_json() const
                         {"score", score_j}}},
         {"stability", stab_j},
         {"noul_items", noul_items_j},
-        {"choice_items", choice_items_j}};
+        {"choice_items", choice_items_j},
+        {"score_items", score_items_j},
+        {"score_candidates", score_candidates}};
 }
 
 // ---------------------------------------------------------------------------

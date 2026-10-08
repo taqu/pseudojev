@@ -58,6 +58,7 @@ add_executable(test_experiment test_experiment.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/choice_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/score_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
 target_include_directories(test_experiment PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_experiment COMMAND test_experiment)
@@ -86,6 +87,7 @@ add_executable(test_multilingual test_multilingual.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/choice_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/score_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
     ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
     ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
@@ -179,6 +181,7 @@ add_executable(test_noul_metrics test_noul_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/choice_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/score_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp
     ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
 target_include_directories(test_noul_metrics PRIVATE ${PJEV_TEST_INCS})
@@ -194,7 +197,24 @@ add_executable(test_choice_ensemble test_choice_ensemble.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/experiment/choice_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/score_metrics.cpp
     ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp
     ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
 target_include_directories(test_choice_ensemble PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_choice_ensemble COMMAND test_choice_ensemble)
+
+# test_score_s0: tests S0 digit score baseline (candidate validation, ordinal metrics, runner output)
+add_executable(test_score_s0 test_score_s0.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/dataset.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/choice_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/score_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
+target_include_directories(test_score_s0 PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_score_s0 COMMAND test_score_s0)

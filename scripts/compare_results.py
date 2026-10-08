@@ -7,8 +7,9 @@
 Aggregate metrics are read from each result's `metrics.<primitive>` block, so their
 definitions stay in pjev (see doc/metrics.md). Item-level comparisons (margin gain,
 correctness flips, largest margin changes, target-vs-target equivalence) are computed from
-`noul_items` / `choice_items`. `--verify` recomputes the aggregates from the items
-independently and reports any disagreement with the stored values.
+`noul_items` / `choice_items` / `score_items`. `--verify` recomputes the aggregates from the
+items independently and reports any disagreement with the stored values. Without `--target`
+the report covers the baseline alone (e.g. the S0 score baseline).
 
 Examples (paths may contain `{split}`):
 
@@ -22,6 +23,10 @@ Examples (paths may contain `{split}`):
       --target E2=results/measure/e2/e2_{split}.json \\
       --target E2+KV=results/measure/e2/e2kv_{split}.json \\
       --equivalence E2,E2+KV --output results/measure/e2/report_choice.md --verify
+
+  uv run scripts/compare_results.py --primitive score --baseline-label S0 \\
+      --baseline results/measure/s0/s0_{split}.json \\
+      --output results/measure/s0/report_s0.md --verify
 """
 from __future__ import annotations
 
@@ -79,7 +84,33 @@ CHOICE_ROWS: list[Row] = [
     ("eval_ms", "eval_ms", "int", "lower"),
 ]
 
-ROWS = {"noul": NOUL_ROWS, "choice": CHOICE_ROWS}
+SCORE_ROWS: list[Row] = [
+    ("labeled", "labeled", "int", None),
+    ("accuracy", "accuracy", "f4", "higher"),
+    ("MAE", "mae", "f4", "lower"),
+    ("expected-score MAE", "expected_score_mae", "f4", "lower"),
+    ("expected-score MAE (raw, T=1)", "raw.expected_score_mae", "f4", "lower"),
+    ("QWK", "qwk", "f4", "higher"),
+    ("NLL", "nll", "f4", "lower"),
+    ("Brier", "brier", "f4", "lower"),
+    ("ECE", "ece", "f4", "lower"),
+    ("NLL (raw, T=1)", "raw.nll", "f4", "lower"),
+    ("Brier (raw, T=1)", "raw.brier", "f4", "lower"),
+    ("ECE (raw, T=1)", "raw.ece", "f4", "lower"),
+    ("mean signed margin", "mean_signed_margin", "f4", "higher"),
+    ("median signed margin", "median_signed_margin", "f4", "higher"),
+    ("p10 signed margin", "p10_signed_margin", "f4", "higher"),
+    ("min signed margin", "min_signed_margin", "f4", "higher"),
+    ("mean expected-argmax distance", "mean_expected_argmax_distance", "f4", "lower"),
+    ("mean expected-argmax distance (raw)", "raw.mean_expected_argmax_distance", "f4", "lower"),
+    ("@histogram", "error_distance_histogram", "int", None),  # expanded per distance
+    ("large error rate", "large_error_rate", "f4", "lower"),
+    ("eval_ms", "eval_ms", "int", "lower"),
+    ("prompt tokens", "prompt_tokens", "int", "lower"),
+    ("evaluations per item", "evaluations_per_item", "f2", "lower"),
+]
+
+ROWS = {"noul": NOUL_ROWS, "choice": CHOICE_ROWS, "score": SCORE_ROWS}
 
 # Metrics that summarize quality (used for the improved/worse tally; cost rows excluded).
 QUALITY_KEYS = {
@@ -88,6 +119,9 @@ QUALITY_KEYS = {
     "choice": ["accuracy", "nll", "brier", "ece", "raw.nll", "raw.brier", "raw.ece",
                "mean_signed_winner_margin", "median_signed_winner_margin",
                "p10_signed_winner_margin", "min_signed_winner_margin"],
+    "score": ["accuracy", "mae", "expected_score_mae", "raw.expected_score_mae", "qwk",
+              "nll", "brier", "ece", "raw.nll", "raw.brier", "raw.ece",
+              "mean_signed_margin", "median_signed_margin", "p10_signed_margin", "min_signed_margin"],
 }
 
 
@@ -109,6 +143,10 @@ class Run:
     @property
     def items(self) -> list[dict[str, Any]]:
         return self.data.get(f"{self.primitive}_items", [])
+
+    def labeled_count(self) -> int:
+        v = self.metrics.get("labeled")
+        return int(v) if is_num(v) else 0
 
     def items_by_id(self) -> dict[str, dict[str, Any]]:
         return {it["source_id"]: it for it in self.items if it.get("source_id")}
@@ -228,7 +266,7 @@ def margin_gain(base: Run, target: Run) -> Gain:
 
 
 def item_logits(primitive: str, it: dict[str, Any]) -> list[float]:
-    if primitive == "choice":
+    if primitive in ("choice", "score"):
         return list(it.get("logits") or [])
     m = it.get("semantic_margin")
     return [m] if is_num(m) else []
@@ -248,8 +286,8 @@ def equivalence(primitive: str, a: Run, b: Run) -> dict[str, Any]:
         lx, ly = item_logits(primitive, x), item_logits(primitive, y)
         for p, q in zip(lx, ly):
             max_logit = max(max_logit, abs(p - q))
-        px = x.get("probs") if primitive == "choice" else [x.get("p_true")]
-        py = y.get("probs") if primitive == "choice" else [y.get("p_true")]
+        px = x.get("probs") if primitive != "noul" else [x.get("p_true")]
+        py = y.get("probs") if primitive != "noul" else [y.get("p_true")]
         for p, q in zip(px or [], py or []):
             if is_num(p) and is_num(q):
                 max_prob = max(max_prob, abs(p - q))
@@ -360,12 +398,77 @@ def recompute_choice(items: list[dict[str, Any]], n_bins: int) -> dict[str, Any]
     return out
 
 
+def qwk(pred: list[int], gt: list[int], n_levels: int) -> Optional[float]:
+    """Quadratic weighted kappa (same weighting as TypeMetrics::qwk)."""
+    if len(gt) < 2 or n_levels < 2:
+        return None
+    conf = [[0] * n_levels for _ in range(n_levels)]
+    for p, a in zip(pred, gt):
+        if 0 <= p < n_levels and 0 <= a < n_levels:
+            conf[a][p] += 1
+    rows = [sum(r) for r in conf]
+    cols = [sum(conf[i][j] for i in range(n_levels)) for j in range(n_levels)]
+    o = e = 0.0
+    for i in range(n_levels):
+        for j in range(n_levels):
+            w = (i - j) ** 2 / (n_levels - 1) ** 2
+            o += w * conf[i][j]
+            e += w * rows[i] * cols[j] / len(gt)
+    return 1.0 if e < 1e-12 else 1.0 - o / e
+
+
+def recompute_score(items: list[dict[str, Any]], n_bins: int) -> dict[str, Any]:
+    eps = 1e-15  # compute_primitive_metrics convention
+    lab = [it for it in items if it.get("ground_truth") is not None and it.get("logits")]
+    out: dict[str, Any] = {"n": len(items), "labeled": len(lab)}
+    if not lab:
+        return out
+    out["accuracy"] = sum(bool(it["correct"]) for it in lab) / len(lab)
+    out["mae"] = mean([abs(it["prediction"] - it["ground_truth"]) for it in lab])
+    n_levels = max(len(it["levels"]) for it in items)
+    out["qwk"] = qwk([it["prediction"] for it in lab], [it["ground_truth"] for it in lab], n_levels)
+    temps = {it.get("temperature", 1.0) for it in lab}
+    t_run = next(iter(temps)) if len(temps) == 1 else 1.0
+    for t, block in ((t_run, ""), (1.0, "raw.")):
+        nll, brier, conf, corr, exp_err = [], [], [], [], []
+        for it in lab:
+            levels = it["levels"]
+            gt_pos = levels.index(it["ground_truth"])
+            p = softmax(it["logits"], t)
+            nll.append(-math.log(max(p[gt_pos], eps)))
+            brier.append(sum((pi - (1.0 if i == gt_pos else 0.0)) ** 2 for i, pi in enumerate(p)))
+            pred = max(range(len(p)), key=lambda i: p[i])
+            conf.append(p[pred])
+            corr.append(pred == gt_pos)
+            exp_err.append(abs(sum(lv * pi for lv, pi in zip(levels, p)) - it["ground_truth"]))
+        out[block + "nll"] = mean(nll)
+        out[block + "brier"] = mean(brier)
+        out[block + "ece"] = ece(conf, corr, n_bins)
+        out[block + "expected_score_mae"] = mean(exp_err)
+    s = margin_summary([it.get("signed_margin") for it in lab])
+    for k, v in s.items():
+        out[f"{k}_signed_margin"] = v
+    dists = [abs(it["prediction"] - it["ground_truth"]) for it in lab]
+    hist = [0] * (max(dists) + 1)
+    for d in dists:
+        hist[d] += 1
+    out["error_distance_histogram"] = hist
+    thr = 2
+    out["large_error_rate"] = sum(d >= thr for d in dists) / len(dists)
+    return out
+
+
 def verify(run: Run) -> list[str]:
     n_bins = run.metrics.get("ece_bins", 15) or 15
-    rec = recompute_noul(run.items, n_bins) if run.primitive == "noul" else recompute_choice(run.items, n_bins)
+    recompute = {"noul": recompute_noul, "choice": recompute_choice, "score": recompute_score}[run.primitive]
+    rec = recompute(run.items, n_bins)
     problems = []
     for key, val in rec.items():
         stored = get_path(run.metrics, key)
+        if isinstance(val, list) or isinstance(stored, list):
+            if val != stored:
+                problems.append(f"{run.label} {key}: stored {stored!r} vs recomputed {val!r}")
+            continue
         if val is None and stored is None:
             continue
         if not (is_num(val) and is_num(stored)) or abs(val - stored) > VERIFY_TOL * max(1.0, abs(stored)):
@@ -426,21 +529,60 @@ def split_report(primitive: str, split: str, base: Run, targets: list[Run],
     out: list[str] = [f"## {primitive} / {split}", ""]
     src = [f"- baseline: `{base.path.as_posix()}`"] + [f"- {t.label}: `{t.path.as_posix()}`" for t in targets]
     out += src + [""]
+    if not any(r.labeled_count() for r in [base, *targets]):
+        out += [f"_No labeled {primitive} items in this split._", ""]
 
     header = ["metric", base.label]
     for t in targets:
         header += [t.label, f"Δ {t.label}"]
     rows = []
     for label, path, kind, better in ROWS[primitive]:
-        bv = get_path(base.metrics, path)
-        tvs = [get_path(t.metrics, path) for t in targets]
+        if label == "@histogram":
+            hists = [get_path(r.metrics, path) or [] for r in [base, *targets]]
+            for d in range(max([3] + [len(h) for h in hists])):
+                vals = [h[d] if d < len(h) else 0 for h in hists]
+                if not any(r.labeled_count() for r in [base, *targets]):
+                    break
+                row = [f"error distance {d}", str(vals[0])]
+                for v in vals[1:]:
+                    row += [str(v), f"{v - vals[0]:+d}"]
+                rows.append(row)
+            continue
+        def value(r: Run) -> Any:
+            # Legacy fields use -1 for "no labeled items"; show those as n/a.
+            if not r.labeled_count() and path not in ("labeled", "eval_ms", "prompt_tokens"):
+                return None
+            return get_path(r.metrics, path)
+        bv = value(base)
+        tvs = [value(t) for t in targets]
         if not is_num(bv) and not any(is_num(v) for v in tvs):
             continue
         row = [label, fmt(bv, kind)]
         for tv in tvs:
             row += [fmt(tv, kind), fmt_delta(bv, tv, kind, better)]
         rows.append(row)
-    out += [md_table(header, rows), "", "▲ better than baseline, ▼ worse.", ""]
+    out += [md_table(header, rows), ""]
+    if targets:
+        out += ["▲ better than baseline, ▼ worse.", ""]
+    if primitive == "score":
+        thr = get_path(base.metrics, "large_error_threshold")
+        t_s = get_path(base.metrics, "temperature") if base.labeled_count() else None
+        out += [f"Large error: |predicted - ground truth| >= {fmt(thr, 'int')}. "
+                f"Calibrated metrics use T_score = {fmt(t_s, 'f4')}; raw metrics use T = 1. "
+                "Brier is summed over levels.", ""]
+        cands = base.data.get("score_candidates") or []
+        if cands:
+            crow = []
+            for c in cands:
+                prior = c.get("prior_logits")
+                crow.append([str(c.get("n_levels")), " ".join(c.get("labels", [])),
+                             " ".join(str(i) for i in c.get("token_ids", [])),
+                             "yes" if c.get("all_single_token") else "NO",
+                             "yes" if c.get("all_separate_after_anchor") else "NO",
+                             " ".join(f"{x:.3f}" for x in prior) if prior else "n/a"])
+            out += [f"**Candidates ({base.label})** — answer anchor `{json.dumps(cands[0].get('answer_anchor', ''))}`", "",
+                    md_table(["levels", "labels", "token ids", "single token", "separate after anchor",
+                              "content-free prior logits"], crow, ["---:", "---", "---", "---", "---", "---"]), ""]
 
     data: dict[str, Any] = {"baseline": {"label": base.label, "path": base.path.as_posix(), "metrics": base.metrics},
                             "targets": []}
@@ -526,11 +668,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to a legacy code page
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--primitive", choices=["noul", "choice"], required=True)
+    ap.add_argument("--primitive", choices=["noul", "choice", "score"], required=True)
     ap.add_argument("--baseline", required=True, help="baseline result JSON (may contain {split})")
     ap.add_argument("--baseline-label", default="baseline")
-    ap.add_argument("--target", action="append", type=parse_target, required=True,
-                    help="LABEL=PATH (repeatable; PATH may contain {split})")
+    ap.add_argument("--target", action="append", type=parse_target, default=[],
+                    help="LABEL=PATH (repeatable; PATH may contain {split}); omit for a single-run report")
     ap.add_argument("--splits", nargs="+", default=["easy", "original", "hard"],
                     help="values substituted for {split} (default: easy original hard)")
     ap.add_argument("--equivalence", action="append", type=parse_pair, default=[],
@@ -545,7 +687,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     uses_split = "{split}" in args.baseline or any("{split}" in p for _, p in args.target)
     splits = args.splits if uses_split else ["-"]
 
-    title = args.title or f"{args.primitive}: {args.baseline_label} vs " + ", ".join(l for l, _ in args.target)
+    if args.target:
+        title = args.title or f"{args.primitive}: {args.baseline_label} vs " + ", ".join(l for l, _ in args.target)
+    else:
+        title = args.title or f"{args.primitive}: {args.baseline_label}"
     sections = [f"# {title}", ""]
     report: dict[str, Any] = {"primitive": args.primitive, "splits": {}}
     any_problem = False

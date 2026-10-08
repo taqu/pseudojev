@@ -1,0 +1,972 @@
+{
+  "choice_ensemble": "none",
+  "choice_items": [],
+  "experiment": "run",
+  "layout": "auto",
+  "metrics": {
+    "choice": {
+      "accuracy": -1.0,
+      "brier": null,
+      "brier_convention": "sum over options",
+      "calibrated": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "n": 0,
+        "nll": null
+      },
+      "ece": null,
+      "ece_bins": 15,
+      "eval_ms": 0,
+      "labeled": 0,
+      "margins": {
+        "corrected": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "raw": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_signed_winner_margin": null,
+      "median_signed_winner_margin": null,
+      "min_signed_winner_margin": null,
+      "n": 0,
+      "nll": null,
+      "p10_signed_winner_margin": null,
+      "prompt_tokens": 0,
+      "raw": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "n": 0,
+        "nll": null
+      },
+      "temperature": 1.0
+    },
+    "n_errors": 0,
+    "n_total": 12,
+    "noul": {
+      "accuracy": -1.0,
+      "brier": null,
+      "calibrated": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "mean_confidence_correct": null,
+        "n": 0,
+        "nll": null
+      },
+      "ece": null,
+      "ece_bins": 15,
+      "eval_ms": 0,
+      "labeled": 0,
+      "margins": {
+        "corrected": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "raw": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_confidence_correct": null,
+      "mean_signed_margin": null,
+      "median_signed_margin": null,
+      "min_signed_margin": null,
+      "n": 0,
+      "nll": null,
+      "p10_signed_margin": null,
+      "raw": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "mean_confidence_correct": null,
+        "n": 0,
+        "nll": null
+      }
+    },
+    "score": {
+      "accuracy": 0.75,
+      "brier": 0.6522680575163614,
+      "brier_convention": "sum over levels",
+      "calibrated": {
+        "brier": 0.6522680575163614,
+        "ece": 0.49017717431677205,
+        "ece_bins": 15,
+        "expected_score_mae": 0.9107537384834273,
+        "mean_expected_argmax_distance": 1.1446644603593918,
+        "n": 12,
+        "nll": 1.2027409670572002
+      },
+      "ece": 0.49017717431677205,
+      "ece_bins": 15,
+      "error_distance_histogram": [
+        9,
+        1,
+        2
+      ],
+      "eval_ms": 5908,
+      "evaluations_per_item": 1.0,
+      "expected_score_mae": 0.9107537384834273,
+      "labeled": 12,
+      "large_error_rate": 0.16666666666666666,
+      "large_error_threshold": 2,
+      "mae": 0.4166666666666667,
+      "margins": {
+        "corrected": {
+          "mean": 1.9534327189127605,
+          "median": 1.9390239715576172,
+          "min": -0.5434751510620117,
+          "n": 12,
+          "p10": -0.0760594367980957
+        },
+        "raw": {
+          "mean": 1.9534327189127605,
+          "median": 1.9390239715576172,
+          "min": -0.5434751510620117,
+          "n": 12,
+          "p10": -0.0760594367980957
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_expected_argmax_distance": 1.1446644603593918,
+      "mean_signed_margin": 1.9534327189127605,
+      "median_signed_margin": 1.9390239715576172,
+      "min_signed_margin": -0.5434751510620117,
+      "n": 12,
+      "nll": 1.2027409670572002,
+      "p10_signed_margin": -0.0760594367980957,
+      "prompt_tokens": 1514,
+      "qwk": 0.7326732673267327,
+      "raw": {
+        "brier": 0.23700775211650896,
+        "ece": 0.09231488208740977,
+        "ece_bins": 15,
+        "expected_score_mae": 0.3766372338687676,
+        "mean_expected_argmax_distance": 0.413493897413509,
+        "n": 12,
+        "nll": 0.43076750049948
+      },
+      "raw_expected_score_mae": 0.3766372338687676,
+      "raw_mean_expected_argmax_distance": 0.413493897413509,
+      "temperature": 11.960309669703673
+    }
+  },
+  "noul_ensemble": "binary-order",
+  "noul_items": [],
+  "option_order": "original",
+  "prior_correction": false,
+  "scheme": "natural",
+  "score_candidates": [
+    {
+      "all_separate_after_anchor": true,
+      "all_single_token": true,
+      "answer_anchor": "<|im_end|>\n<|im_start|>assistant\n\n",
+      "forms": [
+        {
+          "label": "0",
+          "leading_newline": [
+            198,
+            15
+          ],
+          "leading_space": [
+            220,
+            15
+          ],
+          "plain": [
+            15
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 15
+        },
+        {
+          "label": "1",
+          "leading_newline": [
+            198,
+            16
+          ],
+          "leading_space": [
+            220,
+            16
+          ],
+          "plain": [
+            16
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 16
+        },
+        {
+          "label": "2",
+          "leading_newline": [
+            198,
+            17
+          ],
+          "leading_space": [
+            220,
+            17
+          ],
+          "plain": [
+            17
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 17
+        },
+        {
+          "label": "3",
+          "leading_newline": [
+            198,
+            18
+          ],
+          "leading_space": [
+            220,
+            18
+          ],
+          "plain": [
+            18
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 18
+        }
+      ],
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "n_levels": 4,
+      "prior_logits": [
+        -1.5630964040756226,
+        -3.1791229248046875,
+        -3.271743059158325,
+        -5.240497589111328
+      ],
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    }
+  ],
+  "score_items": [
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 1.3527718282992,
+      "expected_score": 1.3527718282992,
+      "ground_truth": 0,
+      "ground_truth_probability": 0.31121716552617373,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        10.96323013305664,
+        7.660490036010742,
+        7.921534061431885,
+        6.3336567878723145
+      ],
+      "prediction": 0,
+      "probs": [
+        0.31121716552617373,
+        0.23612215151239072,
+        0.24133237209749733,
+        0.21132831086393827
+      ],
+      "prompt_tokens": 122,
+      "raw_expected_abs_error": 0.14764452276099826,
+      "raw_expected_score": 0.14764452276099826,
+      "raw_logits": [
+        10.96323013305664,
+        7.660490036010742,
+        7.921534061431885,
+        6.3336567878723145
+      ],
+      "raw_probs": [
+        0.9138303731492252,
+        0.03361273018677508,
+        0.043638897417775886,
+        0.008917999246223801
+      ],
+      "signed_margin": 3.041696071624756,
+      "source_id": "original-ordinal-01-0",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 1.3088728894513166,
+      "expected_score": 1.3088728894513166,
+      "ground_truth": 0,
+      "ground_truth_probability": 0.30622025440204964,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        10.859189987182617,
+        9.417360305786133,
+        7.413968563079834,
+        5.32305383682251
+      ],
+      "prediction": 0,
+      "probs": [
+        0.30622025440204964,
+        0.27144334099126716,
+        0.22957966536000007,
+        0.19275673924668313
+      ],
+      "prompt_tokens": 124,
+      "raw_expected_abs_error": 0.24530918230975368,
+      "raw_expected_score": 0.24530918230975368,
+      "raw_logits": [
+        10.859189987182617,
+        9.417360305786133,
+        7.413968563079834,
+        5.32305383682251
+      ],
+      "raw_probs": [
+        0.7859570978260939,
+        0.185874650898127,
+        0.025070222415710573,
+        0.003098028860068514
+      ],
+      "signed_margin": 1.4418296813964844,
+      "source_id": "original-ordinal-01-1",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 0.42078077927629254,
+      "expected_score": 1.4207807792762925,
+      "ground_truth": 1,
+      "ground_truth_probability": 0.3101843707304399,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        6.372836589813232,
+        9.494987487792969,
+        6.530722141265869,
+        4.761386871337891
+      ],
+      "prediction": 1,
+      "probs": [
+        0.23891891288717246,
+        0.3101843707304399,
+        0.24209374060131017,
+        0.20880297578107745
+      ],
+      "prompt_tokens": 126,
+      "raw_expected_abs_error": 0.022749279105238163,
+      "raw_expected_score": 1.0227492791052382,
+      "raw_logits": [
+        6.372836589813232,
+        9.494987487792969,
+        6.530722141265869,
+        4.761386871337891
+      ],
+      "raw_probs": [
+        0.03989504041660654,
+        0.9054236120643553,
+        0.04671837551623147,
+        0.007962972002806651
+      ],
+      "signed_margin": 2.9642653465270996,
+      "source_id": "original-ordinal-02-0",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 1,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 0.31578918531280054,
+      "expected_score": 1.3157891853128005,
+      "ground_truth": 1,
+      "ground_truth_probability": 0.29052051484393904,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        10.05284309387207,
+        10.02995491027832,
+        7.232902526855469,
+        4.853907585144043
+      ],
+      "prediction": 0,
+      "probs": [
+        0.2910770099193007,
+        0.29052051484393904,
+        0.2299387552414195,
+        0.18846371999534084
+      ],
+      "prompt_tokens": 127,
+      "raw_expected_abs_error": 0.45500316098053406,
+      "raw_expected_score": 0.5449968390194659,
+      "raw_logits": [
+        10.05284309387207,
+        10.02995491027832,
+        7.232902526855469,
+        4.853907585144043
+      ],
+      "raw_probs": [
+        0.48959519893563114,
+        0.4785165231619451,
+        0.029184517849750936,
+        0.0027037600526729957
+      ],
+      "signed_margin": -0.02288818359375,
+      "source_id": "original-ordinal-02-1",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 2,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 0.5701187156969629,
+      "expected_score": 1.429881284303037,
+      "ground_truth": 2,
+      "ground_truth_probability": 0.27611461637247187,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        9.894719123840332,
+        7.626224517822266,
+        9.812751770019531,
+        6.869955062866211
+      ],
+      "prediction": 0,
+      "probs": [
+        0.2780134062522605,
+        0.22998194028385477,
+        0.27611461637247187,
+        0.21589003709141286
+      ],
+      "prompt_tokens": 123,
+      "raw_expected_abs_error": 0.9911058478186676,
+      "raw_expected_score": 1.0088941521813324,
+      "raw_logits": [
+        9.894719123840332,
+        7.626224517822266,
+        9.812751770019531,
+        6.869955062866211
+      ],
+      "raw_probs": [
+        0.48231376239282536,
+        0.04990395487214184,
+        0.4443566508959079,
+        0.023425631839124918
+      ],
+      "signed_margin": -0.08196735382080078,
+      "source_id": "original-ordinal-03-0",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 2,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 0.52641695304725,
+      "expected_score": 1.47358304695275,
+      "ground_truth": 2,
+      "ground_truth_probability": 0.24913924351298752,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        9.79080867767334,
+        9.17113208770752,
+        9.247333526611328,
+        8.928352355957031
+      ],
+      "prediction": 0,
+      "probs": [
+        0.2607212530593674,
+        0.24755697517808026,
+        0.24913924351298752,
+        0.24258252824956492
+      ],
+      "prompt_tokens": 125,
+      "raw_expected_abs_error": 0.8327510099323496,
+      "raw_expected_score": 1.1672489900676504,
+      "raw_logits": [
+        9.79080867767334,
+        9.17113208770752,
+        9.247333526611328,
+        8.928352355957031
+      ],
+      "raw_probs": [
+        0.39355064830616737,
+        0.21177686185610606,
+        0.22854534130163504,
+        0.16612714853609145
+      ],
+      "signed_margin": -0.5434751510620117,
+      "source_id": "original-ordinal-03-1",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 1.306007305270403,
+      "expected_score": 1.693992694729597,
+      "ground_truth": 3,
+      "ground_truth_probability": 0.3584329423181333,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        5.363100051879883,
+        3.6498732566833496,
+        4.120483875274658,
+        10.576642990112305
+      ],
+      "prediction": 3,
+      "probs": [
+        0.2317914203133681,
+        0.20085740696180027,
+        0.20891823040669844,
+        0.3584329423181333
+      ],
+      "prompt_tokens": 125,
+      "raw_expected_abs_error": 0.019702710318546757,
+      "raw_expected_score": 2.9802972896814532,
+      "raw_logits": [
+        5.363100051879883,
+        3.6498732566833496,
+        4.120483875274658,
+        10.576642990112305
+      ],
+      "raw_probs": [
+        0.005399194555173816,
+        0.0009733836201347052,
+        0.0015583594127558148,
+        0.9920690624119356
+      ],
+      "signed_margin": 5.213542938232422,
+      "source_id": "original-ordinal-04-0",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 1.2930835655711765,
+      "expected_score": 1.7069164344288235,
+      "ground_truth": 3,
+      "ground_truth_probability": 0.3674835030702889,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        6.007140159606934,
+        3.5970680713653564,
+        4.483059883117676,
+        11.382453918457031
+      ],
+      "prediction": 3,
+      "probs": [
+        0.234451587101567,
+        0.19166389443833132,
+        0.20640101538981281,
+        0.3674835030702889
+      ],
+      "prompt_tokens": 124,
+      "raw_expected_abs_error": 0.01563368741347837,
+      "raw_expected_score": 2.9843663125865216,
+      "raw_logits": [
+        6.007140159606934,
+        3.5970680713653564,
+        4.483059883117676,
+        11.382453918457031
+      ],
+      "raw_probs": [
+        0.00460160953214874,
+        0.00041326512300654284,
+        0.001002328571019003,
+        0.9939827967738256
+      ],
+      "signed_margin": 5.375313758850098,
+      "source_id": "original-ordinal-04-1",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 1.4018030079736772,
+      "expected_score": 1.4018030079736772,
+      "ground_truth": 0,
+      "ground_truth_probability": 0.29354342771638947,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        11.276187896728516,
+        8.839969635009766,
+        8.80117416381836,
+        8.271735191345215
+      ],
+      "prediction": 0,
+      "probs": [
+        0.29354342771638947,
+        0.23944738077537647,
+        0.23867194732640165,
+        0.22833724418183246
+      ],
+      "prompt_tokens": 128,
+      "raw_expected_abs_error": 0.3312366178127298,
+      "raw_expected_score": 0.3312366178127298,
+      "raw_logits": [
+        11.276187896728516,
+        8.839969635009766,
+        8.80117416381836,
+        8.271735191345215
+      ],
+      "raw_probs": [
+        0.8188540801153223,
+        0.07164244015086245,
+        0.06891626153957811,
+        0.04058721819423704
+      ],
+      "signed_margin": 2.43621826171875,
+      "source_id": "original-ordinal-05-0",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 1.343504293955711,
+      "expected_score": 1.343504293955711,
+      "ground_truth": 0,
+      "ground_truth_probability": 0.312204501578572,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        12.66666316986084,
+        9.728448867797852,
+        9.088491439819336,
+        8.043648719787598
+      ],
+      "prediction": 0,
+      "probs": [
+        0.312204501578572,
+        0.2442017420807511,
+        0.23147871714707066,
+        0.21211503919360616
+      ],
+      "prompt_tokens": 127,
+      "raw_expected_abs_error": 0.12678259622579496,
+      "raw_expected_score": 0.12678259622579496,
+      "raw_logits": [
+        12.66666316986084,
+        9.728448867797852,
+        9.088491439819336,
+        8.043648719787598
+      ],
+      "raw_probs": [
+        0.9168339346586796,
+        0.04855572257223509,
+        0.025604154653695754,
+        0.009006188115389458
+      ],
+      "signed_margin": 2.9382143020629883,
+      "source_id": "original-ordinal-05-1",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 0.588940285854076,
+      "expected_score": 1.411059714145924,
+      "ground_truth": 2,
+      "ground_truth_probability": 0.2825603564694052,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        10.790288925170898,
+        8.864723205566406,
+        10.993500709533691,
+        7.047208786010742
+      ],
+      "prediction": 2,
+      "probs": [
+        0.27780006575963384,
+        0.23648986605288463,
+        0.2825603564694052,
+        0.2031497117180764
+      ],
+      "prompt_tokens": 128,
+      "raw_expected_abs_error": 0.8861310612565076,
+      "raw_expected_score": 1.1138689387434924,
+      "raw_logits": [
+        10.790288925170898,
+        8.864723205566406,
+        10.993500709533691,
+        7.047208786010742
+      ],
+      "raw_probs": [
+        0.41757031456228555,
+        0.060878935526494295,
+        0.5116622465166624,
+        0.00988850339455781
+      ],
+      "signed_margin": 0.20321178436279297,
+      "source_id": "original-ordinal-06-0",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 0,
+      "correct": true,
+      "evaluations": 1,
+      "expected_abs_error": 0.500956052092262,
+      "expected_score": 1.499043947907738,
+      "ground_truth": 2,
+      "ground_truth_probability": 0.26765822327508987,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        8.497485160827637,
+        9.346162796020508,
+        9.821393966674805,
+        8.2904052734375
+      ],
+      "prediction": 2,
+      "probs": [
+        0.2396115403606302,
+        0.2572316038676409,
+        0.26765822327508987,
+        0.23549863249663913
+      ],
+      "prompt_tokens": 135,
+      "raw_expected_abs_error": 0.445597130490611,
+      "raw_expected_score": 1.554402869509389,
+      "raw_logits": [
+        8.497485160827637,
+        9.346162796020508,
+        9.821393966674805,
+        8.2904052734375
+      ],
+      "raw_probs": [
+        0.12646074727146678,
+        0.2954824951317585,
+        0.4752498984126937,
+        0.10280685918408106
+      ],
+      "signed_margin": 0.4752311706542969,
+      "source_id": "original-ordinal-06-1",
+      "temperature": 11.960309669703673,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    }
+  ],
+  "stability": {
+    "n_questions": 0,
+    "n_stable": 0,
+    "stability_rate": -1.0
+  }
+}

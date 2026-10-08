@@ -25,6 +25,9 @@ struct ExperimentConfig
     CalibrationConfig calibration;
     EnsembleConfig ensemble;
     bool collect_corrected_logits = false; // populate corrected_logits in ItemResult
+    // Record score candidate diagnostics (labels, token ids, token forms, content-free prior
+    // logits) in RunResult. Costs one extra evaluation per distinct score level count.
+    bool record_score_candidates = false;
 
     std::string layout_str() const
     {

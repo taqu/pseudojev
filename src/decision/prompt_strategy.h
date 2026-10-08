@@ -55,7 +55,10 @@ public:
     // Segments are:
     //   [0] trusted  = "<|im_start|>user\n"
     //   [1] untrusted = full user content (our framing + user state/question/descriptions)
-    //   [2] trusted  = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+    //   [2] trusted  = ANSWER_ANCHOR
+    // Candidate logits are read at the position right after ANSWER_ANCHOR.
+    static constexpr const char* ANSWER_ANCHOR = "<|im_end|>\n<|im_start|>assistant\n\n";
+
     std::vector<PromptSegment> build_prompt_segments(
         Type type,
         const std::string& state,

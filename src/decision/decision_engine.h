@@ -116,6 +116,11 @@ public:
     // Used by the experiment framework for prior correction.
     std::vector<float> compute_blank_logits(Type type, int n_options);
 
+    // Candidate labels (internal texts, e.g. "0".."N-1" for score/natural) that the prompt binds
+    // to positions 0..n_options-1, and their verified token ids (-1 if not verified).
+    std::vector<std::string> candidate_labels(Type type, int n_options) const;
+    int32_t candidate_token_id(const std::string& internal) const;
+
 private:
     ILlamaBackend&   backend_;
     PromptStrategy   strategy_;
