@@ -12,6 +12,7 @@
 #include "noul_metrics.h"
 #include <cmath>
 #include <cstdint>
+#include <map>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
@@ -58,6 +59,7 @@ struct ScoreSample
     double raw_expected_abs_error() const;
     double expected_argmax_distance() const { return std::abs(expected_score() - prediction); }
     double raw_expected_argmax_distance() const { return std::abs(raw_expected_score() - prediction); }
+    std::string selected_label() const; // candidate label at the predicted level ("" if none)
 
     nlohmann::json to_json() const;
     static ScoreSample from_json(const nlohmann::json& j);
@@ -85,6 +87,11 @@ struct ScoreMetrics
     double large_error_rate = METRIC_UNDEFINED;
     int64_t prompt_tokens = 0;
     double evaluations_per_item = METRIC_UNDEFINED;
+    // Candidate-token bias diagnostics: how often each label / level is selected (all samples)
+    // vs how often each level is the ground truth (labeled samples).
+    std::map<std::string, int32_t> selection_by_label;
+    std::map<int32_t, int32_t> prediction_by_level;
+    std::map<int32_t, int32_t> ground_truth_by_level;
 
     void merge_into(nlohmann::json& j) const;
 };

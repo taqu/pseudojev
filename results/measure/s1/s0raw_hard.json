@@ -1,0 +1,815 @@
+{
+  "calibration": {
+    "applied": false,
+    "path": ""
+  },
+  "choice_ensemble": "none",
+  "choice_items": [],
+  "experiment": "run",
+  "layout": "auto",
+  "metrics": {
+    "choice": {
+      "accuracy": -1.0,
+      "brier": null,
+      "brier_convention": "sum over options",
+      "calibrated": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "n": 0,
+        "nll": null
+      },
+      "ece": null,
+      "ece_bins": 15,
+      "eval_ms": 0,
+      "labeled": 0,
+      "margins": {
+        "corrected": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "raw": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_signed_winner_margin": null,
+      "median_signed_winner_margin": null,
+      "min_signed_winner_margin": null,
+      "n": 0,
+      "nll": null,
+      "p10_signed_winner_margin": null,
+      "prompt_tokens": 0,
+      "raw": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "n": 0,
+        "nll": null
+      },
+      "temperature": 1.0
+    },
+    "n_errors": 0,
+    "n_total": 6,
+    "noul": {
+      "accuracy": -1.0,
+      "brier": null,
+      "calibrated": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "mean_confidence_correct": null,
+        "n": 0,
+        "nll": null
+      },
+      "ece": null,
+      "ece_bins": 15,
+      "eval_ms": 0,
+      "labeled": 0,
+      "margins": {
+        "corrected": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "raw": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_confidence_correct": null,
+      "mean_signed_margin": null,
+      "median_signed_margin": null,
+      "min_signed_margin": null,
+      "n": 0,
+      "nll": null,
+      "p10_signed_margin": null,
+      "raw": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "mean_confidence_correct": null,
+        "n": 0,
+        "nll": null
+      }
+    },
+    "score": {
+      "accuracy": 0.0,
+      "brier": 1.1933467832862619,
+      "brier_convention": "sum over levels",
+      "calibrated": {
+        "brier": 1.1933467832862619,
+        "ece": 0.6155752729278853,
+        "ece_bins": 15,
+        "expected_score_mae": 1.0789702056965675,
+        "mean_expected_argmax_distance": 0.7543631276367656,
+        "n": 6,
+        "nll": 2.2617606100482095
+      },
+      "ece": 0.6155752729278853,
+      "ece_bins": 15,
+      "error_distance_histogram": [
+        0,
+        2,
+        3,
+        1
+      ],
+      "eval_ms": 70151,
+      "evaluations_per_item": 1.0,
+      "expected_score_mae": 1.0789702056965675,
+      "ground_truth_by_level": {
+        "0": 1,
+        "1": 3,
+        "2": 2
+      },
+      "labeled": 6,
+      "large_error_rate": 0.6666666666666666,
+      "large_error_threshold": 2,
+      "mae": 1.8333333333333333,
+      "margins": {
+        "corrected": {
+          "mean": -1.7617768446604412,
+          "median": -1.6862869262695313,
+          "min": -3.403311252593994,
+          "n": 6,
+          "p10": -2.6227400302886963
+        },
+        "raw": {
+          "mean": -1.7617768446604412,
+          "median": -1.6862869262695313,
+          "min": -3.403311252593994,
+          "n": 6,
+          "p10": -2.6227400302886963
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_expected_argmax_distance": 0.7543631276367656,
+      "mean_signed_margin": -1.7617768446604412,
+      "median_signed_margin": -1.6862869262695313,
+      "min_signed_margin": -3.403311252593994,
+      "n": 6,
+      "nll": 2.2617606100482095,
+      "p10_signed_margin": -2.6227400302886963,
+      "prediction_by_level": {
+        "0": 2,
+        "3": 4
+      },
+      "prompt_tokens": 10078,
+      "qwk": -0.21052631578947367,
+      "raw": {
+        "brier": 1.1933467832862619,
+        "ece": 0.6155752729278853,
+        "ece_bins": 15,
+        "expected_score_mae": 1.0789702056965675,
+        "mean_expected_argmax_distance": 0.7543631276367656,
+        "n": 6,
+        "nll": 2.2617606100482095
+      },
+      "raw_expected_score_mae": 1.0789702056965675,
+      "raw_mean_expected_argmax_distance": 0.7543631276367656,
+      "selection_by_label": {
+        "0": 2,
+        "3": 4
+      },
+      "temperature": 1.0
+    }
+  },
+  "noul_ensemble": "binary-order",
+  "noul_items": [],
+  "option_order": "original",
+  "prior_correction": false,
+  "scheme": "natural",
+  "score_candidates": [
+    {
+      "all_separate_after_anchor": true,
+      "all_single_token": true,
+      "all_unique_token_ids": true,
+      "answer_anchor": "<|im_end|>\n<|im_start|>assistant\n\n",
+      "forms": [
+        {
+          "label": "0",
+          "leading_newline": [
+            198,
+            15
+          ],
+          "leading_space": [
+            220,
+            15
+          ],
+          "plain": [
+            15
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 15
+        },
+        {
+          "label": "1",
+          "leading_newline": [
+            198,
+            16
+          ],
+          "leading_space": [
+            220,
+            16
+          ],
+          "plain": [
+            16
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 16
+        },
+        {
+          "label": "2",
+          "leading_newline": [
+            198,
+            17
+          ],
+          "leading_space": [
+            220,
+            17
+          ],
+          "plain": [
+            17
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 17
+        },
+        {
+          "label": "3",
+          "leading_newline": [
+            198,
+            18
+          ],
+          "leading_space": [
+            220,
+            18
+          ],
+          "plain": [
+            18
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 18
+        }
+      ],
+      "label_to_level": [
+        {
+          "label": "0",
+          "level": 0,
+          "token_id": 15
+        },
+        {
+          "label": "1",
+          "level": 1,
+          "token_id": 16
+        },
+        {
+          "label": "2",
+          "level": 2,
+          "token_id": 17
+        },
+        {
+          "label": "3",
+          "level": 3,
+          "token_id": 18
+        }
+      ],
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "n_levels": 4,
+      "prior_logits": [
+        -1.5630964040756226,
+        -3.1791229248046875,
+        -3.271743059158325,
+        -5.240497589111328
+      ],
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "all_separate_after_anchor": true,
+      "all_single_token": true,
+      "all_unique_token_ids": true,
+      "answer_anchor": "<|im_end|>\n<|im_start|>assistant\n\n",
+      "forms": [
+        {
+          "label": "0",
+          "leading_newline": [
+            198,
+            15
+          ],
+          "leading_space": [
+            220,
+            15
+          ],
+          "plain": [
+            15
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 15
+        },
+        {
+          "label": "1",
+          "leading_newline": [
+            198,
+            16
+          ],
+          "leading_space": [
+            220,
+            16
+          ],
+          "plain": [
+            16
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 16
+        },
+        {
+          "label": "2",
+          "leading_newline": [
+            198,
+            17
+          ],
+          "leading_space": [
+            220,
+            17
+          ],
+          "plain": [
+            17
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 17
+        },
+        {
+          "label": "3",
+          "leading_newline": [
+            198,
+            18
+          ],
+          "leading_space": [
+            220,
+            18
+          ],
+          "plain": [
+            18
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 18
+        },
+        {
+          "label": "4",
+          "leading_newline": [
+            198,
+            19
+          ],
+          "leading_space": [
+            220,
+            19
+          ],
+          "plain": [
+            19
+          ],
+          "separate_token_after_anchor": true,
+          "token_id": 19
+        }
+      ],
+      "label_to_level": [
+        {
+          "label": "0",
+          "level": 0,
+          "token_id": 15
+        },
+        {
+          "label": "1",
+          "level": 1,
+          "token_id": 16
+        },
+        {
+          "label": "2",
+          "level": 2,
+          "token_id": 17
+        },
+        {
+          "label": "3",
+          "level": 3,
+          "token_id": 18
+        },
+        {
+          "label": "4",
+          "level": 4,
+          "token_id": 19
+        }
+      ],
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "n_levels": 5,
+      "prior_logits": [
+        -0.09316015243530273,
+        -2.1482014656066895,
+        -2.5770843029022217,
+        -4.448188781738281,
+        -2.6047415733337402
+      ],
+      "token_ids": [
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    }
+  ],
+  "score_items": [
+    {
+      "abs_error": 2,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 0.851343814365658,
+      "expected_score": 1.851343814365658,
+      "ground_truth": 1,
+      "ground_truth_probability": 0.10170031502087684,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        9.440115928649902,
+        8.449647903442383,
+        8.646066665649414,
+        10.043622970581055
+      ],
+      "prediction": 3,
+      "probs": [
+        0.2738275218297404,
+        0.10170031502087684,
+        0.12377299010336733,
+        0.5006991730460154
+      ],
+      "prompt_tokens": 592,
+      "raw_expected_abs_error": 0.851343814365658,
+      "raw_expected_score": 1.851343814365658,
+      "raw_logits": [
+        9.440115928649902,
+        8.449647903442383,
+        8.646066665649414,
+        10.043622970581055
+      ],
+      "raw_probs": [
+        0.2738275218297404,
+        0.10170031502087684,
+        0.12377299010336733,
+        0.5006991730460154
+      ],
+      "selected_label": "3",
+      "signed_margin": -1.5939750671386719,
+      "source_id": "hard-opus-a-temporal_numeric-12",
+      "temperature": 1.0,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 2,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 1.5465675804044414,
+      "expected_score": 0.4534324195955586,
+      "ground_truth": 2,
+      "ground_truth_probability": 0.021252697100913723,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "logits": [
+        10.151251792907715,
+        9.434333801269531,
+        6.747940540313721,
+        6.21396541595459,
+        6.425611972808838
+      ],
+      "prediction": 0,
+      "probs": [
+        0.6389301022897385,
+        0.31196065393308203,
+        0.021252697100913723,
+        0.012459815244414548,
+        0.015396731431851374
+      ],
+      "prompt_tokens": 2532,
+      "raw_expected_abs_error": 1.5465675804044414,
+      "raw_expected_score": 0.4534324195955586,
+      "raw_logits": [
+        10.151251792907715,
+        9.434333801269531,
+        6.747940540313721,
+        6.21396541595459,
+        6.425611972808838
+      ],
+      "raw_probs": [
+        0.6389301022897385,
+        0.31196065393308203,
+        0.021252697100913723,
+        0.012459815244414548,
+        0.015396731431851374
+      ],
+      "selected_label": "0",
+      "signed_margin": -3.403311252593994,
+      "source_id": "hard-opus-b-multi_hop-05",
+      "temperature": 1.0,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    {
+      "abs_error": 1,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 0.53892948285909,
+      "expected_score": 0.4610705171409099,
+      "ground_truth": 1,
+      "ground_truth_probability": 0.1270467151995097,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        8.98788833618164,
+        7.229181289672852,
+        6.666077136993408,
+        6.52952241897583
+      ],
+      "prediction": 0,
+      "probs": [
+        0.7374969123409238,
+        0.1270467151995097,
+        0.07234531543729912,
+        0.06311105702226733
+      ],
+      "prompt_tokens": 3213,
+      "raw_expected_abs_error": 0.53892948285909,
+      "raw_expected_score": 0.4610705171409099,
+      "raw_logits": [
+        8.98788833618164,
+        7.229181289672852,
+        6.666077136993408,
+        6.52952241897583
+      ],
+      "raw_probs": [
+        0.7374969123409238,
+        0.1270467151995097,
+        0.07234531543729912,
+        0.06311105702226733
+      ],
+      "selected_label": "0",
+      "signed_margin": -1.758707046508789,
+      "source_id": "hard-opus-c-long_policy-05",
+      "temperature": 1.0,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 2,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 1.0146215304813202,
+      "expected_score": 2.01462153048132,
+      "ground_truth": 1,
+      "ground_truth_probability": 0.09483427164504908,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        10.369632720947266,
+        9.422613143920898,
+        9.001761436462402,
+        11.264781951904297
+      ],
+      "prediction": 3,
+      "probs": [
+        0.2444841391355736,
+        0.09483427164504908,
+        0.062257508821860985,
+        0.5984240803975164
+      ],
+      "prompt_tokens": 3164,
+      "raw_expected_abs_error": 1.0146215304813202,
+      "raw_expected_score": 2.01462153048132,
+      "raw_logits": [
+        10.369632720947266,
+        9.422613143920898,
+        9.001761436462402,
+        11.264781951904297
+      ],
+      "raw_probs": [
+        0.2444841391355736,
+        0.09483427164504908,
+        0.062257508821860985,
+        0.5984240803975164
+      ],
+      "selected_label": "3",
+      "signed_margin": -1.8421688079833984,
+      "source_id": "hard-opus-c-long_policy-08",
+      "temperature": 1.0,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 1,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 0.09765328412296359,
+      "expected_score": 2.0976532841229636,
+      "ground_truth": 2,
+      "ground_truth_probability": 0.33128937203332565,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        5.977989673614502,
+        3.298053503036499,
+        6.5768022537231445,
+        6.935434341430664
+      ],
+      "prediction": 3,
+      "probs": [
+        0.1820314818102052,
+        0.012481449206547887,
+        0.33128937203332565,
+        0.47419769694992137
+      ],
+      "prompt_tokens": 233,
+      "raw_expected_abs_error": 0.09765328412296359,
+      "raw_expected_score": 2.0976532841229636,
+      "raw_logits": [
+        5.977989673614502,
+        3.298053503036499,
+        6.5768022537231445,
+        6.935434341430664
+      ],
+      "raw_probs": [
+        0.1820314818102052,
+        0.012481449206547887,
+        0.33128937203332565,
+        0.47419769694992137
+      ],
+      "selected_label": "3",
+      "signed_margin": -0.35863208770751953,
+      "source_id": "hard-sol-a-adversarial-09",
+      "temperature": 1.0,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "abs_error": 3,
+      "correct": false,
+      "evaluations": 1,
+      "expected_abs_error": 2.4247055419459334,
+      "expected_score": 2.4247055419459334,
+      "ground_truth": 0,
+      "ground_truth_probability": 0.1480834342529476,
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "logits": [
+        7.615165710449219,
+        5.74552059173584,
+        7.064520835876465,
+        9.229032516479492
+      ],
+      "prediction": 3,
+      "probs": [
+        0.1480834342529476,
+        0.022831262091367887,
+        0.085381631112488,
+        0.7437036725431965
+      ],
+      "prompt_tokens": 344,
+      "raw_expected_abs_error": 2.4247055419459334,
+      "raw_expected_score": 2.4247055419459334,
+      "raw_logits": [
+        7.615165710449219,
+        5.74552059173584,
+        7.064520835876465,
+        9.229032516479492
+      ],
+      "raw_probs": [
+        0.1480834342529476,
+        0.022831262091367887,
+        0.085381631112488,
+        0.7437036725431965
+      ],
+      "selected_label": "3",
+      "signed_margin": -1.6138668060302734,
+      "source_id": "hard-sol-a-trap-05",
+      "temperature": 1.0,
+      "token_ids": [
+        15,
+        16,
+        17,
+        18
+      ]
+    }
+  ],
+  "stability": {
+    "n_questions": 0,
+    "n_stable": 0,
+    "stability_rate": -1.0
+  }
+}

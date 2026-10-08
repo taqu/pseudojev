@@ -227,12 +227,18 @@ namespace
                 {"separate_token_after_anchor", in_context}});
         }
         std::vector<float> prior = engine.compute_blank_logits(Type::Score, n_levels);
+        std::set<int32_t> unique_ids(ids.begin(), ids.end());
+        json mapping = json::array();
+        for(int i = 0; i < n_levels; i++)
+            mapping.push_back({{"label", labels[i]}, {"level", i}, {"token_id", ids[i]}});
         return json{
             {"n_levels", n_levels},
             {"labels", labels},
             {"token_ids", ids},
+            {"label_to_level", mapping},
             {"answer_anchor", anchor},
             {"all_single_token", all_single},
+            {"all_unique_token_ids", unique_ids.size() == ids.size()},
             {"all_separate_after_anchor", all_in_context},
             {"forms", forms},
             {"prior_logits", prior.empty() ? json(nullptr) : json(prior)}};

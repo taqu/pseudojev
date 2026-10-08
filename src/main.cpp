@@ -85,12 +85,13 @@ static void usage_run(const char* prog) {
         "  --model PATH               path to .gguf model file (default: models/bonsai.gguf)\n"
         "  --input FILE               JSONL/JSON dataset file (required, or - for stdin)\n"
         "  --output FILE              write JSON result here (default: stdout)\n"
-        "  --calibration FILE         load calibration artifact (optional)\n"
+        "  --calibration FILE         calibration artifact (default: models/calibration.json;\n"
+        "                             \"\" = none, i.e. T = 1)\n"
         "  --layout LAYOUT            auto|state-first|state-last|question-first (default: auto)\n"
-        "  --scheme SCHEME            natural|letters (default: natural)\n"
+        "  --scheme SCHEME            natural|letters (default: natural; score: digits vs A, B, ...)\n"
         "  --prior-correction         enable prior correction\n"
         "  --option-order ORDER       original|reversed|random (default: original)\n"
-        "  --ensemble                 E1: binary option-order ensemble for noul\n"
+        "  --ensemble              E1: binary option-order ensemble for noul\n"
         "  --choice-ensemble          E2: cyclic option-rotation ensemble for choice (N evaluations)\n"
         "  --choice-prefix-reuse      E2: reuse the KV prefix shared between rotations\n"
         "  --threads N                CPU threads (default: 8)\n"
@@ -640,6 +641,9 @@ static int32_t cmd_run(int32_t argc, char** argv) {
     if (ensemble_binary)
         exp_cfg.ensemble.noul_mode = NoulEnsembleMode::BINARY_ORDER;
 
+    // Recorded in the result so a report shows which calibration (if any) produced the
+    // calibrated metrics. An artifact fitted for another formulation is applied but flagged.
+    nlohmann::json calib_info = {{"path", calibration_path}, {"applied", false}};
     if (!calibration_path.empty()) {
         CalibrationArtifact art;
         std::string calib_err;
@@ -648,6 +652,20 @@ static int32_t cmd_run(int32_t argc, char** argv) {
             return 1;
         }
         exp_cfg.calibration = art.to_config();
+        CalibrationFormulation current{exp_cfg.layout_str(), exp_cfg.scheme_str(), exp_cfg.prior_correction};
+        std::string warn;
+        bool compatible = art.check_compatible(current, warn);
+        if (!compatible)
+            fprintf(stderr, "warning: %s\n", warn.c_str());
+        calib_info = {
+            {"path", calibration_path},
+            {"applied", true},
+            {"compatible", compatible},
+            {"warning", warn},
+            {"artifact_formulation", art.to_json()["formulation"]},
+            {"noul_temperature", exp_cfg.calibration.temperature_for(Type::Noul)},
+            {"choice_temperature", exp_cfg.calibration.temperature_for(Type::Choice)},
+            {"score_temperature", exp_cfg.calibration.temperature_for(Type::Score)}};
     }
 
     SpdLogShutdown spdlog_shutdown;
@@ -690,7 +708,9 @@ static int32_t cmd_run(int32_t argc, char** argv) {
     RunResult result = run_experiment(*backend, rows, exp_cfg);
     delete backend;
 
-    std::string output_str = result.to_json().dump(2);
+    nlohmann::json result_j = result.to_json();
+    result_j["calibration"] = calib_info;
+    std::string output_str = result_j.dump(2);
     if (output_path.empty()) {
         printf("%s\n", output_str.c_str());
     } else {

@@ -1,0 +1,187 @@
+{
+  "calibration": {
+    "applied": false,
+    "path": ""
+  },
+  "choice_ensemble": "none",
+  "choice_items": [],
+  "experiment": "run",
+  "layout": "auto",
+  "metrics": {
+    "choice": {
+      "accuracy": -1.0,
+      "brier": null,
+      "brier_convention": "sum over options",
+      "calibrated": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "n": 0,
+        "nll": null
+      },
+      "ece": null,
+      "ece_bins": 15,
+      "eval_ms": 0,
+      "labeled": 0,
+      "margins": {
+        "corrected": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "raw": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_signed_winner_margin": null,
+      "median_signed_winner_margin": null,
+      "min_signed_winner_margin": null,
+      "n": 0,
+      "nll": null,
+      "p10_signed_winner_margin": null,
+      "prompt_tokens": 0,
+      "raw": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "n": 0,
+        "nll": null
+      },
+      "temperature": 1.0
+    },
+    "n_errors": 0,
+    "n_total": 0,
+    "noul": {
+      "accuracy": -1.0,
+      "brier": null,
+      "calibrated": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "mean_confidence_correct": null,
+        "n": 0,
+        "nll": null
+      },
+      "ece": null,
+      "ece_bins": 15,
+      "eval_ms": 0,
+      "labeled": 0,
+      "margins": {
+        "corrected": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "raw": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_confidence_correct": null,
+      "mean_signed_margin": null,
+      "median_signed_margin": null,
+      "min_signed_margin": null,
+      "n": 0,
+      "nll": null,
+      "p10_signed_margin": null,
+      "raw": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "mean_confidence_correct": null,
+        "n": 0,
+        "nll": null
+      }
+    },
+    "score": {
+      "accuracy": -1.0,
+      "brier": null,
+      "brier_convention": "sum over levels",
+      "calibrated": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "expected_score_mae": null,
+        "mean_expected_argmax_distance": null,
+        "n": 0,
+        "nll": null
+      },
+      "ece": null,
+      "ece_bins": 15,
+      "error_distance_histogram": [],
+      "eval_ms": 0,
+      "evaluations_per_item": null,
+      "expected_score_mae": null,
+      "ground_truth_by_level": {},
+      "labeled": 0,
+      "large_error_rate": null,
+      "large_error_threshold": 2,
+      "mae": -1.0,
+      "margins": {
+        "corrected": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "raw": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_expected_argmax_distance": null,
+      "mean_signed_margin": null,
+      "median_signed_margin": null,
+      "min_signed_margin": null,
+      "n": 0,
+      "nll": null,
+      "p10_signed_margin": null,
+      "prediction_by_level": {},
+      "prompt_tokens": 0,
+      "qwk": -1.0,
+      "raw": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "expected_score_mae": null,
+        "mean_expected_argmax_distance": null,
+        "n": 0,
+        "nll": null
+      },
+      "raw_expected_score_mae": null,
+      "raw_mean_expected_argmax_distance": null,
+      "selection_by_label": {},
+      "temperature": 1.0
+    }
+  },
+  "noul_ensemble": "binary-order",
+  "noul_items": [],
+  "option_order": "original",
+  "prior_correction": false,
+  "scheme": "natural",
+  "score_candidates": [],
+  "score_items": [],
+  "stability": {
+    "n_questions": 0,
+    "n_stable": 0,
+    "stability_rate": -1.0
+  }
+}

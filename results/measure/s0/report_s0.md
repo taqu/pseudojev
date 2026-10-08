@@ -52,11 +52,11 @@ All stored aggregates match an independent recomputation from the items.
 
 Large error: |predicted - ground truth| >= 2. Calibrated metrics use T_score = 11.9603; raw metrics use T = 1. Brier is summed over levels.
 
-**Candidates (S0)** — answer anchor `"<|im_end|>\n<|im_start|>assistant\n\n"`
+**Candidates** — answer anchor `"<|im_end|>\n<|im_start|>assistant\n\n"`
 
-| levels | labels | token ids | single token | separate after anchor | content-free prior logits |
-| ---: | --- | --- | --- | --- | --- |
-| 4 | 0 1 2 3 | 15 16 17 18 | yes | yes | -1.563 -3.179 -3.272 -5.240 |
+| run | levels | labels | token ids | single | unique | separate after anchor | content-free prior logits | token forms (first label) |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| S0 | 4 | 0 1 2 3 | 15 16 17 18 | yes | yes | yes | -1.563 -3.179 -3.272 -5.240 | 0: '0'=[15] ' 0'=[220, 15] |
 
 ### Verification
 
@@ -97,12 +97,12 @@ All stored aggregates match an independent recomputation from the items.
 
 Large error: |predicted - ground truth| >= 2. Calibrated metrics use T_score = 11.9603; raw metrics use T = 1. Brier is summed over levels.
 
-**Candidates (S0)** — answer anchor `"<|im_end|>\n<|im_start|>assistant\n\n"`
+**Candidates** — answer anchor `"<|im_end|>\n<|im_start|>assistant\n\n"`
 
-| levels | labels | token ids | single token | separate after anchor | content-free prior logits |
-| ---: | --- | --- | --- | --- | --- |
-| 4 | 0 1 2 3 | 15 16 17 18 | yes | yes | -1.563 -3.179 -3.272 -5.240 |
-| 5 | 0 1 2 3 4 | 15 16 17 18 19 | yes | yes | -0.093 -2.148 -2.577 -4.448 -2.605 |
+| run | levels | labels | token ids | single | unique | separate after anchor | content-free prior logits | token forms (first label) |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| S0 | 4 | 0 1 2 3 | 15 16 17 18 | yes | yes | yes | -1.563 -3.179 -3.272 -5.240 | 0: '0'=[15] ' 0'=[220, 15] |
+| S0 | 5 | 0 1 2 3 4 | 15 16 17 18 19 | yes | yes | yes | -0.093 -2.148 -2.577 -4.448 -2.605 | 0: '0'=[15] ' 0'=[220, 15] |
 
 ### Verification
 

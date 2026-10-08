@@ -218,3 +218,19 @@ add_executable(test_score_s0 test_score_s0.cpp
     ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
 target_include_directories(test_score_s0 PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_score_s0 COMMAND test_score_s0)
+
+# test_score_s1: tests S1 letter score baseline (letter mapping, validation, S0-equivalent metrics, no rotation)
+add_executable(test_score_s1 test_score_s1.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/dataset.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/runner.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/noul_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/choice_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/experiment/score_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
+target_include_directories(test_score_s1 PRIVATE ${PJEV_TEST_INCS})
+add_test(NAME test_score_s1 COMMAND test_score_s1)

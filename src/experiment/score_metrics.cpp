@@ -88,6 +88,14 @@ double ScoreSample::ground_truth_probability() const
     return (p >= 0 && p < (int32_t)probs.size()) ? probs[p] : METRIC_UNDEFINED;
 }
 
+std::string ScoreSample::selected_label() const
+{
+    for(size_t i = 0; i < levels.size() && i < labels.size(); i++)
+        if(levels[i] == prediction)
+            return labels[i];
+    return "";
+}
+
 int32_t ScoreSample::abs_error() const
 {
     return labeled() ? std::abs(prediction - ground_truth) : -1;
@@ -112,6 +120,7 @@ json ScoreSample::to_json() const
         {"token_ids", token_ids},
         {"ground_truth", labeled() ? json(ground_truth) : json(nullptr)},
         {"prediction", prediction},
+        {"selected_label", selected_label()},
         {"correct", labeled() ? json(correct()) : json(nullptr)},
         {"temperature", temperature},
         {"logits", logits},
@@ -179,10 +188,15 @@ ScoreMetrics compute_score_metrics(const std::vector<ScoreSample>& samples, int3
             dist.push_back(d);
         if(std::isfinite(rd))
             raw_dist.push_back(rd);
+        if(s.prediction >= 0) {
+            m.prediction_by_level[s.prediction]++;
+            m.selection_by_label[s.selected_label()]++;
+        }
         if(!s.labeled())
             continue;
 
         m.labeled++;
+        m.ground_truth_by_level[s.ground_truth]++;
         if(s.correct())
             n_correct++;
         int32_t e = s.abs_error();
@@ -251,6 +265,14 @@ void ScoreMetrics::merge_into(json& j) const
     j["large_error_rate"] = num(large_error_rate);
     j["prompt_tokens"] = prompt_tokens;
     j["evaluations_per_item"] = num(evaluations_per_item);
+
+    json sel = json::object(), pred_lv = json::object(), gt_lv = json::object();
+    for(const auto& [label, c]: selection_by_label) sel[label] = c;
+    for(const auto& [lv, c]: prediction_by_level) pred_lv[std::to_string(lv)] = c;
+    for(const auto& [lv, c]: ground_truth_by_level) gt_lv[std::to_string(lv)] = c;
+    j["selection_by_label"] = sel;
+    j["prediction_by_level"] = pred_lv;
+    j["ground_truth_by_level"] = gt_lv;
 
     auto prob_j = [](const PrimitiveCalibrationMetrics& p) {
         return json{

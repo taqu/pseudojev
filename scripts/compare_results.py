@@ -265,6 +265,30 @@ def margin_gain(base: Run, target: Run) -> Gain:
     return g
 
 
+def expected_error_change(base: Run, target: Run) -> Optional[dict[str, Any]]:
+    """Score only: change of |expected score - gt| per matched labeled item (negative = better)."""
+    if base.primitive != "score":
+        return None
+    b_items = base.items_by_id()
+    out: dict[str, Any] = {}
+    for key, label in (("expected_abs_error", "reported"), ("raw_expected_abs_error", "raw")):
+        diffs = []
+        for t in target.items:
+            b = b_items.get(t.get("source_id"))
+            if b is None or not (is_num(b.get(key)) and is_num(t.get(key))):
+                continue
+            diffs.append(t[key] - b[key])
+        out[label] = {
+            "n_matched": len(diffs),
+            "mean_change": mean(diffs),
+            "median_change": percentile_linear(diffs, 0.5),
+            "improved": sum(d < -GAIN_TOL for d in diffs),
+            "degraded": sum(d > GAIN_TOL for d in diffs),
+            "unchanged": sum(abs(d) <= GAIN_TOL for d in diffs),
+        }
+    return out
+
+
 def item_logits(primitive: str, it: dict[str, Any]) -> list[float]:
     if primitive in ("choice", "score"):
         return list(it.get("logits") or [])
@@ -523,6 +547,55 @@ def md_table(header: list[str], rows: list[list[str]], align: Optional[list[str]
     return "\n".join(lines)
 
 
+def score_diagnostics(runs: list[Run]) -> list[str]:
+    """Candidate tokens / priors and selection-vs-ground-truth frequencies for each run."""
+    out: list[str] = []
+    crow = []
+    anchor = None
+    for r in runs:
+        for c in r.data.get("score_candidates") or []:
+            anchor = anchor or c.get("answer_anchor")
+            prior = c.get("prior_logits")
+            forms = c.get("forms") or []
+            alt = "; ".join(f"{f['label']}: '{f['label']}'={f['plain']} ' {f['label']}'={f['leading_space']}"
+                            for f in forms[:1])
+            crow.append([r.label, str(c.get("n_levels")), " ".join(c.get("labels", [])),
+                         " ".join(str(i) for i in c.get("token_ids", [])),
+                         "yes" if c.get("all_single_token") else "NO",
+                         "yes" if c.get("all_unique_token_ids", True) else "NO",
+                         "yes" if c.get("all_separate_after_anchor") else "NO",
+                         " ".join(f"{x:.3f}" for x in prior) if prior else "n/a", alt])
+    if crow:
+        out += [f"**Candidates** — answer anchor `{json.dumps(anchor or '')}`", "",
+                md_table(["run", "levels", "labels", "token ids", "single", "unique", "separate after anchor",
+                          "content-free prior logits", "token forms (first label)"],
+                         crow, ["---", "---:", "---", "---", "---", "---", "---", "---", "---"]), ""]
+
+    levels = sorted({int(k) for r in runs
+                     for key in ("prediction_by_level", "ground_truth_by_level")
+                     for k in (r.metrics.get(key) or {})})
+    if levels and any(r.labeled_count() for r in runs):
+        gt = runs[0].metrics.get("ground_truth_by_level") or {}
+        header = ["level", "ground truth"]
+        for r in runs:
+            header.append(f"{r.label} selected")
+        rows = []
+        for lv in levels:
+            row = [str(lv), str(gt.get(str(lv), 0))]
+            for r in runs:
+                sel = (r.metrics.get("prediction_by_level") or {}).get(str(lv), 0)
+                label = ""
+                for it in r.items:
+                    if lv < len(it.get("labels", [])):
+                        label = it["labels"][it["levels"].index(lv)] if lv in it.get("levels", []) else ""
+                        break
+                row.append(f"{sel}" + (f" (`{label}`)" if label else ""))
+            rows.append(row)
+        out += ["**Selection frequency vs ground truth** (counts by semantic level; label in backticks)", "",
+                md_table(header, rows), ""]
+    return out
+
+
 def split_report(primitive: str, split: str, base: Run, targets: list[Run],
                  top_n: int, equiv_pairs: list[tuple[str, str]],
                  verify_problems: Optional[list[str]]) -> tuple[str, dict[str, Any]]:
@@ -567,22 +640,16 @@ def split_report(primitive: str, split: str, base: Run, targets: list[Run],
     if primitive == "score":
         thr = get_path(base.metrics, "large_error_threshold")
         t_s = get_path(base.metrics, "temperature") if base.labeled_count() else None
-        out += [f"Large error: |predicted - ground truth| >= {fmt(thr, 'int')}. "
-                f"Calibrated metrics use T_score = {fmt(t_s, 'f4')}; raw metrics use T = 1. "
+        calib = base.data.get("calibration") or {}
+        if calib.get("applied") is False:
+            t_note = "No calibration artifact was applied (T = 1), so calibrated and raw metrics coincide."
+        else:
+            t_note = f"Calibrated metrics use T_score = {fmt(t_s, 'f4')}; raw metrics use T = 1."
+            if calib.get("compatible") is False:
+                t_note += f" Artifact warning: {calib.get('warning', '')}"
+        out += [f"Large error: |predicted - ground truth| >= {fmt(thr, 'int')}. {t_note} "
                 "Brier is summed over levels.", ""]
-        cands = base.data.get("score_candidates") or []
-        if cands:
-            crow = []
-            for c in cands:
-                prior = c.get("prior_logits")
-                crow.append([str(c.get("n_levels")), " ".join(c.get("labels", [])),
-                             " ".join(str(i) for i in c.get("token_ids", [])),
-                             "yes" if c.get("all_single_token") else "NO",
-                             "yes" if c.get("all_separate_after_anchor") else "NO",
-                             " ".join(f"{x:.3f}" for x in prior) if prior else "n/a"])
-            out += [f"**Candidates ({base.label})** — answer anchor `{json.dumps(cands[0].get('answer_anchor', ''))}`", "",
-                    md_table(["levels", "labels", "token ids", "single token", "separate after anchor",
-                              "content-free prior logits"], crow, ["---:", "---", "---", "---", "---", "---"]), ""]
+        out += score_diagnostics([base, *targets])
 
     data: dict[str, Any] = {"baseline": {"label": base.label, "path": base.path.as_posix(), "metrics": base.metrics},
                             "targets": []}
@@ -604,8 +671,14 @@ def split_report(primitive: str, split: str, base: Run, targets: list[Run],
             + (f" (worse: {', '.join(worse)})" if worse else ""),
             f"- latency: {fmt(t_ms, 'int')} ms vs {fmt(b_ms, 'int')} ms"
             + (f" (×{ratio:.2f})" if ratio is not None else ""),
-            "",
         ]
+        ee = expected_error_change(base, t)
+        if ee:
+            for label, e in ee.items():
+                out += [f"- expected-score |error| change ({label}): mean {fmt(e['mean_change'], 'f4')}, "
+                        f"median {fmt(e['median_change'], 'f4')}; improved / degraded / unchanged: "
+                        f"{e['improved']} / {e['degraded']} / {e['unchanged']} (negative change = better)"]
+        out += [""]
         if top_n > 0 and g.changes:
             ranked = sorted(g.changes, key=lambda c: c[3])
             worst = [c for c in ranked if c[3] < -GAIN_TOL][:top_n]
@@ -619,7 +692,7 @@ def split_report(primitive: str, split: str, base: Run, targets: list[Run],
                                  [[f"`{sid}`", f"{bm:.4f}", f"{tm:.4f}", f"{d:+.4f}"] for sid, bm, tm, d in sel]), ""]
         data["targets"].append({"label": t.label, "path": t.path.as_posix(), "metrics": t.metrics,
                                 "margin_gain": g.to_json(), "quality_better": improved, "quality_worse": worse,
-                                "latency_ratio": ratio})
+                                "latency_ratio": ratio, "expected_error_change": ee})
 
     by_label = {r.label: r for r in [base, *targets]}
     data["equivalence"] = []
