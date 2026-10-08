@@ -14,14 +14,18 @@ namespace pjev
 
 enum class NoulEnsembleMode { NONE, BINARY_ORDER };
 enum class ChoiceEnsembleMode { NONE, CYCLIC_ROTATION };
+enum class ScoreEnsembleMode { NONE, LABEL_ROTATION };
 
 struct EnsembleConfig
 {
     NoulEnsembleMode noul_mode = NoulEnsembleMode::NONE;
     ChoiceEnsembleMode choice_mode = ChoiceEnsembleMode::NONE;
+    ScoreEnsembleMode score_mode = ScoreEnsembleMode::NONE;
     // E2 optimized path: reuse the KV prefix shared with the previous rotation.
     // false = sequential reference path (every rotation evaluated from scratch).
     bool choice_prefix_reuse = false;
+    // S2 optimized path: reuse the KV prefix shared between score label rotations.
+    bool score_prefix_reuse = false;
 };
 
 struct DecisionInput
@@ -87,6 +91,23 @@ struct DecisionOutput
         std::vector<double> mean_raw_semantic_logits; // pre prior-correction
     };
     std::optional<ChoiceEnsembleDiag> choice_ensemble_diag;
+
+    // S2 cyclic label-rotation diagnostics (only populated when ScoreEnsembleMode::LABEL_ROTATION is active).
+    // All logit vectors are in semantic level order (level 0 first, level N-1 last).
+    struct ScoreRotationDiag {
+        int32_t rotation = 0;
+        std::vector<int32_t> level_to_label; // level i -> letter index (0=A,1=B,...) = (i+rotation)%n
+        std::vector<float> raw_logits;        // semantic level order, pre prior-correction
+        std::vector<float> corrected_logits;  // semantic level order, post prior-correction
+        int32_t semantic_prediction = -1;     // argmax of corrected_logits (= semantic level)
+        int32_t prefix_reused = 0;
+    };
+    struct ScoreEnsembleDiag {
+        std::vector<ScoreRotationDiag> rotations;
+        std::vector<double> mean_semantic_logits;     // corrected, pre temperature
+        std::vector<double> mean_raw_semantic_logits; // pre prior-correction
+    };
+    std::optional<ScoreEnsembleDiag> score_ensemble_diag;
 };
 
 struct BatchConfig {
@@ -159,6 +180,11 @@ private:
     // Cyclic option-rotation ensemble for choice (E2): evaluates N rotations, remaps candidate
     // logits to semantic option order, averages them, then applies temperature and softmax.
     DecisionOutput decide_choice_ensemble(const DecisionInput& input);
+
+    // Cyclic label-rotation ensemble for score (S2): evaluates N rotations (one per score level),
+    // each with a different letter-to-level binding. Logits are in semantic level order throughout;
+    // prior correction is applied per letter before aggregation.
+    DecisionOutput decide_score_ensemble(const DecisionInput& input);
 
     // Binary option-order ensemble for noul: evaluates both candidate orderings and combines
     // semantic margins. Input must be type=="noul" with exactly 2 options (false/true).

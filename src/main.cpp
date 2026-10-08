@@ -94,6 +94,8 @@ static void usage_run(const char* prog) {
         "  --ensemble              E1: binary option-order ensemble for noul\n"
         "  --choice-ensemble          E2: cyclic option-rotation ensemble for choice (N evaluations)\n"
         "  --choice-prefix-reuse      E2: reuse the KV prefix shared between rotations\n"
+        "  --score-ensemble           S2: cyclic label-rotation ensemble for score (N evaluations)\n"
+        "  --score-prefix-reuse       S2: reuse the KV prefix shared between label rotations\n"
         "  --threads N                CPU threads (default: 8)\n"
         "  --ctx-size N               context size (default: 4096)\n"
         "  --verbose                  enable llama.cpp verbose logging\n",
@@ -630,6 +632,8 @@ static int32_t cmd_run(int32_t argc, char** argv) {
         else if (a == "--ensemble")        ensemble_binary = true;
         else if (a == "--choice-ensemble") exp_cfg.ensemble.choice_mode = ChoiceEnsembleMode::CYCLIC_ROTATION;
         else if (a == "--choice-prefix-reuse") exp_cfg.ensemble.choice_prefix_reuse = true;
+        else if (a == "--score-ensemble")  exp_cfg.ensemble.score_mode = ScoreEnsembleMode::LABEL_ROTATION;
+        else if (a == "--score-prefix-reuse") exp_cfg.ensemble.score_prefix_reuse = true;
         else if (a == "-h" || a == "--help") { usage_run("pjev"); return 0; }
         else {
             spdlog::error("unknown option: {}", a);

@@ -286,6 +286,8 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input)
         return decide_noul_ensemble(input);
     if(input.type == Type::Choice && ensemble_cfg_.choice_mode == ChoiceEnsembleMode::CYCLIC_ROTATION)
         return decide_choice_ensemble(input);
+    if(input.type == Type::Score && ensemble_cfg_.score_mode == ScoreEnsembleMode::LABEL_ROTATION)
+        return decide_score_ensemble(input);
     return decide_single(input);
 }
 
@@ -383,6 +385,154 @@ DecisionOutput DecisionEngine::decide_choice_ensemble(const DecisionInput& input
     }
     out.selected = argmax(out.probs);
     out.choice_ensemble_diag = std::move(diag);
+    out.ok = true;
+    out.decision_us = now_us() - td0;
+    return out;
+}
+
+DecisionOutput DecisionEngine::decide_score_ensemble(const DecisionInput& input)
+{
+    const int32_t n = (int32_t)input.options.size();
+    if(input.type != Type::Score || n < 2) {
+        DecisionOutput out;
+        out.error = "score ensemble: requires score with at least 2 options";
+        return out;
+    }
+
+    // Cache token IDs for letters 'A'..'A'+n-1 (invariant across rotations).
+    std::vector<int32_t> letter_ids(n);
+    for(int32_t i = 0; i < n; i++) {
+        std::string letter(1, (char)('A' + i));
+        auto it = cand_token_map_.find(letter);
+        if(it == cand_token_map_.end()) {
+            DecisionOutput out;
+            out.error = "score ensemble: letter " + letter + " not in token map";
+            return out;
+        }
+        letter_ids[i] = it->second;
+    }
+
+    DecisionOutput::ScoreEnsembleDiag diag;
+    std::vector<double> sum_sem(n, 0.0), sum_raw_sem(n, 0.0);
+    int32_t total_tokens = 0;
+    int64_t total_tokenize_us = 0, total_eval_us = 0;
+    std::vector<int32_t> prev_tokens;
+    double alpha = calib_cfg_.prior_alpha_for(Type::Score);
+
+    for(int32_t r = 0; r < n; r++) {
+        // Rotation r: semantic level i gets letter 'A' + (i + r) % n.
+        // Candidates are kept in semantic level order so the prompt displays
+        // descriptions ordered from lowest to highest; only the letter changes.
+        std::vector<Candidate> candidates;
+        candidates.reserve(n);
+        for(int32_t i = 0; i < n; i++) {
+            Candidate c;
+            c.key = input.options[i].first;
+            c.description = input.options[i].second;
+            c.internal = std::string(1, (char)('A' + (i + r) % n));
+            candidates.push_back(c);
+        }
+
+        auto t0 = now_us();
+        auto prompt_tokens = make_prompt_tokens(input, candidates);
+        auto t1 = now_us();
+
+        // Optional KV prefix reuse (sequential reference path when disabled).
+        int32_t prefix_len = 0;
+        if(ensemble_cfg_.score_prefix_reuse && r > 0 && !prev_tokens.empty()) {
+            size_t limit = prompt_tokens.empty() ? 0
+                         : std::min(prev_tokens.size(), prompt_tokens.size() - 1);
+            while((size_t)prefix_len < limit && prev_tokens[prefix_len] == prompt_tokens[prefix_len])
+                prefix_len++;
+        }
+
+        const float* logits = nullptr;
+        auto t2 = now_us();
+        try {
+            if(prefix_len > 0)
+                logits = backend_.eval_tokens_reuse_prefix(prompt_tokens, prefix_len);
+            else
+                logits = backend_.eval_tokens(prompt_tokens);
+        } catch(const std::exception& e) {
+            DecisionOutput out;
+            out.error = e.what();
+            return out;
+        }
+        auto t3 = now_us();
+
+        if(ensemble_cfg_.score_prefix_reuse)
+            prev_tokens = prompt_tokens;
+
+        // Raw semantic logits: candidates[i] uses letter (i+r)%n.
+        std::vector<float> raw_sem(n), corr_sem(n);
+        for(int32_t i = 0; i < n; i++)
+            raw_sem[i] = logits[letter_ids[(i + r) % n]];
+
+        // Prior correction is applied in letter space before semantic aggregation.
+        // prior_logits[j] is the blank-prompt logit for letter 'A'+j.
+        corr_sem = raw_sem;
+        if(input.prior_correction && (int32_t)input.prior_logits.size() >= n) {
+            for(int32_t i = 0; i < n; i++)
+                corr_sem[i] = raw_sem[i] - (float)(alpha * (double)input.prior_logits[(i + r) % n]);
+        }
+
+        for(int32_t i = 0; i < n; i++) {
+            sum_sem[i] += corr_sem[i];
+            sum_raw_sem[i] += raw_sem[i];
+        }
+
+        DecisionOutput::ScoreRotationDiag rd;
+        rd.rotation = r;
+        rd.level_to_label.resize(n);
+        for(int32_t i = 0; i < n; i++) rd.level_to_label[i] = (i + r) % n;
+        rd.raw_logits = raw_sem;
+        rd.corrected_logits = corr_sem;
+        rd.semantic_prediction = (int32_t)(
+            std::max_element(corr_sem.begin(), corr_sem.end()) - corr_sem.begin());
+        rd.prefix_reused = prefix_len;
+
+        total_tokens += (int32_t)prompt_tokens.size();
+        total_tokenize_us += (t1 - t0);
+        total_eval_us += (t3 - t2);
+        diag.rotations.push_back(std::move(rd));
+    }
+
+    int64_t td0 = now_us();
+    DecisionOutput out;
+    out.keys.reserve(n);
+    for(const auto& kv: input.options) out.keys.push_back(kv.first);
+    out.prompt_token_count = total_tokens;
+    out.tokenize_us = total_tokenize_us;
+    out.eval_us = total_eval_us;
+
+    std::vector<float> mean_sem(n), mean_raw_sem(n);
+    for(int32_t i = 0; i < n; i++) {
+        diag.mean_semantic_logits.push_back(sum_sem[i] / n);
+        diag.mean_raw_semantic_logits.push_back(sum_raw_sem[i] / n);
+        mean_sem[i] = (float)diag.mean_semantic_logits[i];
+        mean_raw_sem[i] = (float)diag.mean_raw_semantic_logits[i];
+    }
+    if(input.collect_corrected_logits) {
+        out.corrected_logits = mean_sem;
+        out.raw_logits = mean_raw_sem;
+    }
+
+    // Temperature applied once after semantic aggregation.
+    std::string err = restricted_softmax(mean_sem, out.raw_probs);
+    if(err.empty()) {
+        double T = calib_cfg_.temperature_for(Type::Score);
+        if(T != 1.0)
+            err = temperature_softmax(mean_sem, T, out.probs);
+        else
+            out.probs = out.raw_probs;
+    }
+    if(!err.empty()) {
+        out.error = err;
+        return out;
+    }
+    out.selected = argmax(out.probs);
+    out.expected_score = expected_level(out.probs);
+    out.score_ensemble_diag = std::move(diag);
     out.ok = true;
     out.decision_us = now_us() - td0;
     return out;
@@ -486,8 +636,12 @@ std::vector<DecisionOutput> DecisionEngine::decide_batch(
     const std::string& shared_state = inputs[0].state;
     bool can_reuse = true;
     for(const auto& inp: inputs) {
-        // E2 evaluates several prompts per question; route through decide().
+        // E2/S2 evaluate several prompts per question; route through decide().
         if(inp.type == Type::Choice && ensemble_cfg_.choice_mode == ChoiceEnsembleMode::CYCLIC_ROTATION) {
+            can_reuse = false;
+            break;
+        }
+        if(inp.type == Type::Score && ensemble_cfg_.score_mode == ScoreEnsembleMode::LABEL_ROTATION) {
             can_reuse = false;
             break;
         }

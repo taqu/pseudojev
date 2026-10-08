@@ -22,6 +22,19 @@ namespace pjev
 // |predicted_level - ground_truth| >= this counts as a large error.
 constexpr int32_t SCORE_LARGE_ERROR_THRESHOLD = 2;
 
+// Per-rotation diagnostics for S2 label-rotation ensemble.
+struct ScoreRotation
+{
+    int32_t rotation = 0;
+    std::vector<int32_t> level_to_label; // level i -> letter index (0=A,...) = (i+rotation)%n
+    std::vector<std::string> labels;     // per level: actual letter string ("A".."Z")
+    std::vector<int32_t> token_ids;      // per level
+    std::vector<double> raw_logits;      // per level (semantic order, pre prior-correction)
+    std::vector<double> corrected_logits; // per level (semantic order, post prior-correction)
+    int32_t prediction = -1;             // semantic level of argmax
+    double expected_score_r = 0.0;       // per-rotation expected score (T=1 softmax of corrected)
+};
+
 // sum_i level_i * p_i. levels[i] is the semantic level of position i. NaN on size mismatch.
 double expected_score(const std::vector<double>& probs, const std::vector<int32_t>& levels);
 
@@ -45,6 +58,7 @@ struct ScoreSample
     std::vector<double> raw_probs;    // T = 1
     int32_t prompt_tokens = 0;
     int32_t evaluations = 1;
+    std::vector<ScoreRotation> rotations; // S2 only
 
     bool labeled() const { return ground_truth >= 0; }
     bool correct() const { return labeled() && prediction == ground_truth; }
@@ -60,6 +74,14 @@ struct ScoreSample
     double expected_argmax_distance() const { return std::abs(expected_score() - prediction); }
     double raw_expected_argmax_distance() const { return std::abs(raw_expected_score() - prediction); }
     std::string selected_label() const; // candidate label at the predicted level ("" if none)
+
+    // Rotation stability (meaningful only when rotations is non-empty).
+    int32_t distinct_winners() const;
+    bool rotation_disagreement() const { return distinct_winners() > 1; }
+    std::vector<double> semantic_logit_variance() const; // per level: Var_r(corrected_logit_r(level_i))
+    double mean_semantic_logit_variance() const;
+    double max_semantic_logit_variance() const;
+    double rotation_expected_score_stddev() const; // stddev of per-rotation expected_score_r
 
     nlohmann::json to_json() const;
     static ScoreSample from_json(const nlohmann::json& j);
@@ -92,6 +114,20 @@ struct ScoreMetrics
     std::map<std::string, int32_t> selection_by_label;
     std::map<int32_t, int32_t> prediction_by_level;
     std::map<int32_t, int32_t> ground_truth_by_level;
+    // S2 rotation diagnostics (only populated when rotations are present in samples).
+    bool has_rotations = false;
+    int32_t rotation_n = 0;
+    double mean_rotations = METRIC_UNDEFINED;
+    int32_t samples_with_rotation_disagreement = 0;
+    double mean_distinct_winners = METRIC_UNDEFINED;
+    double mean_semantic_logit_variance = METRIC_UNDEFINED;
+    double max_semantic_logit_variance = METRIC_UNDEFINED;
+    double mean_rotation_expected_score_stddev = METRIC_UNDEFINED;
+
+    double rotation_disagreement_rate() const
+    {
+        return rotation_n > 0 ? (double)samples_with_rotation_disagreement / rotation_n : METRIC_UNDEFINED;
+    }
 
     void merge_into(nlohmann::json& j) const;
 };

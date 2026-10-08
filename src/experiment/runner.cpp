@@ -189,6 +189,38 @@ namespace
         s.probs = out.probs;
         s.raw_probs = out.raw_probs;
         s.prompt_tokens = out.prompt_token_count;
+        if(out.score_ensemble_diag) {
+            const auto& sed = *out.score_ensemble_diag;
+            s.evaluations = (int32_t)sed.rotations.size();
+            // Build a softmax helper for per-rotation expected score
+            auto raw_softmax_expected = [&](const std::vector<float>& logits_v,
+                                            const std::vector<int32_t>& levels_v) -> double {
+                if(logits_v.empty()) return 0.0;
+                double m = -1e300;
+                for(float l: logits_v) m = std::max(m, (double)l);
+                double z = 0.0;
+                std::vector<double> p;
+                for(float l: logits_v) { p.push_back(std::exp((double)l - m)); z += p.back(); }
+                double es = 0.0;
+                for(size_t i = 0; i < p.size() && i < levels_v.size(); i++)
+                    es += levels_v[i] * p[i] / z;
+                return es;
+            };
+            for(const auto& rd: sed.rotations) {
+                ScoreRotation sr;
+                sr.rotation = rd.rotation;
+                sr.level_to_label = rd.level_to_label;
+                for(int32_t li: rd.level_to_label)
+                    sr.labels.push_back(std::string(1, (char)('A' + li)));
+                for(int32_t li: rd.level_to_label)
+                    sr.token_ids.push_back(engine.candidate_token_id(std::string(1, (char)('A' + li))));
+                sr.raw_logits.assign(rd.raw_logits.begin(), rd.raw_logits.end());
+                sr.corrected_logits.assign(rd.corrected_logits.begin(), rd.corrected_logits.end());
+                sr.prediction = rd.semantic_prediction;
+                sr.expected_score_r = raw_softmax_expected(rd.corrected_logits, s.levels);
+                s.rotations.push_back(std::move(sr));
+            }
+        }
         return s;
     }
 
@@ -624,6 +656,12 @@ CompareResult exp_score_formulation(ILlamaBackend& backend,
     cfg_letters.name = "letters";
     cfg_letters.scheme = Scheme::LETTERS;
     cr.runs.push_back(run_experiment(backend, score_rows, cfg_letters));
+
+    ExperimentConfig cfg_s2;
+    cfg_s2.name = "letters-rotation";
+    cfg_s2.scheme = Scheme::LETTERS;
+    cfg_s2.ensemble.score_mode = ScoreEnsembleMode::LABEL_ROTATION;
+    cr.runs.push_back(run_experiment(backend, score_rows, cfg_s2));
 
     return cr;
 }

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <set>
 
 namespace pjev
 {
@@ -71,6 +72,68 @@ std::vector<int32_t> error_distance_histogram(const std::vector<int32_t>& predic
 }
 
 // ---------------------------------------------------------------------------
+// ScoreSample rotation stability
+// ---------------------------------------------------------------------------
+
+int32_t ScoreSample::distinct_winners() const
+{
+    std::set<int32_t> ws;
+    for(const auto& r: rotations)
+        if(r.prediction >= 0)
+            ws.insert(r.prediction);
+    return (int32_t)ws.size();
+}
+
+std::vector<double> ScoreSample::semantic_logit_variance() const
+{
+    if(rotations.empty())
+        return {};
+    const int32_t n = (int32_t)rotations[0].corrected_logits.size();
+    if(n == 0)
+        return {};
+    std::vector<double> mean(n, 0.0), var(n, 0.0);
+    for(const auto& r: rotations)
+        for(int32_t i = 0; i < n && i < (int32_t)r.corrected_logits.size(); i++)
+            mean[i] += r.corrected_logits[i];
+    for(auto& m: mean) m /= (double)rotations.size();
+    for(const auto& r: rotations)
+        for(int32_t i = 0; i < n && i < (int32_t)r.corrected_logits.size(); i++) {
+            double d = r.corrected_logits[i] - mean[i];
+            var[i] += d * d;
+        }
+    for(auto& v: var) v /= (double)rotations.size();
+    return var;
+}
+
+double ScoreSample::mean_semantic_logit_variance() const
+{
+    auto v = semantic_logit_variance();
+    if(v.empty()) return METRIC_UNDEFINED;
+    double s = 0.0;
+    for(double x: v) s += x;
+    return s / v.size();
+}
+
+double ScoreSample::max_semantic_logit_variance() const
+{
+    auto v = semantic_logit_variance();
+    if(v.empty()) return METRIC_UNDEFINED;
+    return *std::max_element(v.begin(), v.end());
+}
+
+double ScoreSample::rotation_expected_score_stddev() const
+{
+    if(rotations.empty()) return METRIC_UNDEFINED;
+    double mean = 0.0;
+    for(const auto& r: rotations) mean += r.expected_score_r;
+    mean /= (double)rotations.size();
+    double var = 0.0;
+    for(const auto& r: rotations) { double d = r.expected_score_r - mean; var += d * d; }
+    var /= (double)rotations.size();
+    return std::sqrt(var);
+}
+
+// ---------------------------------------------------------------------------
 // ScoreSample
 // ---------------------------------------------------------------------------
 
@@ -113,7 +176,7 @@ double ScoreSample::raw_expected_abs_error() const
 
 json ScoreSample::to_json() const
 {
-    return json{
+    json j{
         {"source_id", source_id},
         {"levels", levels},
         {"labels", labels},
@@ -136,6 +199,26 @@ json ScoreSample::to_json() const
         {"raw_expected_abs_error", num(raw_expected_abs_error())},
         {"prompt_tokens", prompt_tokens},
         {"evaluations", evaluations}};
+    if(!rotations.empty()) {
+        json rots = json::array();
+        for(const auto& r: rotations) {
+            rots.push_back({
+                {"rotation", r.rotation},
+                {"level_to_label", r.level_to_label},
+                {"labels", r.labels},
+                {"token_ids", r.token_ids},
+                {"raw_logits", r.raw_logits},
+                {"corrected_logits", r.corrected_logits},
+                {"prediction", r.prediction},
+                {"expected_score_r", num(r.expected_score_r)}});
+        }
+        j["rotations"] = rots;
+        j["distinct_winners"] = distinct_winners();
+        j["rotation_disagreement"] = rotation_disagreement();
+        j["mean_semantic_logit_variance"] = num(mean_semantic_logit_variance());
+        j["rotation_expected_score_stddev"] = num(rotation_expected_score_stddev());
+    }
+    return j;
 }
 
 ScoreSample ScoreSample::from_json(const json& j)
@@ -175,6 +258,7 @@ ScoreMetrics compute_score_metrics(const std::vector<ScoreSample>& samples, int3
     TypeMetrics tm; // reuse the existing QWK
     std::vector<CalibrationSample> cal_s;
     std::vector<double> abs_err, exp_err, raw_exp_err, sm, sm_raw, dist, raw_dist, evals;
+    std::vector<double> distinct_w, sem_var_mean, sem_var_max, rot_es_stddev;
     std::vector<int32_t> pred, gt;
     int32_t n_correct = 0, n_large = 0;
 
@@ -183,6 +267,19 @@ ScoreMetrics compute_score_metrics(const std::vector<ScoreSample>& samples, int3
         m.n_levels = std::max(m.n_levels, (int32_t)s.levels.size());
         m.prompt_tokens += s.prompt_tokens;
         evals.push_back((double)s.evaluations);
+        if(!s.rotations.empty()) {
+            m.has_rotations = true;
+            m.rotation_n++;
+            if(s.rotation_disagreement())
+                m.samples_with_rotation_disagreement++;
+            distinct_w.push_back((double)s.distinct_winners());
+            double sv = s.mean_semantic_logit_variance();
+            if(std::isfinite(sv)) sem_var_mean.push_back(sv);
+            double smx = s.max_semantic_logit_variance();
+            if(std::isfinite(smx)) sem_var_max.push_back(smx);
+            double sd = s.rotation_expected_score_stddev();
+            if(std::isfinite(sd)) rot_es_stddev.push_back(sd);
+        }
         double d = s.expected_argmax_distance(), rd = s.raw_expected_argmax_distance();
         if(std::isfinite(d))
             dist.push_back(d);
@@ -238,6 +335,14 @@ ScoreMetrics compute_score_metrics(const std::vector<ScoreSample>& samples, int3
     m.raw_mean_expected_argmax_distance = mean_of(raw_dist);
     m.error_histogram = error_distance_histogram(pred, gt);
     m.evaluations_per_item = mean_of(evals);
+    if(m.has_rotations) {
+        m.mean_rotations = mean_of(evals);
+        m.mean_distinct_winners = mean_of(distinct_w);
+        m.mean_semantic_logit_variance = mean_of(sem_var_mean);
+        m.max_semantic_logit_variance = sem_var_max.empty() ? METRIC_UNDEFINED
+            : *std::max_element(sem_var_max.begin(), sem_var_max.end());
+        m.mean_rotation_expected_score_stddev = mean_of(rot_es_stddev);
+    }
     return m;
 }
 
@@ -265,6 +370,13 @@ void ScoreMetrics::merge_into(json& j) const
     j["large_error_rate"] = num(large_error_rate);
     j["prompt_tokens"] = prompt_tokens;
     j["evaluations_per_item"] = num(evaluations_per_item);
+    if(has_rotations) {
+        j["rotation_disagreement_rate"] = num(rotation_disagreement_rate());
+        j["mean_distinct_winners"] = num(mean_distinct_winners);
+        j["mean_semantic_logit_variance"] = num(mean_semantic_logit_variance);
+        j["max_semantic_logit_variance"] = num(max_semantic_logit_variance);
+        j["mean_rotation_expected_score_stddev"] = num(mean_rotation_expected_score_stddev);
+    }
 
     json sel = json::object(), pred_lv = json::object(), gt_lv = json::object();
     for(const auto& [label, c]: selection_by_label) sel[label] = c;
@@ -370,6 +482,15 @@ std::string format_score_comparison(const std::string& title,
     row("prompt tokens", std::to_string(b.prompt_tokens), std::to_string(t.prompt_tokens));
     row("evaluations per item", f(b.evaluations_per_item), f(t.evaluations_per_item));
 
+    if(t.has_rotations) {
+        out += "\n";
+        auto na = [&](double v) { return std::isfinite(v) ? f(v) : std::string("n/a"); };
+        row("rotation disagreement rate", "n/a", na(t.rotation_disagreement_rate()));
+        row("mean distinct winners", "n/a", na(t.mean_distinct_winners));
+        row("mean semantic logit variance", "n/a", na(t.mean_semantic_logit_variance));
+        row("max semantic logit variance", "n/a", na(t.max_semantic_logit_variance));
+        row("mean rotation ES stddev", "n/a", na(t.mean_rotation_expected_score_stddev));
+    }
     out += format_margin_gain(baseline_label, target_label, gain);
     return out;
 }
