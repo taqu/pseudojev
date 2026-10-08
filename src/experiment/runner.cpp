@@ -674,6 +674,16 @@ CompareResult exp_score_formulation(ILlamaBackend& backend,
     cfg_f1.filler_text = SCORE_F1_FILLER;
     cr.runs.push_back(run_experiment(backend, score_rows, cfg_f1));
 
+    ExperimentConfig cfg_f2;
+    cfg_f2.name = "letters-filler-corrected";
+    cfg_f2.scheme = Scheme::LETTERS;
+    cfg_f2.filler_text = SCORE_F1_FILLER;
+    cfg_f2.prior_correction = true;
+    // score_prior_alpha defaults to 1.0 — full F1-compatible prior subtraction.
+    // record_score_candidates captures the F1 blank priors for offline alpha sweep.
+    cfg_f2.record_score_candidates = true;
+    cr.runs.push_back(run_experiment(backend, score_rows, cfg_f2));
+
     return cr;
 }
 } // namespace pjev
