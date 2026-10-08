@@ -42,6 +42,7 @@ struct DecisionOutput
     std::vector<double> probs;     // per-candidate calibrated probabilities (or raw if calibration disabled)
     std::vector<double> raw_probs; // per-candidate probabilities before temperature scaling
     std::vector<float>  corrected_logits; // post prior-correction, pre temperature (when collect_corrected_logits=true)
+    std::vector<float>  raw_logits;       // pre prior-correction candidate logits (when collect_corrected_logits=true)
     std::vector<std::string> keys; // candidate keys in order
     int32_t prompt_token_count = 0; // number of tokens in the prompt
     int64_t tokenize_us = 0;  // microseconds for prompt tokenization
@@ -57,6 +58,10 @@ struct DecisionOutput
         double p_true_ord2 = 0.0;      // P(true) from ordering 2 alone (T=1)
         std::vector<float> ord1_corrected_logits;
         std::vector<float> ord2_corrected_logits;
+        std::vector<float> ord1_raw_logits;    // pre prior-correction
+        std::vector<float> ord2_raw_logits;
+        std::vector<std::string> ord1_keys;    // candidate key per position for each ordering
+        std::vector<std::string> ord2_keys;
     };
     std::optional<EnsembleDiag> ensemble_diag;
 };

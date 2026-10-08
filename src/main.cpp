@@ -28,6 +28,7 @@
 #include "server/server_config.h"
 #include "server/http_server.h"
 #include "experiment/config.h"
+#include "experiment/noul_metrics.h"
 #include "experiment/dataset.h"
 #include "experiment/runner.h"
 #include "distribution/release_config.h"
@@ -39,6 +40,7 @@
 #include "worker/worker_client.h"
 #include "worker/runtime_dir.h"
 #include <atomic>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -89,6 +91,21 @@ static void usage_run(const char* prog) {
         "  --threads N                CPU threads (default: 8)\n"
         "  --ctx-size N               context size (default: 4096)\n"
         "  --verbose                  enable llama.cpp verbose logging\n",
+        prog);
+}
+
+static void usage_compare(const char* prog) {
+    fprintf(stderr,
+        "usage: %s compare --baseline FILE --target FILE [options]\n"
+        "  Recompute noul confidence / calibration / margin metrics from two stored\n"
+        "  'run' result JSON files and print them side by side (no model needed).\n"
+        "  --baseline FILE            result JSON of the baseline run (required)\n"
+        "  --target FILE              result JSON of the compared run (required)\n"
+        "  --baseline-label NAME      column label (default: baseline)\n"
+        "  --target-label NAME        column label (default: target)\n"
+        "  --title TEXT               table title (default: noul)\n"
+        "  --ece-bins N               equal-width ECE bins (default: 15)\n"
+        "  --output FILE              also write the comparison as JSON\n",
         prog);
 }
 
@@ -305,6 +322,7 @@ static void usage(const char* prog) {
         "utilities:\n"
         "  diagnostics  runtime info, model path, CPU, worker state  (--json for reports)\n"
         "  benchmark    measure decision latency\n"
+        "  compare      compare noul metrics of two stored 'run' results\n"
         "  --version    print version and exit\n"
         "\n"
         "run '%s <command> --help' for command-specific options\n"
@@ -673,6 +691,98 @@ static int32_t cmd_run(int32_t argc, char** argv) {
             return 1;
         }
         f << output_str << "\n";
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// compare subcommand
+// ---------------------------------------------------------------------------
+
+static bool load_noul_result(const std::string& path, std::vector<NoulSample>& samples,
+                             int64_t& eval_ms, std::string& err) {
+    std::ifstream f(path);
+    if (!f) { err = "cannot open: " + path; return false; }
+    nlohmann::json j;
+    try { f >> j; } catch (const std::exception& e) {
+        err = path + ": JSON parse error: " + e.what(); return false;
+    }
+    if (!j.contains("noul_items") || !j["noul_items"].is_array()) {
+        err = path + ": no \"noul_items\" (re-run 'pjev run' with this version)";
+        return false;
+    }
+    for (const auto& it : j["noul_items"]) samples.push_back(NoulSample::from_json(it));
+    eval_ms = -1;
+    if (j.contains("metrics") && j["metrics"].contains("noul") &&
+        j["metrics"]["noul"].contains("eval_ms") && j["metrics"]["noul"]["eval_ms"].is_number())
+        eval_ms = j["metrics"]["noul"]["eval_ms"].get<int64_t>();
+    return true;
+}
+
+static int32_t cmd_compare(int32_t argc, char** argv) {
+    std::string baseline_path, target_path, output_path;
+    std::string baseline_label = "baseline", target_label = "target", title = "noul";
+    int32_t ece_bins = DEFAULT_ECE_BINS;
+
+    for (int32_t i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&]() -> std::string {
+            if (i + 1 >= argc) { usage_compare("pjev"); exit(2); }
+            return argv[++i];
+        };
+        if      (a == "--baseline")       baseline_path = next();
+        else if (a == "--target")         target_path = next();
+        else if (a == "--baseline-label") baseline_label = next();
+        else if (a == "--target-label")   target_label = next();
+        else if (a == "--title")          title = next();
+        else if (a == "--ece-bins")       ece_bins = std::stoi(next());
+        else if (a == "--output")         output_path = next();
+        else if (a == "-h" || a == "--help") { usage_compare("pjev"); return 0; }
+        else {
+            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            usage_compare("pjev");
+            return 2;
+        }
+    }
+    if (baseline_path.empty() || target_path.empty() || ece_bins < 1) {
+        usage_compare("pjev");
+        return 2;
+    }
+
+    std::vector<NoulSample> base_s, tgt_s;
+    int64_t base_ms = -1, tgt_ms = -1;
+    std::string err;
+    if (!load_noul_result(baseline_path, base_s, base_ms, err) ||
+        !load_noul_result(target_path, tgt_s, tgt_ms, err)) {
+        fprintf(stderr, "error: %s\n", err.c_str());
+        return 1;
+    }
+
+    NoulMetrics bm = compute_noul_metrics(base_s, ece_bins);
+    NoulMetrics tm = compute_noul_metrics(tgt_s, ece_bins);
+    MarginGain gain = compute_margin_gain(base_s, tgt_s);
+
+    printf("%s", format_noul_comparison(title, baseline_label, bm, base_ms,
+                                        target_label, tm, tgt_ms, gain).c_str());
+
+    if (!output_path.empty()) {
+        auto side = [](const NoulMetrics& m, int64_t ms) {
+            nlohmann::json j = {{"n", m.n}, {"labeled", m.labeled},
+                                {"accuracy", std::isfinite(m.accuracy) ? nlohmann::json(m.accuracy) : nlohmann::json(nullptr)},
+                                {"eval_ms", ms}};
+            m.merge_into(j);
+            return j;
+        };
+        nlohmann::json out = {
+            {"title", title},
+            {"baseline_label", baseline_label},
+            {"target_label", target_label},
+            {"baseline", side(bm, base_ms)},
+            {"target", side(tm, tgt_ms)},
+            {"margin_gain", gain.to_json()}};
+        std::ofstream f(output_path);
+        if (!f) { fprintf(stderr, "cannot open output: %s\n", output_path.c_str()); return 1; }
+        f << out.dump(2) << "\n";
     }
     return 0;
 }
@@ -2432,6 +2542,8 @@ int32_t main(int32_t argc, char** argv) {
         return 0;
     } else if (cmd == "run") {
         return cmd_run(argc - 2, argv + 2);
+    } else if (cmd == "compare") {
+        return cmd_compare(argc - 2, argv + 2);
     } else if (cmd == "experiment") {
         return cmd_experiment(argc - 2, argv + 2);
     } else if (cmd == "calibration") {

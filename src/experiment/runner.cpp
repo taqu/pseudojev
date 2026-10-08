@@ -82,6 +82,48 @@ namespace
             tm->actual_levels.push_back(actual);
         }
     }
+
+    int key_index(const std::vector<std::string>& keys, const char* k)
+    {
+        for(int i = 0; i < (int)keys.size(); i++)
+            if(keys[i] == k)
+                return i;
+        return -1;
+    }
+
+    // Maps a noul DecisionOutput into semantic true/false space. Candidate positions are
+    // resolved by key, so the result is independent of option order.
+    NoulSample make_noul_sample(const DatasetRow& row, const DecisionOutput& out)
+    {
+        NoulSample s;
+        s.source_id = row.id;
+        if(row.expected.is_string()) {
+            const std::string e = row.expected.get<std::string>();
+            if(e == "true" || e == "false") {
+                s.labeled = true;
+                s.ground_truth = (e == "true");
+            }
+        }
+        s.prediction = out.selected >= 0 && out.selected < (int)out.keys.size() && out.keys[out.selected] == "true";
+        s.p_true = out.p_true;
+        int ti = key_index(out.keys, "true");
+        if(ti >= 0 && ti < (int)out.raw_probs.size())
+            s.p_true_raw = out.raw_probs[ti];
+
+        if(out.ensemble_diag) {
+            const auto& d = *out.ensemble_diag;
+            s.has_orders = true;
+            s.order1_semantic_margin = d.m1;
+            s.order2_semantic_margin = d.m2;
+            s.corrected_semantic_margin = d.m_ensemble;
+            s.raw_semantic_margin = (semantic_margin(d.ord1_raw_logits, d.ord1_keys) +
+                                     semantic_margin(d.ord2_raw_logits, d.ord2_keys)) / 2.0;
+        } else {
+            s.corrected_semantic_margin = semantic_margin(out.corrected_logits, out.keys);
+            s.raw_semantic_margin = semantic_margin(out.raw_logits, out.keys);
+        }
+        return s;
+    }
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -118,7 +160,8 @@ RunResult run_experiment(ILlamaBackend& backend,
         DecisionInput inp = row.input;
         inp.options = permute_options(row.input.options, cfg.option_order, cfg.random_seed);
         inp.prior_correction = cfg.prior_correction;
-        inp.collect_corrected_logits = cfg.collect_corrected_logits;
+        // noul always collects logits so semantic margins can be measured
+        inp.collect_corrected_logits = cfg.collect_corrected_logits || row.input.type == Type::Noul;
         if(cfg.prior_correction) {
             auto key = std::make_pair(static_cast<int32_t>(row.input.type), static_cast<int32_t>(row.input.options.size()));
             auto it = prior_cache.find(key);
@@ -137,7 +180,8 @@ RunResult run_experiment(ILlamaBackend& backend,
         ir.selected = out.selected;
         ir.probs = out.probs;
         ir.raw_probs = out.raw_probs;
-        ir.corrected_logits = out.corrected_logits;
+        if(cfg.collect_corrected_logits)
+            ir.corrected_logits = out.corrected_logits;
         ir.keys = out.keys;
         ir.prompt_token_count = out.prompt_token_count;
         ir.eval_ms = t.elapsed().count();
@@ -151,6 +195,8 @@ RunResult run_experiment(ILlamaBackend& backend,
         }
 
         ir.correct = check_correct(ir, row.expected, row.input.type);
+        if(out.ok && row.input.type == Type::Noul)
+            ir.noul = make_noul_sample(row, out);
 
         // Populate correct_index and expected_score for calibration use
         if(!row.expected.is_null()) {
@@ -182,6 +228,15 @@ RunResult run_experiment(ILlamaBackend& backend,
 // ---------------------------------------------------------------------------
 // RunResult::to_json
 // ---------------------------------------------------------------------------
+std::vector<NoulSample> RunResult::noul_samples() const
+{
+    std::vector<NoulSample> samples;
+    for(const auto& item: items)
+        if(item.noul)
+            samples.push_back(*item.noul);
+    return samples;
+}
+
 json RunResult::to_json() const
 {
     const auto& m = metrics;
@@ -216,6 +271,10 @@ json RunResult::to_json() const
         {"labeled", m.noul.labeled},
         {"accuracy", m.noul.accuracy()},
         {"eval_ms", noul_eval_ms}};
+    const std::vector<NoulSample> noul_samples_v = noul_samples();
+    compute_noul_metrics(noul_samples_v).merge_into(noul_j);
+    json noul_items_j = json::array();
+    for(const auto& s: noul_samples_v) noul_items_j.push_back(s.to_json());
     json score_j = {
         {"n", m.score.n},
         {"labeled", m.score.labeled},
@@ -235,13 +294,15 @@ json RunResult::to_json() const
         {"scheme", c.scheme_str()},
         {"option_order", c.order_str()},
         {"prior_correction", c.prior_correction},
+        {"noul_ensemble", c.ensemble.noul_mode == NoulEnsembleMode::BINARY_ORDER ? "binary-order" : "none"},
         {"metrics", json{
                         {"n_total", m.n_total},
                         {"n_errors", m.n_errors},
                         {"choice", choice_j},
                         {"noul", noul_j},
                         {"score", score_j}}},
-        {"stability", stab_j}};
+        {"stability", stab_j},
+        {"noul_items", noul_items_j}};
 }
 
 // ---------------------------------------------------------------------------

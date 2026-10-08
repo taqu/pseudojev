@@ -133,6 +133,10 @@ DecisionOutput DecisionEngine::finish_from_logits(
     std::vector<float> cand_logits;
     for(int32_t id: cand_ids) cand_logits.push_back(logits[id]);
 
+    if(input.collect_corrected_logits) {
+        out.raw_logits = cand_logits;
+    }
+
     if(input.prior_correction && input.prior_logits.size() == cand_ids.size()) {
         double alpha = calib_cfg_.prior_alpha_for(input.type);
         for(size_t i = 0; i < cand_logits.size(); i++) {
@@ -330,6 +334,10 @@ DecisionOutput DecisionEngine::decide_noul_ensemble(const DecisionInput& input)
     diag.p_true_ord2 = 1.0 / (1.0 + std::exp(-m2));
     diag.ord1_corrected_logits = out1.corrected_logits;
     diag.ord2_corrected_logits = out2.corrected_logits;
+    diag.ord1_raw_logits = out1.raw_logits;
+    diag.ord2_raw_logits = out2.raw_logits;
+    diag.ord1_keys = out1.keys;
+    diag.ord2_keys = out2.keys;
     out.ensemble_diag = diag;
 
     return out;

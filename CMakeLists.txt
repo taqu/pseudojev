@@ -63,6 +63,7 @@ set(PJEV_HEADER
     src/experiment/permute.h
     src/experiment/dataset.h
     src/experiment/runner.h
+    src/experiment/noul_metrics.h
     src/multilingual/multilingual.h
     src/model/model_identity.h
     src/model/value_profile.h
@@ -91,6 +92,7 @@ set(PJEV_SOURCE
     src/server/http_server.cpp
     src/experiment/dataset.cpp
     src/experiment/runner.cpp
+    src/experiment/noul_metrics.cpp
     src/multilingual/multilingual.cpp
     src/model/model_identity.cpp
     src/model/value_profile.cpp

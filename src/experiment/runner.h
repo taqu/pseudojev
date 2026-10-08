@@ -5,8 +5,10 @@
 #include "config.h"
 #include "dataset.h"
 #include "metrics.h"
+#include "noul_metrics.h"
 #include "permute.h"
 #include <nlohmann/json.hpp>
+#include <optional>
 
 namespace pjev
 {
@@ -33,6 +35,8 @@ struct ItemResult
     // Per-item performance
     int32_t prompt_token_count = 0;
     int64_t eval_ms = 0;
+    // Semantic (true/false) normalization of a successful noul decision, for metrics.
+    std::optional<NoulSample> noul;
 };
 
 struct RunResult
@@ -42,6 +46,7 @@ struct RunResult
     RunMetrics metrics;
     StabilityMetrics stability;
     std::vector<ItemResult> items;
+    std::vector<NoulSample> noul_samples() const;
     nlohmann::json to_json() const;
 };
 

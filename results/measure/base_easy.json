@@ -1,0 +1,225 @@
+{
+  "experiment": "run",
+  "layout": "auto",
+  "metrics": {
+    "choice": {
+      "accuracy": 1.0,
+      "eval_ms": 20141,
+      "labeled": 36,
+      "n": 36
+    },
+    "n_errors": 0,
+    "n_total": 48,
+    "noul": {
+      "accuracy": 1.0,
+      "brier": 0.23710313990910717,
+      "calibrated": {
+        "brier": 0.23710313990910717,
+        "ece": 0.48690617873165487,
+        "ece_bins": 15,
+        "mean_confidence_correct": 0.5130938212683451,
+        "n": 12,
+        "nll": 0.6673449503092209
+      },
+      "ece": 0.48690617873165487,
+      "ece_bins": 15,
+      "eval_ms": 6029,
+      "labeled": 12,
+      "margins": {
+        "corrected": {
+          "mean": 5.239276885986328,
+          "median": 4.349493503570557,
+          "min": 2.773249626159668,
+          "n": 12,
+          "p10": 3.0995991706848143
+        },
+        "raw": {
+          "mean": 5.239276885986328,
+          "median": 4.349493503570557,
+          "min": 2.773249626159668,
+          "n": 12,
+          "p10": 3.0995991706848143
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_confidence_correct": 0.5130938212683451,
+      "mean_signed_margin": 5.239276885986328,
+      "median_signed_margin": 4.349493503570557,
+      "min_signed_margin": 2.773249626159668,
+      "n": 12,
+      "nll": 0.6673449503092209,
+      "p10_signed_margin": 3.0995991706848143,
+      "raw": {
+        "brier": 0.0007064631185018399,
+        "ece": 0.01841687183251306,
+        "ece_bins": 15,
+        "mean_confidence_correct": 0.9815831281674869,
+        "n": 12,
+        "nll": 0.01878102014771949
+      }
+    },
+    "score": {
+      "accuracy": -1.0,
+      "eval_ms": 0,
+      "labeled": 0,
+      "mae": -1.0,
+      "n": 0,
+      "qwk": -1.0
+    }
+  },
+  "noul_ensemble": "none",
+  "noul_items": [
+    {
+      "confidence": 0.518987032747117,
+      "correct": true,
+      "ground_truth": true,
+      "p_true": 0.518987032747117,
+      "p_true_raw": 0.9994990318174988,
+      "prediction": true,
+      "raw_semantic_margin": 7.598466873168945,
+      "semantic_margin": 7.598466873168945,
+      "signed_margin": 7.598466873168945,
+      "source_id": "easy-fact-00"
+    },
+    {
+      "confidence": 0.5069326797820252,
+      "correct": true,
+      "ground_truth": false,
+      "p_true": 0.49306732021797484,
+      "p_true_raw": 0.05878695024228186,
+      "prediction": false,
+      "raw_semantic_margin": -2.773249626159668,
+      "semantic_margin": -2.773249626159668,
+      "signed_margin": 2.773249626159668,
+      "source_id": "easy-fact-01"
+    },
+    {
+      "confidence": 0.5195541450048139,
+      "correct": true,
+      "ground_truth": true,
+      "p_true": 0.5195541450048139,
+      "p_true_raw": 0.9996008002105535,
+      "prediction": true,
+      "raw_semantic_margin": 7.825649261474609,
+      "semantic_margin": 7.825649261474609,
+      "signed_margin": 7.825649261474609,
+      "source_id": "easy-fact-02"
+    },
+    {
+      "confidence": 0.5082514161611977,
+      "correct": true,
+      "ground_truth": false,
+      "p_true": 0.49174858383880227,
+      "p_true_raw": 0.035541487972759515,
+      "prediction": false,
+      "raw_semantic_margin": -3.30086612701416,
+      "semantic_margin": -3.30086612701416,
+      "signed_margin": 3.30086612701416,
+      "source_id": "easy-fact-03"
+    },
+    {
+      "confidence": 0.5112809489371669,
+      "correct": true,
+      "ground_truth": true,
+      "p_true": 0.5112809489371669,
+      "p_true_raw": 0.9891549844211405,
+      "prediction": true,
+      "raw_semantic_margin": 4.513145446777344,
+      "semantic_margin": 4.513145446777344,
+      "signed_margin": 4.513145446777344,
+      "source_id": "easy-fact-04"
+    },
+    {
+      "confidence": 0.5076924834593988,
+      "correct": true,
+      "ground_truth": false,
+      "p_true": 0.4923075165406012,
+      "p_true_raw": 0.04405606765506621,
+      "prediction": false,
+      "raw_semantic_margin": -3.0772361755371094,
+      "semantic_margin": -3.0772361755371094,
+      "signed_margin": 3.0772361755371094,
+      "source_id": "easy-fact-05"
+    },
+    {
+      "confidence": 0.5194914353408544,
+      "correct": true,
+      "ground_truth": true,
+      "p_true": 0.5194914353408544,
+      "p_true_raw": 0.9995906485709112,
+      "prediction": true,
+      "raw_semantic_margin": 7.800527095794678,
+      "semantic_margin": 7.800527095794678,
+      "signed_margin": 7.800527095794678,
+      "source_id": "easy-fact-06"
+    },
+    {
+      "confidence": 0.508771249208951,
+      "correct": true,
+      "ground_truth": false,
+      "p_true": 0.491228750791049,
+      "p_true_raw": 0.029061195850315757,
+      "prediction": false,
+      "raw_semantic_margin": -3.508859634399414,
+      "semantic_margin": -3.508859634399414,
+      "signed_margin": 3.508859634399414,
+      "source_id": "easy-fact-07"
+    },
+    {
+      "confidence": 0.5183358104092717,
+      "correct": true,
+      "ground_truth": true,
+      "p_true": 0.5183358104092717,
+      "p_true_raw": 0.9993498223504343,
+      "prediction": true,
+      "raw_semantic_margin": 7.3376145362854,
+      "semantic_margin": 7.3376145362854,
+      "signed_margin": 7.3376145362854,
+      "source_id": "easy-fact-08"
+    },
+    {
+      "confidence": 0.5091488115472915,
+      "correct": true,
+      "ground_truth": false,
+      "p_true": 0.4908511884527085,
+      "p_true_raw": 0.025088598658796004,
+      "prediction": false,
+      "raw_semantic_margin": -3.659933090209961,
+      "semantic_margin": -3.659933090209961,
+      "signed_margin": 3.659933090209961,
+      "source_id": "easy-fact-09"
+    },
+    {
+      "confidence": 0.5182167663466652,
+      "correct": true,
+      "ground_truth": true,
+      "p_true": 0.5182167663466652,
+      "p_true_raw": 0.9993180916856332,
+      "prediction": true,
+      "raw_semantic_margin": 7.289933204650879,
+      "semantic_margin": 7.289933204650879,
+      "signed_margin": 7.289933204650879,
+      "source_id": "easy-fact-10"
+    },
+    {
+      "confidence": 0.5104630762753892,
+      "correct": true,
+      "ground_truth": false,
+      "p_true": 0.4895369237246107,
+      "p_true_raw": 0.014981540667109315,
+      "prediction": false,
+      "raw_semantic_margin": -4.1858415603637695,
+      "semantic_margin": -4.1858415603637695,
+      "signed_margin": 4.1858415603637695,
+      "source_id": "easy-fact-11"
+    }
+  ],
+  "option_order": "original",
+  "prior_correction": false,
+  "scheme": "natural",
+  "stability": {
+    "n_questions": 0,
+    "n_stable": 0,
+    "stability_rate": -1.0
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "baseline": {
+    "accuracy": 1.0,
+    "brier": 0.23710313990910717,
+    "calibrated": {
+      "brier": 0.23710313990910717,
+      "ece": 0.48690617873165487,
+      "ece_bins": 15,
+      "mean_confidence_correct": 0.5130938212683451,
+      "n": 12,
+      "nll": 0.6673449503092209
+    },
+    "ece": 0.48690617873165487,
+    "ece_bins": 15,
+    "eval_ms": 6029,
+    "labeled": 12,
+    "margins": {
+      "corrected": {
+        "mean": 5.239276885986328,
+        "median": 4.349493503570557,
+        "min": 2.773249626159668,
+        "n": 12,
+        "p10": 3.0995991706848143
+      },
+      "raw": {
+        "mean": 5.239276885986328,
+        "median": 4.349493503570557,
+        "min": 2.773249626159668,
+        "n": 12,
+        "p10": 3.0995991706848143
+      },
+      "source": "pre-temperature logits"
+    },
+    "mean_confidence_correct": 0.5130938212683451,
+    "mean_signed_margin": 5.239276885986328,
+    "median_signed_margin": 4.349493503570557,
+    "min_signed_margin": 2.773249626159668,
+    "n": 12,
+    "nll": 0.6673449503092209,
+    "p10_signed_margin": 3.0995991706848143,
+    "raw": {
+      "brier": 0.0007064631185018399,
+      "ece": 0.01841687183251306,
+      "ece_bins": 15,
+      "mean_confidence_correct": 0.9815831281674869,
+      "n": 12,
+      "nll": 0.01878102014771949
+    }
+  },
+  "baseline_label": "baseline",
+  "margin_gain": {
+    "degraded_margin_count": 8,
+    "improved_margin_count": 4,
+    "mean_margin_gain": -0.5030871431032816,
+    "median_margin_gain": -0.4576075077056885,
+    "n_matched": 12,
+    "unchanged_margin_count": 0
+  },
+  "target": {
+    "accuracy": 1.0,
+    "brier": 0.23833196587843344,
+    "calibrated": {
+      "brier": 0.23833196587843344,
+      "ece": 0.48816312241692017,
+      "ece_bins": 15,
+      "mean_confidence_correct": 0.5118368775830798,
+      "n": 12,
+      "nll": 0.6698041015766324
+    },
+    "ece": 0.48816312241692017,
+    "ece_bins": 15,
+    "eval_ms": 11906,
+    "labeled": 12,
+    "margins": {
+      "corrected": {
+        "mean": 4.736189742883046,
+        "median": 4.111623764038086,
+        "min": 1.893054485321045,
+        "n": 12,
+        "p10": 2.1159724235534667
+      },
+      "raw": {
+        "mean": 4.736189742883046,
+        "median": 4.111623764038086,
+        "min": 1.893054485321045,
+        "n": 12,
+        "p10": 2.1159724235534667
+      },
+      "source": "pre-temperature logits"
+    },
+    "mean_confidence_correct": 0.5118368775830798,
+    "mean_signed_margin": 4.736189742883046,
+    "median_signed_margin": 4.111623764038086,
+    "min_signed_margin": 1.893054485321045,
+    "n": 12,
+    "nll": 0.6698041015766324,
+    "order_disagreement_count": 0,
+    "order_disagreement_rate": 0.0,
+    "order_n": 12,
+    "p10_signed_margin": 2.1159724235534667,
+    "raw": {
+      "brier": 0.0032232792368637815,
+      "ece": 0.036050921511820544,
+      "ece_bins": 15,
+      "mean_confidence_correct": 0.9639490784881796,
+      "n": 12,
+      "nll": 0.037789422680591905
+    }
+  },
+  "target_label": "E1",
+  "title": "noul / easy"
+}

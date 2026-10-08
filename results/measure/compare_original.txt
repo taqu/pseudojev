@@ -1,0 +1,23 @@
+noul / original
+
+metric                           baseline             E1
+--------------------------------------------------------
+labeled                                24             24
+accuracy                           0.5000         0.5417
+NLL                                0.6920         0.6923
+Brier                              0.2494         0.2496
+ECE                                0.0042         0.0371
+NLL (raw, T=1)                     0.9602         1.0491
+Brier (raw, T=1)                   0.3199         0.3455
+ECE (raw, T=1)                     0.3467         0.2838
+mean conf. correct                 0.5048         0.5046
+mean conf. correct (raw)           0.8279         0.8116
+mean signed margin                 0.2438         0.1723
+median signed margin               0.2543         0.3155
+p10 signed margin                 -2.3228        -2.1833
+min signed margin                 -3.3343        -3.7766
+order disagreement                      -           6/24
+eval_ms                             13496          24584
+
+margin gain (E1 - baseline), matched by source_id
+  matched 24  mean -0.0715  median 0.0042  improved 12  degraded 12  unchanged 0
