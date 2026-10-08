@@ -288,7 +288,7 @@ RunResult run_experiment(ILlamaBackend& backend,
     RunResult result;
     result.config = cfg;
 
-    DecisionEngine engine(backend, PromptConfig{cfg.layout, cfg.scheme}, cfg.calibration, cfg.ensemble);
+    DecisionEngine engine(backend, PromptConfig{cfg.layout, cfg.scheme, cfg.filler_text}, cfg.calibration, cfg.ensemble);
 
     // Pre-compute blank logits cache per (type, n_options) if prior correction enabled
     std::map<std::pair<int32_t, int32_t>, std::vector<float>> prior_cache;
@@ -485,6 +485,7 @@ json RunResult::to_json() const
         {"scheme", c.scheme_str()},
         {"option_order", c.order_str()},
         {"prior_correction", c.prior_correction},
+        {"filler_text", c.filler_text},
         {"noul_ensemble", c.ensemble.noul_mode == NoulEnsembleMode::BINARY_ORDER ? "binary-order" : "none"},
         {"choice_ensemble", c.ensemble.choice_mode == ChoiceEnsembleMode::CYCLIC_ROTATION
                                 ? (c.ensemble.choice_prefix_reuse ? "cyclic-rotation+prefix-reuse" : "cyclic-rotation")
@@ -647,6 +648,10 @@ CompareResult exp_score_formulation(ILlamaBackend& backend,
             score_rows.push_back(r);
     }
 
+    // F1 frozen filler: ". . " repeated — chosen to be ~16 tokens on the Bonsai tokenizer.
+    // Measured token count: see results/f1/filler_tokenization.md
+    static const std::string SCORE_F1_FILLER = ". . . . . . . . . . . . . . . .";
+
     ExperimentConfig cfg_natural;
     cfg_natural.name = "natural";
     cfg_natural.scheme = Scheme::NATURAL;
@@ -662,6 +667,12 @@ CompareResult exp_score_formulation(ILlamaBackend& backend,
     cfg_s2.scheme = Scheme::LETTERS;
     cfg_s2.ensemble.score_mode = ScoreEnsembleMode::LABEL_ROTATION;
     cr.runs.push_back(run_experiment(backend, score_rows, cfg_s2));
+
+    ExperimentConfig cfg_f1;
+    cfg_f1.name = "letters-filler";
+    cfg_f1.scheme = Scheme::LETTERS;
+    cfg_f1.filler_text = SCORE_F1_FILLER;
+    cr.runs.push_back(run_experiment(backend, score_rows, cfg_f1));
 
     return cr;
 }

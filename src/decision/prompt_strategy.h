@@ -19,6 +19,9 @@ enum class NoulValue { False, True };
 struct PromptConfig {
     Layout layout = Layout::AUTO;
     Scheme scheme = Scheme::NATURAL;
+    // Optional fixed filler inserted at the end of user content, immediately before ANSWER_ANCHOR.
+    // Empty string = no filler (F0 behaviour).
+    std::string filler_text;
 };
 
 struct Candidate {

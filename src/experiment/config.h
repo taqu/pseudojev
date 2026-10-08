@@ -24,6 +24,7 @@ struct ExperimentConfig
     bool prior_correction = false;
     CalibrationConfig calibration;
     EnsembleConfig ensemble;
+    std::string filler_text; // optional fixed filler before ANSWER_ANCHOR (empty = F0 / no filler)
     bool collect_corrected_logits = false; // populate corrected_logits in ItemResult
     // Record score candidate diagnostics (labels, token ids, token forms, content-free prior
     // logits) in RunResult. Costs one extra evaluation per distinct score level count.

@@ -1,0 +1,5406 @@
+{
+  "experiment": "score-formulation",
+  "model": "models/bonsai.gguf",
+  "runs": [
+    {
+      "choice_ensemble": "none",
+      "choice_items": [],
+      "experiment": "natural",
+      "filler_text": "",
+      "layout": "auto",
+      "metrics": {
+        "choice": {
+          "accuracy": -1.0,
+          "brier": null,
+          "brier_convention": "sum over options",
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "eval_ms": 0,
+          "labeled": 0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_signed_winner_margin": null,
+          "median_signed_winner_margin": null,
+          "min_signed_winner_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_winner_margin": null,
+          "prompt_tokens": 0,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "n": 0,
+            "nll": null
+          },
+          "temperature": 1.0
+        },
+        "n_errors": 0,
+        "n_total": 12,
+        "noul": {
+          "accuracy": -1.0,
+          "brier": null,
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "mean_confidence_correct": null,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "eval_ms": 0,
+          "labeled": 0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_confidence_correct": null,
+          "mean_signed_margin": null,
+          "median_signed_margin": null,
+          "min_signed_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_margin": null,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "mean_confidence_correct": null,
+            "n": 0,
+            "nll": null
+          }
+        },
+        "score": {
+          "accuracy": 0.8333333333333334,
+          "brier": 0.2367055273173165,
+          "brier_convention": "sum over levels",
+          "calibrated": {
+            "brier": 0.2367055273173165,
+            "ece": 0.10943107141940196,
+            "ece_bins": 15,
+            "expected_score_mae": 0.3832187254069383,
+            "mean_expected_argmax_distance": 0.39675278970721783,
+            "n": 12,
+            "nll": 0.4306279511725581
+          },
+          "ece": 0.10943107141940196,
+          "ece_bins": 15,
+          "error_distance_histogram": [
+            10,
+            0,
+            2
+          ],
+          "eval_ms": 1642,
+          "evaluations_per_item": 1.0,
+          "expected_score_mae": 0.3832187254069383,
+          "ground_truth_by_level": {
+            "0": 4,
+            "1": 2,
+            "2": 4,
+            "3": 2
+          },
+          "labeled": 12,
+          "large_error_rate": 0.16666666666666666,
+          "large_error_threshold": 2,
+          "mae": 0.3333333333333333,
+          "margins": {
+            "corrected": {
+              "mean": 1.9436620076497395,
+              "median": 1.9200897216796875,
+              "min": -0.580988883972168,
+              "n": 12,
+              "p10": -0.14623012542724606
+            },
+            "raw": {
+              "mean": 1.9436620076497395,
+              "median": 1.9200897216796875,
+              "min": -0.580988883972168,
+              "n": 12,
+              "p10": -0.14623012542724606
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_expected_argmax_distance": 0.39675278970721783,
+          "mean_signed_margin": 1.9436620076497395,
+          "median_signed_margin": 1.9200897216796875,
+          "min_signed_margin": -0.580988883972168,
+          "n": 12,
+          "nll": 0.4306279511725581,
+          "p10_signed_margin": -0.14623012542724606,
+          "prediction_by_level": {
+            "0": 6,
+            "1": 2,
+            "2": 2,
+            "3": 2
+          },
+          "prompt_tokens": 1514,
+          "qwk": 0.75,
+          "raw": {
+            "brier": 0.2367055273173165,
+            "ece": 0.10943107141940196,
+            "ece_bins": 15,
+            "expected_score_mae": 0.3832187254069383,
+            "mean_expected_argmax_distance": 0.39675278970721783,
+            "n": 12,
+            "nll": 0.4306279511725581
+          },
+          "raw_expected_score_mae": 0.3832187254069383,
+          "raw_mean_expected_argmax_distance": 0.39675278970721783,
+          "selection_by_label": {
+            "0": 6,
+            "1": 2,
+            "2": 2,
+            "3": 2
+          },
+          "temperature": 1.0
+        }
+      },
+      "noul_ensemble": "none",
+      "noul_items": [],
+      "option_order": "original",
+      "prior_correction": false,
+      "scheme": "natural",
+      "score_candidates": [],
+      "score_items": [
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.16327953547925064,
+          "expected_score": 0.16327953547925064,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.9034660499120829,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            11.048702239990234,
+            7.935140609741211,
+            8.071495056152344,
+            6.580784797668457
+          ],
+          "prediction": 0,
+          "probs": [
+            0.9034660499120829,
+            0.040152186728689226,
+            0.04601794132712283,
+            0.01036382203210526
+          ],
+          "prompt_tokens": 122,
+          "raw_expected_abs_error": 0.16327953547925064,
+          "raw_expected_score": 0.16327953547925064,
+          "raw_logits": [
+            11.048702239990234,
+            7.935140609741211,
+            8.071495056152344,
+            6.580784797668457
+          ],
+          "raw_probs": [
+            0.9034660499120829,
+            0.040152186728689226,
+            0.04601794132712283,
+            0.01036382203210526
+          ],
+          "selected_label": "0",
+          "signed_margin": 2.9772071838378906,
+          "source_id": "original-ordinal-01-0",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.25867386223086647,
+          "expected_score": 0.25867386223086647,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.7757383566183208,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.763859748840332,
+            9.373497009277344,
+            7.435680389404297,
+            5.303290367126465
+          ],
+          "prediction": 0,
+          "probs": [
+            0.7757383566183208,
+            0.19314719265223332,
+            0.027816682609705025,
+            0.0032977681197410257
+          ],
+          "prompt_tokens": 124,
+          "raw_expected_abs_error": 0.25867386223086647,
+          "raw_expected_score": 0.25867386223086647,
+          "raw_logits": [
+            10.763859748840332,
+            9.373497009277344,
+            7.435680389404297,
+            5.303290367126465
+          ],
+          "raw_probs": [
+            0.7757383566183208,
+            0.19314719265223332,
+            0.027816682609705025,
+            0.0032977681197410257
+          ],
+          "selected_label": "0",
+          "signed_margin": 1.3903627395629883,
+          "source_id": "original-ordinal-01-1",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.02337164758818777,
+          "expected_score": 1.0233716475881878,
+          "ground_truth": 1,
+          "ground_truth_probability": 0.904746257276864,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            6.316334247589111,
+            9.419191360473633,
+            6.422863960266113,
+            4.852409362792969
+          ],
+          "prediction": 1,
+          "probs": [
+            0.040641812971823135,
+            0.904746257276864,
+            0.04521039894261421,
+            0.009401530808698438
+          ],
+          "prompt_tokens": 126,
+          "raw_expected_abs_error": 0.02337164758818777,
+          "raw_expected_score": 1.0233716475881878,
+          "raw_logits": [
+            6.316334247589111,
+            9.419191360473633,
+            6.422863960266113,
+            4.852409362792969
+          ],
+          "raw_probs": [
+            0.040641812971823135,
+            0.904746257276864,
+            0.04521039894261421,
+            0.009401530808698438
+          ],
+          "selected_label": "1",
+          "signed_margin": 2.9963274002075195,
+          "source_id": "original-ordinal-02-0",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.42774671105048245,
+          "expected_score": 0.5722532889495175,
+          "ground_truth": 1,
+          "ground_truth_probability": 0.507978228911545,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            9.698013305664063,
+            9.794637680053711,
+            6.9040374755859375,
+            4.525581359863281
+          ],
+          "prediction": 1,
+          "probs": [
+            0.46119189558911544,
+            0.507978228911545,
+            0.028214566460046175,
+            0.0026153090392934094
+          ],
+          "prompt_tokens": 127,
+          "raw_expected_abs_error": 0.42774671105048245,
+          "raw_expected_score": 0.5722532889495175,
+          "raw_logits": [
+            9.698013305664063,
+            9.794637680053711,
+            6.9040374755859375,
+            4.525581359863281
+          ],
+          "raw_probs": [
+            0.46119189558911544,
+            0.507978228911545,
+            0.028214566460046175,
+            0.0026153090392934094
+          ],
+          "selected_label": "1",
+          "signed_margin": 0.09662437438964844,
+          "source_id": "original-ordinal-02-1",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 2,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 1.035592073724035,
+          "expected_score": 0.964407926275965,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.4285997979085746,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.456024169921875,
+            7.8861284255981445,
+            10.28281021118164,
+            7.346080780029297
+          ],
+          "prediction": 0,
+          "probs": [
+            0.509656806242796,
+            0.039010928543536064,
+            0.4285997979085746,
+            0.02273246730509327
+          ],
+          "prompt_tokens": 123,
+          "raw_expected_abs_error": 1.035592073724035,
+          "raw_expected_score": 0.964407926275965,
+          "raw_logits": [
+            10.456024169921875,
+            7.8861284255981445,
+            10.28281021118164,
+            7.346080780029297
+          ],
+          "raw_probs": [
+            0.509656806242796,
+            0.039010928543536064,
+            0.4285997979085746,
+            0.02273246730509327
+          ],
+          "selected_label": "0",
+          "signed_margin": -0.17321395874023438,
+          "source_id": "original-ordinal-03-0",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 2,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 0.8832035404742877,
+          "expected_score": 1.1167964595257123,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.2315300154012391,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.07940673828125,
+            9.376429557800293,
+            9.498417854309082,
+            9.061663627624512
+          ],
+          "prediction": 0,
+          "probs": [
+            0.4139306324238338,
+            0.20494081390077368,
+            0.2315300154012391,
+            0.14959853827415343
+          ],
+          "prompt_tokens": 125,
+          "raw_expected_abs_error": 0.8832035404742877,
+          "raw_expected_score": 1.1167964595257123,
+          "raw_logits": [
+            10.07940673828125,
+            9.376429557800293,
+            9.498417854309082,
+            9.061663627624512
+          ],
+          "raw_probs": [
+            0.4139306324238338,
+            0.20494081390077368,
+            0.2315300154012391,
+            0.14959853827415343
+          ],
+          "selected_label": "0",
+          "signed_margin": -0.580988883972168,
+          "source_id": "original-ordinal-03-1",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.0205890162038318,
+          "expected_score": 2.979410983796168,
+          "ground_truth": 3,
+          "ground_truth_probability": 0.991805338812126,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            5.352087020874023,
+            3.533033609390259,
+            4.032960891723633,
+            10.505489349365234
+          ],
+          "prediction": 3,
+          "probs": [
+            0.0057323440365710686,
+            0.0009296669428155106,
+            0.0015326502084874595,
+            0.991805338812126
+          ],
+          "prompt_tokens": 125,
+          "raw_expected_abs_error": 0.0205890162038318,
+          "raw_expected_score": 2.979410983796168,
+          "raw_logits": [
+            5.352087020874023,
+            3.533033609390259,
+            4.032960891723633,
+            10.505489349365234
+          ],
+          "raw_probs": [
+            0.0057323440365710686,
+            0.0009296669428155106,
+            0.0015326502084874595,
+            0.991805338812126
+          ],
+          "selected_label": "3",
+          "signed_margin": 5.153402328491211,
+          "source_id": "original-ordinal-04-0",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.01392332389308315,
+          "expected_score": 2.986076676106917,
+          "ground_truth": 3,
+          "ground_truth_probability": 0.9946533527168954,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            6.246010780334473,
+            3.8406760692596436,
+            4.698629379272461,
+            11.736635208129883
+          ],
+          "prediction": 3,
+          "probs": [
+            0.004103211088253941,
+            0.0003702544334710224,
+            0.0008731817613797223,
+            0.9946533527168954
+          ],
+          "prompt_tokens": 124,
+          "raw_expected_abs_error": 0.01392332389308315,
+          "raw_expected_score": 2.986076676106917,
+          "raw_logits": [
+            6.246010780334473,
+            3.8406760692596436,
+            4.698629379272461,
+            11.736635208129883
+          ],
+          "raw_probs": [
+            0.004103211088253941,
+            0.0003702544334710224,
+            0.0008731817613797223,
+            0.9946533527168954
+          ],
+          "selected_label": "3",
+          "signed_margin": 5.49062442779541,
+          "source_id": "original-ordinal-04-1",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.32662842136549,
+          "expected_score": 0.32662842136549,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.8219997491809427,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            11.253195762634277,
+            8.80337905883789,
+            8.723196029663086,
+            8.268936157226563
+          ],
+          "prediction": 0,
+          "probs": [
+            0.8219997491809427,
+            0.07094630945585373,
+            0.06547971217997499,
+            0.041574229183228756
+          ],
+          "prompt_tokens": 128,
+          "raw_expected_abs_error": 0.32662842136549,
+          "raw_expected_score": 0.32662842136549,
+          "raw_logits": [
+            11.253195762634277,
+            8.80337905883789,
+            8.723196029663086,
+            8.268936157226563
+          ],
+          "raw_probs": [
+            0.8219997491809427,
+            0.07094630945585373,
+            0.06547971217997499,
+            0.041574229183228756
+          ],
+          "selected_label": "0",
+          "signed_margin": 2.4498167037963867,
+          "source_id": "original-ordinal-05-0",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.13983606224051487,
+          "expected_score": 0.13983606224051487,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.9092960248771862,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            12.471117973327637,
+            9.604182243347168,
+            9.02046012878418,
+            7.9751763343811035
+          ],
+          "prediction": 0,
+          "probs": [
+            0.9092960248771862,
+            0.05171433268855259,
+            0.02884719775082178,
+            0.01014244468343957
+          ],
+          "prompt_tokens": 127,
+          "raw_expected_abs_error": 0.13983606224051487,
+          "raw_expected_score": 0.13983606224051487,
+          "raw_logits": [
+            12.471117973327637,
+            9.604182243347168,
+            9.02046012878418,
+            7.9751763343811035
+          ],
+          "raw_probs": [
+            0.9092960248771862,
+            0.05171433268855259,
+            0.02884719775082178,
+            0.01014244468343957
+          ],
+          "selected_label": "0",
+          "signed_margin": 2.8669357299804688,
+          "source_id": "original-ordinal-05-1",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.8179088732365445,
+          "expected_score": 1.1820911267634555,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.5459552424999248,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.822427749633789,
+            8.982263565063477,
+            11.175891876220703,
+            7.15234375
+          ],
+          "prediction": 2,
+          "probs": [
+            0.3833977156111021,
+            0.0608802419516568,
+            0.5459552424999248,
+            0.009766799937316438
+          ],
+          "prompt_tokens": 128,
+          "raw_expected_abs_error": 0.8179088732365445,
+          "raw_expected_score": 1.1820911267634555,
+          "raw_logits": [
+            10.822427749633789,
+            8.982263565063477,
+            11.175891876220703,
+            7.15234375
+          ],
+          "raw_probs": [
+            0.3833977156111021,
+            0.0608802419516568,
+            0.5459552424999248,
+            0.009766799937316438
+          ],
+          "selected_label": "2",
+          "signed_margin": 0.35346412658691406,
+          "source_id": "original-ordinal-06-0",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.48787163739668515,
+          "expected_score": 1.5121283626033148,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.44287117380334085,
+          "labels": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            8.784246444702148,
+            9.703941345214844,
+            10.007323265075684,
+            8.517234802246094
+          ],
+          "prediction": 2,
+          "probs": [
+            0.13034725784868867,
+            0.3269793450236392,
+            0.44287117380334085,
+            0.09980222332433134
+          ],
+          "prompt_tokens": 135,
+          "raw_expected_abs_error": 0.48787163739668515,
+          "raw_expected_score": 1.5121283626033148,
+          "raw_logits": [
+            8.784246444702148,
+            9.703941345214844,
+            10.007323265075684,
+            8.517234802246094
+          ],
+          "raw_probs": [
+            0.13034725784868867,
+            0.3269793450236392,
+            0.44287117380334085,
+            0.09980222332433134
+          ],
+          "selected_label": "2",
+          "signed_margin": 0.30338191986083984,
+          "source_id": "original-ordinal-06-1",
+          "temperature": 1.0,
+          "token_ids": [
+            15,
+            16,
+            17,
+            18
+          ]
+        }
+      ],
+      "stability": {
+        "n_questions": 0,
+        "n_stable": 0,
+        "stability_rate": -1.0
+      }
+    },
+    {
+      "choice_ensemble": "none",
+      "choice_items": [],
+      "experiment": "letters",
+      "filler_text": "",
+      "layout": "auto",
+      "metrics": {
+        "choice": {
+          "accuracy": -1.0,
+          "brier": null,
+          "brier_convention": "sum over options",
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "eval_ms": 0,
+          "labeled": 0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_signed_winner_margin": null,
+          "median_signed_winner_margin": null,
+          "min_signed_winner_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_winner_margin": null,
+          "prompt_tokens": 0,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "n": 0,
+            "nll": null
+          },
+          "temperature": 1.0
+        },
+        "n_errors": 0,
+        "n_total": 12,
+        "noul": {
+          "accuracy": -1.0,
+          "brier": null,
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "mean_confidence_correct": null,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "eval_ms": 0,
+          "labeled": 0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_confidence_correct": null,
+          "mean_signed_margin": null,
+          "median_signed_margin": null,
+          "min_signed_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_margin": null,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "mean_confidence_correct": null,
+            "n": 0,
+            "nll": null
+          }
+        },
+        "score": {
+          "accuracy": 0.6666666666666666,
+          "brier": 0.4352230901550529,
+          "brier_convention": "sum over levels",
+          "calibrated": {
+            "brier": 0.4352230901550529,
+            "ece": 0.25362978864260816,
+            "ece_bins": 15,
+            "expected_score_mae": 0.35219676110076503,
+            "mean_expected_argmax_distance": 0.45821110630391715,
+            "n": 12,
+            "nll": 0.7789184817618512
+          },
+          "ece": 0.25362978864260816,
+          "ece_bins": 15,
+          "error_distance_histogram": [
+            8,
+            3,
+            1
+          ],
+          "eval_ms": 1493,
+          "evaluations_per_item": 1.0,
+          "expected_score_mae": 0.35219676110076503,
+          "ground_truth_by_level": {
+            "0": 4,
+            "1": 2,
+            "2": 4,
+            "3": 2
+          },
+          "labeled": 12,
+          "large_error_rate": 0.08333333333333333,
+          "large_error_threshold": 2,
+          "mae": 0.4166666666666667,
+          "margins": {
+            "corrected": {
+              "mean": 1.0859076579411824,
+              "median": 0.8014206886291504,
+              "min": -2.473435401916504,
+              "n": 12,
+              "p10": -1.812540817260742
+            },
+            "raw": {
+              "mean": 1.0859076579411824,
+              "median": 0.8014206886291504,
+              "min": -2.473435401916504,
+              "n": 12,
+              "p10": -1.812540817260742
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_expected_argmax_distance": 0.45821110630391715,
+          "mean_signed_margin": 1.0859076579411824,
+          "median_signed_margin": 0.8014206886291504,
+          "min_signed_margin": -2.473435401916504,
+          "n": 12,
+          "nll": 0.7789184817618512,
+          "p10_signed_margin": -1.812540817260742,
+          "prediction_by_level": {
+            "0": 5,
+            "2": 2,
+            "3": 5
+          },
+          "prompt_tokens": 1466,
+          "qwk": 0.817391304347826,
+          "raw": {
+            "brier": 0.4352230901550529,
+            "ece": 0.25362978864260816,
+            "ece_bins": 15,
+            "expected_score_mae": 0.35219676110076503,
+            "mean_expected_argmax_distance": 0.45821110630391715,
+            "n": 12,
+            "nll": 0.7789184817618512
+          },
+          "raw_expected_score_mae": 0.35219676110076503,
+          "raw_mean_expected_argmax_distance": 0.45821110630391715,
+          "selection_by_label": {
+            "A": 5,
+            "C": 2,
+            "D": 5
+          },
+          "temperature": 1.0
+        }
+      },
+      "noul_ensemble": "none",
+      "noul_items": [],
+      "option_order": "original",
+      "prior_correction": false,
+      "scheme": "letters",
+      "score_candidates": [],
+      "score_items": [
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.1910901882540395,
+          "expected_score": 0.1910901882540395,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.9213207872301817,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.733907699584961,
+            6.25836181640625,
+            7.084936141967773,
+            7.6972784996032715
+          ],
+          "prediction": 0,
+          "probs": [
+            0.9213207872301817,
+            0.010488321453245367,
+            0.023970807148924515,
+            0.044220084167648374
+          ],
+          "prompt_tokens": 118,
+          "raw_expected_abs_error": 0.1910901882540395,
+          "raw_expected_score": 0.1910901882540395,
+          "raw_logits": [
+            10.733907699584961,
+            6.25836181640625,
+            7.084936141967773,
+            7.6972784996032715
+          ],
+          "raw_probs": [
+            0.9213207872301817,
+            0.010488321453245367,
+            0.023970807148924515,
+            0.044220084167648374
+          ],
+          "selected_label": "A",
+          "signed_margin": 3.0366291999816895,
+          "source_id": "original-ordinal-01-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.23705263571103616,
+          "expected_score": 0.23705263571103616,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.8958158529804047,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            11.518856048583984,
+            8.135189056396484,
+            7.41050386428833,
+            8.799894332885742
+          ],
+          "prediction": 0,
+          "probs": [
+            0.8958158529804047,
+            0.03038861034293587,
+            0.014722584661877779,
+            0.05907295201478158
+          ],
+          "prompt_tokens": 120,
+          "raw_expected_abs_error": 0.23705263571103616,
+          "raw_expected_score": 0.23705263571103616,
+          "raw_logits": [
+            11.518856048583984,
+            8.135189056396484,
+            7.41050386428833,
+            8.799894332885742
+          ],
+          "raw_probs": [
+            0.8958158529804047,
+            0.03038861034293587,
+            0.014722584661877779,
+            0.05907295201478158
+          ],
+          "selected_label": "A",
+          "signed_margin": 2.718961715698242,
+          "source_id": "original-ordinal-01-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 2,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 0.8190734405598916,
+          "expected_score": 1.8190734405598916,
+          "ground_truth": 1,
+          "ground_truth_probability": 0.27289775182139425,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            8.61143970489502,
+            8.95523738861084,
+            7.346508979797363,
+            9.51779842376709
+          ],
+          "prediction": 3,
+          "probs": [
+            0.19350425576788305,
+            0.27289775182139425,
+            0.05461828849367081,
+            0.47897970391705186
+          ],
+          "prompt_tokens": 122,
+          "raw_expected_abs_error": 0.8190734405598916,
+          "raw_expected_score": 1.8190734405598916,
+          "raw_logits": [
+            8.61143970489502,
+            8.95523738861084,
+            7.346508979797363,
+            9.51779842376709
+          ],
+          "raw_probs": [
+            0.19350425576788305,
+            0.27289775182139425,
+            0.05461828849367081,
+            0.47897970391705186
+          ],
+          "selected_label": "D",
+          "signed_margin": -0.56256103515625,
+          "source_id": "original-ordinal-02-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 0.7381815637548633,
+          "expected_score": 0.2618184362451367,
+          "ground_truth": 1,
+          "ground_truth_probability": 0.11689888185473332,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            11.351339340209961,
+            9.399911880493164,
+            8.220050811767578,
+            7.831387519836426
+          ],
+          "prediction": 0,
+          "probs": [
+            0.8228194227506583,
+            0.11689888185473332,
+            0.035925531793421756,
+            0.02435616360118661
+          ],
+          "prompt_tokens": 123,
+          "raw_expected_abs_error": 0.7381815637548633,
+          "raw_expected_score": 0.2618184362451367,
+          "raw_logits": [
+            11.351339340209961,
+            9.399911880493164,
+            8.220050811767578,
+            7.831387519836426
+          ],
+          "raw_probs": [
+            0.8228194227506583,
+            0.11689888185473332,
+            0.035925531793421756,
+            0.02435616360118661
+          ],
+          "selected_label": "A",
+          "signed_margin": -1.9514274597167969,
+          "source_id": "original-ordinal-02-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.13484492717298613,
+          "expected_score": 2.134844927172986,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.48012594384566104,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            7.051764488220215,
+            5.20811653137207,
+            8.471397399902344,
+            8.251649856567383
+          ],
+          "prediction": 2,
+          "probs": [
+            0.11609578008682105,
+            0.01837089436044485,
+            0.48012594384566104,
+            0.3854073817070731
+          ],
+          "prompt_tokens": 119,
+          "raw_expected_abs_error": 0.13484492717298613,
+          "raw_expected_score": 2.134844927172986,
+          "raw_logits": [
+            7.051764488220215,
+            5.20811653137207,
+            8.471397399902344,
+            8.251649856567383
+          ],
+          "raw_probs": [
+            0.11609578008682105,
+            0.01837089436044485,
+            0.48012594384566104,
+            0.3854073817070731
+          ],
+          "selected_label": "C",
+          "signed_margin": 0.21974754333496094,
+          "source_id": "original-ordinal-03-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 0.30665892446633247,
+          "expected_score": 2.3066589244663325,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.06021392699703812,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            9.069890022277832,
+            7.6318359375,
+            7.962653160095215,
+            10.436088562011719
+          ],
+          "prediction": 3,
+          "probs": [
+            0.1822064770301503,
+            0.043253858723089324,
+            0.06021392699703812,
+            0.7143257372497223
+          ],
+          "prompt_tokens": 121,
+          "raw_expected_abs_error": 0.30665892446633247,
+          "raw_expected_score": 2.3066589244663325,
+          "raw_logits": [
+            9.069890022277832,
+            7.6318359375,
+            7.962653160095215,
+            10.436088562011719
+          ],
+          "raw_probs": [
+            0.1822064770301503,
+            0.043253858723089324,
+            0.06021392699703812,
+            0.7143257372497223
+          ],
+          "selected_label": "D",
+          "signed_margin": -2.473435401916504,
+          "source_id": "original-ordinal-03-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.09695584907751886,
+          "expected_score": 2.903044150922481,
+          "ground_truth": 3,
+          "ground_truth_probability": 0.9613887183398709,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            4.067025661468506,
+            2.1621017456054688,
+            2.769554615020752,
+            7.633963584899902
+          ],
+          "prediction": 3,
+          "probs": [
+            0.027151733609000646,
+            0.004041100199388656,
+            0.007418447851739826,
+            0.9613887183398709
+          ],
+          "prompt_tokens": 121,
+          "raw_expected_abs_error": 0.09695584907751886,
+          "raw_expected_score": 2.903044150922481,
+          "raw_logits": [
+            4.067025661468506,
+            2.1621017456054688,
+            2.769554615020752,
+            7.633963584899902
+          ],
+          "raw_probs": [
+            0.027151733609000646,
+            0.004041100199388656,
+            0.007418447851739826,
+            0.9613887183398709
+          ],
+          "selected_label": "D",
+          "signed_margin": 3.5669379234313965,
+          "source_id": "original-ordinal-04-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.04525045586790766,
+          "expected_score": 2.9547495441320923,
+          "ground_truth": 3,
+          "ground_truth_probability": 0.9816076021819252,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            4.75631856918335,
+            2.9982666969299316,
+            3.6019790172576904,
+            9.130767822265625
+          ],
+          "prediction": 3,
+          "probs": [
+            0.012363423365125501,
+            0.0021312113195817353,
+            0.003897763133367451,
+            0.9816076021819252
+          ],
+          "prompt_tokens": 120,
+          "raw_expected_abs_error": 0.04525045586790766,
+          "raw_expected_score": 2.9547495441320923,
+          "raw_logits": [
+            4.75631856918335,
+            2.9982666969299316,
+            3.6019790172576904,
+            9.130767822265625
+          ],
+          "raw_probs": [
+            0.012363423365125501,
+            0.0021312113195817353,
+            0.003897763133367451,
+            0.9816076021819252
+          ],
+          "selected_label": "D",
+          "signed_margin": 4.374449253082275,
+          "source_id": "original-ordinal-04-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.9587057999703475,
+          "expected_score": 0.9587057999703475,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.6653790261778617,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            12.203157424926758,
+            7.910277366638184,
+            8.997586250305176,
+            11.40176010131836
+          ],
+          "prediction": 0,
+          "probs": [
+            0.6653790261778617,
+            0.0090927444669475,
+            0.026971632562172273,
+            0.2985565967930185
+          ],
+          "prompt_tokens": 124,
+          "raw_expected_abs_error": 0.9587057999703475,
+          "raw_expected_score": 0.9587057999703475,
+          "raw_logits": [
+            12.203157424926758,
+            7.910277366638184,
+            8.997586250305176,
+            11.40176010131836
+          ],
+          "raw_probs": [
+            0.6653790261778617,
+            0.0090927444669475,
+            0.026971632562172273,
+            0.2985565967930185
+          ],
+          "selected_label": "A",
+          "signed_margin": 0.8013973236083984,
+          "source_id": "original-ordinal-05-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.2634641759456058,
+          "expected_score": 0.2634641759456058,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.9004077253413888,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            12.946781158447266,
+            8.260370254516602,
+            9.072972297668457,
+            10.428638458251953
+          ],
+          "prediction": 0,
+          "probs": [
+            0.9004077253413888,
+            0.008301504678716487,
+            0.01870963867279447,
+            0.07258113130710013
+          ],
+          "prompt_tokens": 123,
+          "raw_expected_abs_error": 0.2634641759456058,
+          "raw_expected_score": 0.2634641759456058,
+          "raw_logits": [
+            12.946781158447266,
+            8.260370254516602,
+            9.072972297668457,
+            10.428638458251953
+          ],
+          "raw_probs": [
+            0.9004077253413888,
+            0.008301504678716487,
+            0.01870963867279447,
+            0.07258113130710013
+          ],
+          "selected_label": "A",
+          "signed_margin": 2.5181427001953125,
+          "source_id": "original-ordinal-05-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.40375207537511604,
+          "expected_score": 1.596247924624884,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.5706713383084115,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.818673133850098,
+            8.753517150878906,
+            11.6201171875,
+            10.220735549926758
+          ],
+          "prediction": 2,
+          "probs": [
+            0.2560491454933688,
+            0.032466650293299024,
+            0.5706713383084115,
+            0.1408128659049206
+          ],
+          "prompt_tokens": 124,
+          "raw_expected_abs_error": 0.40375207537511604,
+          "raw_expected_score": 1.596247924624884,
+          "raw_logits": [
+            10.818673133850098,
+            8.753517150878906,
+            11.6201171875,
+            10.220735549926758
+          ],
+          "raw_probs": [
+            0.2560491454933688,
+            0.032466650293299024,
+            0.5706713383084115,
+            0.1408128659049206
+          ],
+          "selected_label": "C",
+          "signed_margin": 0.8014440536499023,
+          "source_id": "original-ordinal-06-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 0.03133109705353565,
+          "expected_score": 1.9686689029464643,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.3551539495559973,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            8.779732704162598,
+            9.220573425292969,
+            9.945432662963867,
+            9.964826583862305
+          ],
+          "prediction": 3,
+          "probs": [
+            0.1107030506768829,
+            0.17203399773344483,
+            0.3551539495559973,
+            0.362109002033675
+          ],
+          "prompt_tokens": 131,
+          "raw_expected_abs_error": 0.03133109705353565,
+          "raw_expected_score": 1.9686689029464643,
+          "raw_logits": [
+            8.779732704162598,
+            9.220573425292969,
+            9.945432662963867,
+            9.964826583862305
+          ],
+          "raw_probs": [
+            0.1107030506768829,
+            0.17203399773344483,
+            0.3551539495559973,
+            0.362109002033675
+          ],
+          "selected_label": "D",
+          "signed_margin": -0.0193939208984375,
+          "source_id": "original-ordinal-06-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        }
+      ],
+      "stability": {
+        "n_questions": 0,
+        "n_stable": 0,
+        "stability_rate": -1.0
+      }
+    },
+    {
+      "choice_ensemble": "none",
+      "choice_items": [],
+      "experiment": "letters-rotation",
+      "filler_text": "",
+      "layout": "auto",
+      "metrics": {
+        "choice": {
+          "accuracy": -1.0,
+          "brier": null,
+          "brier_convention": "sum over options",
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "eval_ms": 0,
+          "labeled": 0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_signed_winner_margin": null,
+          "median_signed_winner_margin": null,
+          "min_signed_winner_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_winner_margin": null,
+          "prompt_tokens": 0,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "n": 0,
+            "nll": null
+          },
+          "temperature": 1.0
+        },
+        "n_errors": 0,
+        "n_total": 12,
+        "noul": {
+          "accuracy": -1.0,
+          "brier": null,
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "mean_confidence_correct": null,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "eval_ms": 0,
+          "labeled": 0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_confidence_correct": null,
+          "mean_signed_margin": null,
+          "median_signed_margin": null,
+          "min_signed_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_margin": null,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "mean_confidence_correct": null,
+            "n": 0,
+            "nll": null
+          }
+        },
+        "score": {
+          "accuracy": 0.5,
+          "brier": 0.5321885196994294,
+          "brier_convention": "sum over levels",
+          "calibrated": {
+            "brier": 0.5321885196994294,
+            "ece": 0.20684124565258877,
+            "ece_bins": 15,
+            "expected_score_mae": 0.5721199242435211,
+            "mean_expected_argmax_distance": 0.5975004331958647,
+            "n": 12,
+            "nll": 0.9179122227829627
+          },
+          "ece": 0.20684124565258877,
+          "ece_bins": 15,
+          "error_distance_histogram": [
+            6,
+            4,
+            1,
+            1
+          ],
+          "eval_ms": 6971,
+          "evaluations_per_item": 4.0,
+          "expected_score_mae": 0.5721199242435211,
+          "ground_truth_by_level": {
+            "0": 4,
+            "1": 2,
+            "2": 4,
+            "3": 2
+          },
+          "labeled": 12,
+          "large_error_rate": 0.16666666666666666,
+          "large_error_threshold": 2,
+          "mae": 0.75,
+          "margins": {
+            "corrected": {
+              "mean": 0.9023112058639526,
+              "median": 0.4859299659729004,
+              "min": -2.7004995346069336,
+              "n": 12,
+              "p10": -1.400205135345459
+            },
+            "raw": {
+              "mean": 0.9023112058639526,
+              "median": 0.4859299659729004,
+              "min": -2.7004995346069336,
+              "n": 12,
+              "p10": -1.400205135345459
+            },
+            "source": "pre-temperature logits"
+          },
+          "max_semantic_logit_variance": 6.082772104465718,
+          "mean_distinct_winners": 2.6666666666666665,
+          "mean_expected_argmax_distance": 0.5975004331958647,
+          "mean_rotation_expected_score_stddev": 0.5146643959028109,
+          "mean_semantic_logit_variance": 1.804650282287553,
+          "mean_signed_margin": 0.9023112058639526,
+          "median_signed_margin": 0.4859299659729004,
+          "min_signed_margin": -2.7004995346069336,
+          "n": 12,
+          "nll": 0.9179122227829627,
+          "p10_signed_margin": -1.400205135345459,
+          "prediction_by_level": {
+            "0": 4,
+            "2": 1,
+            "3": 7
+          },
+          "prompt_tokens": 5864,
+          "qwk": 0.5920000000000001,
+          "raw": {
+            "brier": 0.5321885196994294,
+            "ece": 0.20684124565258877,
+            "ece_bins": 15,
+            "expected_score_mae": 0.5721199242435211,
+            "mean_expected_argmax_distance": 0.5975004331958647,
+            "n": 12,
+            "nll": 0.9179122227829627
+          },
+          "raw_expected_score_mae": 0.5721199242435211,
+          "raw_mean_expected_argmax_distance": 0.5975004331958647,
+          "rotation_disagreement_rate": 0.75,
+          "selection_by_label": {
+            "A": 4,
+            "C": 1,
+            "D": 7
+          },
+          "temperature": 1.0
+        }
+      },
+      "noul_ensemble": "none",
+      "noul_items": [],
+      "option_order": "original",
+      "prior_correction": false,
+      "scheme": "letters",
+      "score_candidates": [],
+      "score_items": [
+        {
+          "abs_error": 0,
+          "correct": true,
+          "distinct_winners": 4,
+          "evaluations": 4,
+          "expected_abs_error": 0.679441974180232,
+          "expected_score": 0.679441974180232,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.7086506330779956,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.162383079528809,
+            7.78785514831543,
+            7.737610340118408,
+            8.690861701965332
+          ],
+          "mean_semantic_logit_variance": 3.1678377255258745,
+          "prediction": 0,
+          "probs": [
+            0.7086506330779956,
+            0.0659459003188784,
+            0.06271432594802422,
+            0.1626891406551017
+          ],
+          "prompt_tokens": 472,
+          "raw_expected_abs_error": 0.679441974180232,
+          "raw_expected_score": 0.679441974180232,
+          "raw_logits": [
+            10.162383079528809,
+            7.78785514831543,
+            7.737610340118408,
+            8.690861701965332
+          ],
+          "raw_probs": [
+            0.7086506330779956,
+            0.0659459003188784,
+            0.06271432594802422,
+            0.1626891406551017
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.8149576353214494,
+          "rotations": [
+            {
+              "corrected_logits": [
+                10.733907699584961,
+                6.25836181640625,
+                7.084936141967773,
+                7.6972784996032715
+              ],
+              "expected_score_r": 0.19109018825403953,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 0,
+              "raw_logits": [
+                10.733907699584961,
+                6.25836181640625,
+                7.084936141967773,
+                7.6972784996032715
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                8.005529403686523,
+                7.110104560852051,
+                5.202830791473389,
+                9.669031143188477
+              ],
+              "expected_score_r": 2.425284397682387,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                8.005529403686523,
+                7.110104560852051,
+                5.202830791473389,
+                9.669031143188477
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                10.7954740524292,
+                5.801458835601807,
+                10.996009826660156,
+                8.128190040588379
+              ],
+              "expected_score_r": 1.1570474660819494,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                10.7954740524292,
+                5.801458835601807,
+                10.996009826660156,
+                8.128190040588379
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                11.114620208740234,
+                11.98149585723877,
+                7.666664123535156,
+                9.26894760131836
+              ],
+              "expected_score_r": 0.8172273159621924,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 1,
+              "raw_logits": [
+                11.114620208740234,
+                11.98149585723877,
+                7.666664123535156,
+                9.26894760131836
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "A",
+          "signed_margin": 1.4715213775634766,
+          "source_id": "original-ordinal-01-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "distinct_winners": 3,
+          "evaluations": 4,
+          "expected_abs_error": 0.7351776358205536,
+          "expected_score": 0.7351776358205536,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.6838667187744609,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.866493225097656,
+            8.819430351257324,
+            7.939577579498291,
+            9.592089653015137
+          ],
+          "mean_semantic_logit_variance": 2.1262269153155913,
+          "prediction": 0,
+          "probs": [
+            0.6838667187744609,
+            0.08829647350904767,
+            0.03662926083796821,
+            0.1912075468785232
+          ],
+          "prompt_tokens": 480,
+          "raw_expected_abs_error": 0.7351776358205536,
+          "raw_expected_score": 0.7351776358205536,
+          "raw_logits": [
+            10.866493225097656,
+            8.819430351257324,
+            7.939577579498291,
+            9.592089653015137
+          ],
+          "raw_probs": [
+            0.6838667187744609,
+            0.08829647350904767,
+            0.03662926083796821,
+            0.1912075468785232
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.7290045947269678,
+          "rotations": [
+            {
+              "corrected_logits": [
+                11.518856048583984,
+                8.135189056396484,
+                7.41050386428833,
+                8.799894332885742
+              ],
+              "expected_score_r": 0.23705263571103616,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 0,
+              "raw_logits": [
+                11.518856048583984,
+                8.135189056396484,
+                7.41050386428833,
+                8.799894332885742
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                9.379486083984375,
+                8.001991271972656,
+                5.510466575622559,
+                10.57247543334961
+              ],
+              "expected_score_r": 2.2286017795149777,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                9.379486083984375,
+                8.001991271972656,
+                5.510466575622559,
+                10.57247543334961
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                11.223426818847656,
+                6.908441066741943,
+                10.501952171325684,
+                9.293905258178711
+              ],
+              "expected_score_r": 0.8640842470176986,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 0,
+              "raw_logits": [
+                11.223426818847656,
+                6.908441066741943,
+                10.501952171325684,
+                9.293905258178711
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                11.344202995300293,
+                12.232099533081055,
+                8.33538818359375,
+                9.702083587646484
+              ],
+              "expected_score_r": 0.8465773099221408,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 1,
+              "raw_logits": [
+                11.344202995300293,
+                12.232099533081055,
+                8.33538818359375,
+                9.702083587646484
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "A",
+          "signed_margin": 1.2744035720825195,
+          "source_id": "original-ordinal-01-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 2,
+          "correct": false,
+          "distinct_winners": 2,
+          "evaluations": 4,
+          "expected_abs_error": 1.4013889757368458,
+          "expected_score": 2.401388975736846,
+          "ground_truth": 1,
+          "ground_truth_probability": 0.16431310231323024,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            8.169185638427734,
+            8.896824836730957,
+            7.2567620277404785,
+            10.38045597076416
+          ],
+          "mean_semantic_logit_variance": 1.1089931330963942,
+          "prediction": 3,
+          "probs": [
+            0.07937111965938748,
+            0.16431310231323024,
+            0.031871460658531726,
+            0.7244443173688506
+          ],
+          "prompt_tokens": 488,
+          "raw_expected_abs_error": 1.4013889757368458,
+          "raw_expected_score": 2.401388975736846,
+          "raw_logits": [
+            8.169185638427734,
+            8.896824836730957,
+            7.2567620277404785,
+            10.38045597076416
+          ],
+          "raw_probs": [
+            0.07937111965938748,
+            0.16431310231323024,
+            0.031871460658531726,
+            0.7244443173688506
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.5212640917181596,
+          "rotations": [
+            {
+              "corrected_logits": [
+                8.61143970489502,
+                8.95523738861084,
+                7.346508979797363,
+                9.51779842376709
+              ],
+              "expected_score_r": 1.8190734405598916,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                8.61143970489502,
+                8.95523738861084,
+                7.346508979797363,
+                9.51779842376709
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                7.627951622009277,
+                8.409028053283691,
+                5.720693588256836,
+                11.499862670898438
+              ],
+              "expected_score_r": 2.8536761373375885,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                7.627951622009277,
+                8.409028053283691,
+                5.720693588256836,
+                11.499862670898438
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                8.751795768737793,
+                6.876142978668213,
+                8.654746055603027,
+                10.241233825683594
+              ],
+              "expected_score_r": 2.351226862123733,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                8.751795768737793,
+                6.876142978668213,
+                8.654746055603027,
+                10.241233825683594
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                7.685556888580322,
+                11.346890449523926,
+                7.305099964141846,
+                10.26292896270752
+              ],
+              "expected_score_r": 1.4837967927376907,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 1,
+              "raw_logits": [
+                7.685556888580322,
+                11.346890449523926,
+                7.305099964141846,
+                10.26292896270752
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "D",
+          "signed_margin": -1.4836311340332031,
+          "source_id": "original-ordinal-02-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "distinct_winners": 4,
+          "evaluations": 4,
+          "expected_abs_error": 0.24822136525116711,
+          "expected_score": 0.7517786347488329,
+          "ground_truth": 1,
+          "ground_truth_probability": 0.2812371832439773,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.371909141540527,
+            9.722537994384766,
+            8.340356826782227,
+            8.781827926635742
+          ],
+          "mean_semantic_logit_variance": 2.4466942404348764,
+          "prediction": 0,
+          "probs": [
+            0.5383826372123887,
+            0.2812371832439773,
+            0.07059908712604682,
+            0.10978109241758735
+          ],
+          "prompt_tokens": 492,
+          "raw_expected_abs_error": 0.24822136525116711,
+          "raw_expected_score": 0.7517786347488329,
+          "raw_logits": [
+            10.371909141540527,
+            9.722537994384766,
+            8.340356826782227,
+            8.781827926635742
+          ],
+          "raw_probs": [
+            0.5383826372123887,
+            0.2812371832439773,
+            0.07059908712604682,
+            0.10978109241758735
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.7538122104532874,
+          "rotations": [
+            {
+              "corrected_logits": [
+                11.351339340209961,
+                9.399911880493164,
+                8.220050811767578,
+                7.831387519836426
+              ],
+              "expected_score_r": 0.2618184362451367,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 0,
+              "raw_logits": [
+                11.351339340209961,
+                9.399911880493164,
+                8.220050811767578,
+                7.831387519836426
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                9.025201797485352,
+                9.125580787658691,
+                5.949515342712402,
+                10.795720100402832
+              ],
+              "expected_score_r": 2.3449326814232108,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                9.025201797485352,
+                9.125580787658691,
+                5.949515342712402,
+                10.795720100402832
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                10.596229553222656,
+                7.386335372924805,
+                11.224416732788086,
+                8.059072494506836
+              ],
+              "expected_score_r": 1.344859191008574,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                10.596229553222656,
+                7.386335372924805,
+                11.224416732788086,
+                8.059072494506836
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                10.51486587524414,
+                12.978324890136719,
+                7.967442989349365,
+                8.441131591796875
+              ],
+              "expected_score_r": 0.9482379380679667,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 1,
+              "raw_logits": [
+                10.51486587524414,
+                12.978324890136719,
+                7.967442989349365,
+                8.441131591796875
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "A",
+          "signed_margin": -0.6493711471557617,
+          "source_id": "original-ordinal-02-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "distinct_winners": 2,
+          "evaluations": 4,
+          "expected_abs_error": 0.295067813577516,
+          "expected_score": 2.295067813577516,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.3591164658458465,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            7.264408111572266,
+            6.3304266929626465,
+            8.633451461791992,
+            8.991339683532715
+          ],
+          "mean_semantic_logit_variance": 1.2155756122067025,
+          "prediction": 3,
+          "probs": [
+            0.0913413331442166,
+            0.03589586057199401,
+            0.3591164658458465,
+            0.5136463404379429
+          ],
+          "prompt_tokens": 476,
+          "raw_expected_abs_error": 0.295067813577516,
+          "raw_expected_score": 2.295067813577516,
+          "raw_logits": [
+            7.264408111572266,
+            6.3304266929626465,
+            8.633451461791992,
+            8.991339683532715
+          ],
+          "raw_probs": [
+            0.0913413331442166,
+            0.03589586057199401,
+            0.3591164658458465,
+            0.5136463404379429
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.4051856741918951,
+          "rotations": [
+            {
+              "corrected_logits": [
+                7.051764488220215,
+                5.20811653137207,
+                8.471397399902344,
+                8.251649856567383
+              ],
+              "expected_score_r": 2.134844927172986,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                7.051764488220215,
+                5.20811653137207,
+                8.471397399902344,
+                8.251649856567383
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                6.069025039672852,
+                6.3615403175354,
+                7.101774215698242,
+                10.379812240600586
+              ],
+              "expected_score_r": 2.8934261078009813,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                6.069025039672852,
+                6.3615403175354,
+                7.101774215698242,
+                10.379812240600586
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                8.953099250793457,
+                5.595379829406738,
+                10.663270950317383,
+                8.111197471618652
+              ],
+              "expected_score_r": 1.7707243590759585,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                8.953099250793457,
+                5.595379829406738,
+                10.663270950317383,
+                8.111197471618652
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                6.9837446212768555,
+                8.156670570373535,
+                8.29736328125,
+                9.222698211669922
+              ],
+              "expected_score_r": 2.2395258737991437,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                6.9837446212768555,
+                8.156670570373535,
+                8.29736328125,
+                9.222698211669922
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "D",
+          "signed_margin": -0.35788822174072266,
+          "source_id": "original-ordinal-03-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "distinct_winners": 1,
+          "evaluations": 4,
+          "expected_abs_error": 0.5638810298878743,
+          "expected_score": 2.5638810298878743,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.05380146207490147,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            8.903569221496582,
+            8.361968040466309,
+            8.369006156921387,
+            11.06950569152832
+          ],
+          "mean_semantic_logit_variance": 1.1268092953831186,
+          "prediction": 3,
+          "probs": [
+            0.09182308232664703,
+            0.05342413052864173,
+            0.05380146207490147,
+            0.8009513250698098
+          ],
+          "prompt_tokens": 484,
+          "raw_expected_abs_error": 0.5638810298878743,
+          "raw_expected_score": 2.5638810298878743,
+          "raw_logits": [
+            8.903569221496582,
+            8.361968040466309,
+            8.369006156921387,
+            11.06950569152832
+          ],
+          "raw_probs": [
+            0.09182308232664703,
+            0.05342413052864173,
+            0.05380146207490147,
+            0.8009513250698098
+          ],
+          "rotation_disagreement": false,
+          "rotation_expected_score_stddev": 0.3179669604179499,
+          "rotations": [
+            {
+              "corrected_logits": [
+                9.069890022277832,
+                7.6318359375,
+                7.962653160095215,
+                10.436088562011719
+              ],
+              "expected_score_r": 2.3066589244663325,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                9.069890022277832,
+                7.6318359375,
+                7.962653160095215,
+                10.436088562011719
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                8.046262741088867,
+                8.089921951293945,
+                6.965001583099365,
+                11.780570983886719
+              ],
+              "expected_score_r": 2.8773040224466415,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                8.046262741088867,
+                8.089921951293945,
+                6.965001583099365,
+                11.780570983886719
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                9.614789962768555,
+                6.710026264190674,
+                9.92258358001709,
+                10.377239227294922
+              ],
+              "expected_score_r": 2.019470041844757,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                9.614789962768555,
+                6.710026264190674,
+                9.92258358001709,
+                10.377239227294922
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                8.883333206176758,
+                11.01608657836914,
+                8.625787734985352,
+                11.684122085571289
+              ],
+              "expected_score_r": 2.225716681209465,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                8.883333206176758,
+                11.01608657836914,
+                8.625787734985352,
+                11.684122085571289
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "D",
+          "signed_margin": -2.7004995346069336,
+          "source_id": "original-ordinal-03-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "distinct_winners": 1,
+          "evaluations": 4,
+          "expected_abs_error": 0.026676826854940217,
+          "expected_score": 2.97332317314506,
+          "ground_truth": 3,
+          "ground_truth_probability": 0.9868516755720859,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            2.5779967308044434,
+            2.220125913619995,
+            2.4991137981414795,
+            7.860659599304199
+          ],
+          "mean_semantic_logit_variance": 1.2935372243261876,
+          "prediction": 3,
+          "probs": [
+            0.005012109486153415,
+            0.003504283454718985,
+            0.004631931487041707,
+            0.9868516755720859
+          ],
+          "prompt_tokens": 484,
+          "raw_expected_abs_error": 0.026676826854940217,
+          "raw_expected_score": 2.97332317314506,
+          "raw_logits": [
+            2.5779967308044434,
+            2.220125913619995,
+            2.4991137981414795,
+            7.860659599304199
+          ],
+          "raw_probs": [
+            0.005012109486153415,
+            0.003504283454718985,
+            0.004631931487041707,
+            0.9868516755720859
+          ],
+          "rotation_disagreement": false,
+          "rotation_expected_score_stddev": 0.06843141018749953,
+          "rotations": [
+            {
+              "corrected_logits": [
+                4.067025661468506,
+                2.1621017456054688,
+                2.769554615020752,
+                7.633963584899902
+              ],
+              "expected_score_r": 2.903044150922481,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                4.067025661468506,
+                2.1621017456054688,
+                2.769554615020752,
+                7.633963584899902
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                2.559622049331665,
+                2.8184311389923096,
+                1.903222918510437,
+                9.583525657653809
+              ],
+              "expected_score_r": 2.994574053335147,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                2.559622049331665,
+                2.8184311389923096,
+                1.903222918510437,
+                9.583525657653809
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                3.142378330230713,
+                0.9030768871307373,
+                4.4337263107299805,
+                6.654012680053711
+              ],
+              "expected_score_r": 2.82088223772253,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                3.142378330230713,
+                0.9030768871307373,
+                4.4337263107299805,
+                6.654012680053711
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                0.5429613590240479,
+                2.9968936443328857,
+                0.8899513483047485,
+                7.571135520935059
+              ],
+              "expected_score_r": 2.9757597413985377,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                0.5429613590240479,
+                2.9968936443328857,
+                0.8899513483047485,
+                7.571135520935059
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "D",
+          "signed_margin": 5.282662868499756,
+          "source_id": "original-ordinal-04-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "distinct_winners": 1,
+          "evaluations": 4,
+          "expected_abs_error": 0.011757102155827592,
+          "expected_score": 2.9882428978441724,
+          "ground_truth": 3,
+          "ground_truth_probability": 0.9942828432982593,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            3.376448631286621,
+            3.154733896255493,
+            3.214282989501953,
+            9.510103225708008
+          ],
+          "mean_semantic_logit_variance": 1.3429468480876758,
+          "prediction": 3,
+          "probs": [
+            0.002156242497476333,
+            0.0017274604591339183,
+            0.0018334537451303553,
+            0.9942828432982593
+          ],
+          "prompt_tokens": 480,
+          "raw_expected_abs_error": 0.011757102155827592,
+          "raw_expected_score": 2.9882428978441724,
+          "raw_logits": [
+            3.376448631286621,
+            3.154733896255493,
+            3.214282989501953,
+            9.510103225708008
+          ],
+          "raw_probs": [
+            0.002156242497476333,
+            0.0017274604591339183,
+            0.0018334537451303553,
+            0.9942828432982593
+          ],
+          "rotation_disagreement": false,
+          "rotation_expected_score_stddev": 0.01598673931046018,
+          "rotations": [
+            {
+              "corrected_logits": [
+                4.75631856918335,
+                2.9982666969299316,
+                3.6019790172576904,
+                9.130767822265625
+              ],
+              "expected_score_r": 2.9547495441320923,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                4.75631856918335,
+                2.9982666969299316,
+                3.6019790172576904,
+                9.130767822265625
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                3.7112269401550293,
+                3.9138872623443604,
+                2.97792387008667,
+                11.190573692321777
+              ],
+              "expected_score_r": 2.9966570800691774,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                3.7112269401550293,
+                3.9138872623443604,
+                2.97792387008667,
+                11.190573692321777
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                4.202657222747803,
+                2.0956382751464844,
+                4.886979103088379,
+                9.217402458190918
+              ],
+              "expected_score_r": 2.9660059448254548,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                4.202657222747803,
+                2.0956382751464844,
+                4.886979103088379,
+                9.217402458190918
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                0.8355917930603027,
+                3.611143112182617,
+                1.390250325202942,
+                8.501669883728027
+              ],
+              "expected_score_r": 2.9828945428036038,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                0.8355917930603027,
+                3.611143112182617,
+                1.390250325202942,
+                8.501669883728027
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "D",
+          "signed_margin": 6.133654594421387,
+          "source_id": "original-ordinal-04-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 3,
+          "correct": false,
+          "distinct_winners": 4,
+          "evaluations": 4,
+          "expected_abs_error": 1.8391577618325354,
+          "expected_score": 1.8391577618325354,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.3267515948533167,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.283565521240234,
+            8.332817077636719,
+            8.968064308166504,
+            10.784293174743652
+          ],
+          "mean_semantic_logit_variance": 2.7065131075206743,
+          "prediction": 3,
+          "probs": [
+            0.3267515948533167,
+            0.046453498958887174,
+            0.08768045568973992,
+            0.5391144504980562
+          ],
+          "prompt_tokens": 496,
+          "raw_expected_abs_error": 1.8391577618325354,
+          "raw_expected_score": 1.8391577618325354,
+          "raw_logits": [
+            10.283565521240234,
+            8.332817077636719,
+            8.968064308166504,
+            10.784293174743652
+          ],
+          "raw_probs": [
+            0.3267515948533167,
+            0.046453498958887174,
+            0.08768045568973992,
+            0.5391144504980562
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.7651823489355276,
+          "rotations": [
+            {
+              "corrected_logits": [
+                12.203157424926758,
+                7.910277366638184,
+                8.997586250305176,
+                11.40176010131836
+              ],
+              "expected_score_r": 0.9587057999703475,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 0,
+              "raw_logits": [
+                12.203157424926758,
+                7.910277366638184,
+                8.997586250305176,
+                11.40176010131836
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                8.205179214477539,
+                7.745767116546631,
+                6.991324424743652,
+                12.694245338439941
+              ],
+              "expected_score_r": 2.9498679551632003,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                8.205179214477539,
+                7.745767116546631,
+                6.991324424743652,
+                12.694245338439941
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                10.196791648864746,
+                6.384255409240723,
+                11.870874404907227,
+                8.601289749145508
+              ],
+              "expected_score_r": 1.7226191403304831,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                10.196791648864746,
+                6.384255409240723,
+                11.870874404907227,
+                8.601289749145508
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                10.529132843017578,
+                11.290966987609863,
+                8.012472152709961,
+                10.439878463745117
+              ],
+              "expected_score_r": 1.2199262774336934,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 1,
+              "raw_logits": [
+                10.529132843017578,
+                11.290966987609863,
+                8.012472152709961,
+                10.439878463745117
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "D",
+          "signed_margin": -0.500727653503418,
+          "source_id": "original-ordinal-05-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "distinct_winners": 4,
+          "evaluations": 4,
+          "expected_abs_error": 0.710602285231241,
+          "expected_score": 0.710602285231241,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.7077303041146722,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            12.300128936767578,
+            9.669225692749023,
+            9.90123176574707,
+            10.914379119873047
+          ],
+          "mean_semantic_logit_variance": 2.8580723074208514,
+          "prediction": 0,
+          "probs": [
+            0.7077303041146722,
+            0.05096605641816745,
+            0.06427468958840774,
+            0.1770289498787527
+          ],
+          "prompt_tokens": 492,
+          "raw_expected_abs_error": 0.710602285231241,
+          "raw_expected_score": 0.710602285231241,
+          "raw_logits": [
+            12.300128936767578,
+            9.669225692749023,
+            9.90123176574707,
+            10.914379119873047
+          ],
+          "raw_probs": [
+            0.7077303041146722,
+            0.05096605641816745,
+            0.06427468958840774,
+            0.1770289498787527
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.9020953372605997,
+          "rotations": [
+            {
+              "corrected_logits": [
+                12.946781158447266,
+                8.260370254516602,
+                9.072972297668457,
+                10.428638458251953
+              ],
+              "expected_score_r": 0.26346417594560584,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 0,
+              "raw_logits": [
+                12.946781158447266,
+                8.260370254516602,
+                9.072972297668457,
+                10.428638458251953
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                10.787084579467773,
+                9.192545890808105,
+                7.814970016479492,
+                12.990145683288574
+              ],
+              "expected_score_r": 2.6645736205285444,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                10.787084579467773,
+                9.192545890808105,
+                7.814970016479492,
+                12.990145683288574
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                12.393808364868164,
+                7.599460124969482,
+                12.90330696105957,
+                9.667736053466797
+              ],
+              "expected_score_r": 1.290484910969429,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                12.393808364868164,
+                7.599460124969482,
+                12.90330696105957,
+                9.667736053466797
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                13.072843551635742,
+                13.624526023864746,
+                9.813676834106445,
+                10.570998191833496
+              ],
+              "expected_score_r": 0.7207403802438184,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 1,
+              "raw_logits": [
+                13.072843551635742,
+                13.624526023864746,
+                9.813676834106445,
+                10.570998191833496
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "A",
+          "signed_margin": 1.3857498168945313,
+          "source_id": "original-ordinal-05-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "distinct_winners": 3,
+          "evaluations": 4,
+          "expected_abs_error": 0.23619818067380183,
+          "expected_score": 1.7638018193261982,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.5625375038059549,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            10.47348403930664,
+            9.503347396850586,
+            11.617118835449219,
+            10.53305721282959
+          ],
+          "mean_semantic_logit_variance": 1.2792563168233784,
+          "prediction": 2,
+          "probs": [
+            0.17925744434729995,
+            0.06794417191297344,
+            0.5625375038059549,
+            0.19026087993377164
+          ],
+          "prompt_tokens": 496,
+          "raw_expected_abs_error": 0.23619818067380183,
+          "raw_expected_score": 1.7638018193261982,
+          "raw_logits": [
+            10.47348403930664,
+            9.503347396850586,
+            11.617118835449219,
+            10.53305721282959
+          ],
+          "raw_probs": [
+            0.17925744434729995,
+            0.06794417191297344,
+            0.5625375038059549,
+            0.19026087993377164
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.45541536170092206,
+          "rotations": [
+            {
+              "corrected_logits": [
+                10.818673133850098,
+                8.753517150878906,
+                11.6201171875,
+                10.220735549926758
+              ],
+              "expected_score_r": 1.596247924624884,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                10.818673133850098,
+                8.753517150878906,
+                11.6201171875,
+                10.220735549926758
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                9.897634506225586,
+                9.46243953704834,
+                10.306039810180664,
+                12.243178367614746
+              ],
+              "expected_score_r": 2.5733275353057063,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                9.897634506225586,
+                9.46243953704834,
+                10.306039810180664,
+                12.243178367614746
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                10.921419143676758,
+                7.751105308532715,
+                13.37590503692627,
+                9.262283325195313
+              ],
+              "expected_score_r": 1.8561544118606337,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                10.921419143676758,
+                7.751105308532715,
+                13.37590503692627,
+                9.262283325195313
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                10.256208419799805,
+                12.0463285446167,
+                11.166411399841309,
+                10.40603256225586
+              ],
+              "expected_score_r": 1.358016324096213,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 1,
+              "raw_logits": [
+                10.256208419799805,
+                12.0463285446167,
+                11.166411399841309,
+                10.40603256225586
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "C",
+          "signed_margin": 1.084061622619629,
+          "source_id": "original-ordinal-06-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "distinct_winners": 3,
+          "evaluations": 4,
+          "expected_abs_error": 0.11786813971971766,
+          "expected_score": 1.8821318602802823,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.29791518738521094,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            8.873554229736328,
+            10.119941711425781,
+            10.159242630004883,
+            10.271444320678711
+          ],
+          "mean_semantic_logit_variance": 0.9833406613093132,
+          "prediction": 3,
+          "probs": [
+            0.08236169313140375,
+            0.2864339364701477,
+            0.29791518738521094,
+            0.3332891830132376
+          ],
+          "prompt_tokens": 524,
+          "raw_expected_abs_error": 0.11786813971971766,
+          "raw_expected_score": 1.8821318602802823,
+          "raw_logits": [
+            8.873554229736328,
+            10.119941711425781,
+            10.159242630004883,
+            10.271444320678711
+          ],
+          "raw_probs": [
+            0.08236169313140375,
+            0.2864339364701477,
+            0.29791518738521094,
+            0.3332891830132376
+          ],
+          "rotation_disagreement": true,
+          "rotation_expected_score_stddev": 0.4266703866090113,
+          "rotations": [
+            {
+              "corrected_logits": [
+                8.779732704162598,
+                9.220573425292969,
+                9.945432662963867,
+                9.964826583862305
+              ],
+              "expected_score_r": 1.9686689029464643,
+              "labels": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "level_to_label": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                8.779732704162598,
+                9.220573425292969,
+                9.945432662963867,
+                9.964826583862305
+              ],
+              "rotation": 0,
+              "token_ids": [
+                32,
+                33,
+                34,
+                35
+              ]
+            },
+            {
+              "corrected_logits": [
+                8.624544143676758,
+                10.121658325195313,
+                8.814281463623047,
+                11.409173965454102
+              ],
+              "expected_score_r": 2.4252032294096635,
+              "labels": [
+                "B",
+                "C",
+                "D",
+                "A"
+              ],
+              "level_to_label": [
+                1,
+                2,
+                3,
+                0
+              ],
+              "prediction": 3,
+              "raw_logits": [
+                8.624544143676758,
+                10.121658325195313,
+                8.814281463623047,
+                11.409173965454102
+              ],
+              "rotation": 1,
+              "token_ids": [
+                33,
+                34,
+                35,
+                32
+              ]
+            },
+            {
+              "corrected_logits": [
+                9.779428482055664,
+                8.82879638671875,
+                12.028223991394043,
+                9.655267715454102
+              ],
+              "expected_score_r": 1.872020049448519,
+              "labels": [
+                "C",
+                "D",
+                "A",
+                "B"
+              ],
+              "level_to_label": [
+                2,
+                3,
+                0,
+                1
+              ],
+              "prediction": 2,
+              "raw_logits": [
+                9.779428482055664,
+                8.82879638671875,
+                12.028223991394043,
+                9.655267715454102
+              ],
+              "rotation": 2,
+              "token_ids": [
+                34,
+                35,
+                32,
+                33
+              ]
+            },
+            {
+              "corrected_logits": [
+                8.31051254272461,
+                12.308736801147461,
+                9.849031448364258,
+                10.056509017944336
+              ],
+              "expected_score_r": 1.2294851043780743,
+              "labels": [
+                "D",
+                "A",
+                "B",
+                "C"
+              ],
+              "level_to_label": [
+                3,
+                0,
+                1,
+                2
+              ],
+              "prediction": 1,
+              "raw_logits": [
+                8.31051254272461,
+                12.308736801147461,
+                9.849031448364258,
+                10.056509017944336
+              ],
+              "rotation": 3,
+              "token_ids": [
+                35,
+                32,
+                33,
+                34
+              ]
+            }
+          ],
+          "selected_label": "D",
+          "signed_margin": -0.11220169067382813,
+          "source_id": "original-ordinal-06-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        }
+      ],
+      "stability": {
+        "n_questions": 0,
+        "n_stable": 0,
+        "stability_rate": -1.0
+      }
+    },
+    {
+      "choice_ensemble": "none",
+      "choice_items": [],
+      "experiment": "letters-filler",
+      "filler_text": ". . . . . . . . . . . . . . . .",
+      "layout": "auto",
+      "metrics": {
+        "choice": {
+          "accuracy": -1.0,
+          "brier": null,
+          "brier_convention": "sum over options",
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "eval_ms": 0,
+          "labeled": 0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_signed_winner_margin": null,
+          "median_signed_winner_margin": null,
+          "min_signed_winner_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_winner_margin": null,
+          "prompt_tokens": 0,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "n": 0,
+            "nll": null
+          },
+          "temperature": 1.0
+        },
+        "n_errors": 0,
+        "n_total": 12,
+        "noul": {
+          "accuracy": -1.0,
+          "brier": null,
+          "calibrated": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "mean_confidence_correct": null,
+            "n": 0,
+            "nll": null
+          },
+          "ece": null,
+          "ece_bins": 15,
+          "eval_ms": 0,
+          "labeled": 0,
+          "margins": {
+            "corrected": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "raw": {
+              "mean": null,
+              "median": null,
+              "min": null,
+              "n": 0,
+              "p10": null
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_confidence_correct": null,
+          "mean_signed_margin": null,
+          "median_signed_margin": null,
+          "min_signed_margin": null,
+          "n": 0,
+          "nll": null,
+          "p10_signed_margin": null,
+          "raw": {
+            "brier": null,
+            "ece": null,
+            "ece_bins": 15,
+            "mean_confidence_correct": null,
+            "n": 0,
+            "nll": null
+          }
+        },
+        "score": {
+          "accuracy": 0.75,
+          "brier": 0.4724172751451767,
+          "brier_convention": "sum over levels",
+          "calibrated": {
+            "brier": 0.4724172751451767,
+            "ece": 0.3264428533836863,
+            "ece_bins": 15,
+            "expected_score_mae": 0.42652340786631093,
+            "mean_expected_argmax_distance": 0.4357365605999701,
+            "n": 12,
+            "nll": 0.863037351220234
+          },
+          "ece": 0.3264428533836863,
+          "ece_bins": 15,
+          "error_distance_histogram": [
+            9,
+            2,
+            1
+          ],
+          "eval_ms": 1811,
+          "evaluations_per_item": 1.0,
+          "expected_score_mae": 0.42652340786631093,
+          "ground_truth_by_level": {
+            "0": 4,
+            "1": 2,
+            "2": 4,
+            "3": 2
+          },
+          "labeled": 12,
+          "large_error_rate": 0.08333333333333333,
+          "large_error_threshold": 2,
+          "mae": 0.3333333333333333,
+          "margins": {
+            "corrected": {
+              "mean": 0.7354935805002848,
+              "median": 0.4593501091003418,
+              "min": -2.824483871459961,
+              "n": 12,
+              "p10": -1.4120763301849366
+            },
+            "raw": {
+              "mean": 0.7354935805002848,
+              "median": 0.4593501091003418,
+              "min": -2.824483871459961,
+              "n": 12,
+              "p10": -1.4120763301849366
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_expected_argmax_distance": 0.4357365605999701,
+          "mean_signed_margin": 0.7354935805002848,
+          "median_signed_margin": 0.4593501091003418,
+          "min_signed_margin": -2.824483871459961,
+          "n": 12,
+          "nll": 0.863037351220234,
+          "p10_signed_margin": -1.4120763301849366,
+          "prediction_by_level": {
+            "0": 5,
+            "2": 3,
+            "3": 4
+          },
+          "prompt_tokens": 1658,
+          "qwk": 0.8333333333333334,
+          "raw": {
+            "brier": 0.4724172751451767,
+            "ece": 0.3264428533836863,
+            "ece_bins": 15,
+            "expected_score_mae": 0.42652340786631093,
+            "mean_expected_argmax_distance": 0.4357365605999701,
+            "n": 12,
+            "nll": 0.863037351220234
+          },
+          "raw_expected_score_mae": 0.42652340786631093,
+          "raw_mean_expected_argmax_distance": 0.4357365605999701,
+          "selection_by_label": {
+            "A": 5,
+            "C": 3,
+            "D": 4
+          },
+          "temperature": 1.0
+        }
+      },
+      "noul_ensemble": "none",
+      "noul_items": [],
+      "option_order": "original",
+      "prior_correction": false,
+      "scheme": "letters",
+      "score_candidates": [],
+      "score_items": [
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.4653265536313831,
+          "expected_score": 0.4653265536313831,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.8075288902266435,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            7.388419151306152,
+            4.090375900268555,
+            4.653378486633301,
+            5.396981239318848
+          ],
+          "prediction": 0,
+          "probs": [
+            0.8075288902266435,
+            0.029842560544603575,
+            0.05240165459947961,
+            0.11022689462927343
+          ],
+          "prompt_tokens": 134,
+          "raw_expected_abs_error": 0.4653265536313831,
+          "raw_expected_score": 0.4653265536313831,
+          "raw_logits": [
+            7.388419151306152,
+            4.090375900268555,
+            4.653378486633301,
+            5.396981239318848
+          ],
+          "raw_probs": [
+            0.8075288902266435,
+            0.029842560544603575,
+            0.05240165459947961,
+            0.11022689462927343
+          ],
+          "selected_label": "A",
+          "signed_margin": 1.9914379119873047,
+          "source_id": "original-ordinal-01-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.4363929983624042,
+          "expected_score": 0.4363929983624042,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.8126937682843407,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            9.247052192687988,
+            6.442486763000488,
+            5.847558975219727,
+            7.256006240844727
+          ],
+          "prediction": 0,
+          "probs": [
+            0.8126937682843407,
+            0.04919484984765013,
+            0.02713599708927353,
+            0.11097538477873566
+          ],
+          "prompt_tokens": 136,
+          "raw_expected_abs_error": 0.4363929983624042,
+          "raw_expected_score": 0.4363929983624042,
+          "raw_logits": [
+            9.247052192687988,
+            6.442486763000488,
+            5.847558975219727,
+            7.256006240844727
+          ],
+          "raw_probs": [
+            0.8126937682843407,
+            0.04919484984765013,
+            0.02713599708927353,
+            0.11097538477873566
+          ],
+          "selected_label": "A",
+          "signed_margin": 1.9910459518432617,
+          "source_id": "original-ordinal-01-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 2,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 1.0725971888777184,
+          "expected_score": 2.0725971888777184,
+          "ground_truth": 1,
+          "ground_truth_probability": 0.18431625287948897,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            6.941191673278809,
+            7.02539587020874,
+            5.730235576629639,
+            8.1986083984375
+          ],
+          "prediction": 3,
+          "probs": [
+            0.16943152297432862,
+            0.18431625287948897,
+            0.050475736440317644,
+            0.5957764877058648
+          ],
+          "prompt_tokens": 138,
+          "raw_expected_abs_error": 1.0725971888777184,
+          "raw_expected_score": 2.0725971888777184,
+          "raw_logits": [
+            6.941191673278809,
+            7.02539587020874,
+            5.730235576629639,
+            8.1986083984375
+          ],
+          "raw_probs": [
+            0.16943152297432862,
+            0.18431625287948897,
+            0.050475736440317644,
+            0.5957764877058648
+          ],
+          "selected_label": "D",
+          "signed_margin": -1.1732125282287598,
+          "source_id": "original-ordinal-02-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 0.4390888876158534,
+          "expected_score": 0.5609111123841466,
+          "ground_truth": 1,
+          "ground_truth_probability": 0.1637228967667286,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            9.782395362854004,
+            8.343778610229492,
+            6.969730377197266,
+            7.897396564483643
+          ],
+          "prediction": 0,
+          "probs": [
+            0.6900693484301323,
+            0.1637228967667286,
+            0.04143504879199865,
+            0.10477270601114025
+          ],
+          "prompt_tokens": 139,
+          "raw_expected_abs_error": 0.4390888876158534,
+          "raw_expected_score": 0.5609111123841466,
+          "raw_logits": [
+            9.782395362854004,
+            8.343778610229492,
+            6.969730377197266,
+            7.897396564483643
+          ],
+          "raw_probs": [
+            0.6900693484301323,
+            0.1637228967667286,
+            0.04143504879199865,
+            0.10477270601114025
+          ],
+          "selected_label": "A",
+          "signed_margin": -1.4386167526245117,
+          "source_id": "original-ordinal-02-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.1818885316686214,
+          "expected_score": 2.1818885316686214,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.42912690418121724,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            5.075582504272461,
+            4.017515182495117,
+            6.480573654174805,
+            6.480343341827393
+          ],
+          "prediction": 2,
+          "probs": [
+            0.10529453718651546,
+            0.036550476295307506,
+            0.42912690418121724,
+            0.4290280823369598
+          ],
+          "prompt_tokens": 135,
+          "raw_expected_abs_error": 0.1818885316686214,
+          "raw_expected_score": 2.1818885316686214,
+          "raw_logits": [
+            5.075582504272461,
+            4.017515182495117,
+            6.480573654174805,
+            6.480343341827393
+          ],
+          "raw_probs": [
+            0.10529453718651546,
+            0.036550476295307506,
+            0.42912690418121724,
+            0.4290280823369598
+          ],
+          "selected_label": "C",
+          "signed_margin": 0.00023031234741210938,
+          "source_id": "original-ordinal-03-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 1,
+          "correct": false,
+          "evaluations": 1,
+          "expected_abs_error": 0.4330350071044733,
+          "expected_score": 2.4330350071044733,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.045371404691365774,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            7.471917152404785,
+            6.400001525878906,
+            6.334100723266602,
+            9.158584594726563
+          ],
+          "prediction": 3,
+          "probs": [
+            0.14155643664764106,
+            0.04846213913061896,
+            0.045371404691365774,
+            0.7646100195303742
+          ],
+          "prompt_tokens": 137,
+          "raw_expected_abs_error": 0.4330350071044733,
+          "raw_expected_score": 2.4330350071044733,
+          "raw_logits": [
+            7.471917152404785,
+            6.400001525878906,
+            6.334100723266602,
+            9.158584594726563
+          ],
+          "raw_probs": [
+            0.14155643664764106,
+            0.04846213913061896,
+            0.045371404691365774,
+            0.7646100195303742
+          ],
+          "selected_label": "D",
+          "signed_margin": -2.824483871459961,
+          "source_id": "original-ordinal-03-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.10250373532153878,
+          "expected_score": 2.897496264678461,
+          "ground_truth": 3,
+          "ground_truth_probability": 0.95906036982468,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            4.722593307495117,
+            2.8603615760803223,
+            3.4422736167907715,
+            8.236410140991211
+          ],
+          "prediction": 3,
+          "probs": [
+            0.028563714547862468,
+            0.004436676050493322,
+            0.007939239576964081,
+            0.95906036982468
+          ],
+          "prompt_tokens": 137,
+          "raw_expected_abs_error": 0.10250373532153878,
+          "raw_expected_score": 2.897496264678461,
+          "raw_logits": [
+            4.722593307495117,
+            2.8603615760803223,
+            3.4422736167907715,
+            8.236410140991211
+          ],
+          "raw_probs": [
+            0.028563714547862468,
+            0.004436676050493322,
+            0.007939239576964081,
+            0.95906036982468
+          ],
+          "selected_label": "D",
+          "signed_margin": 3.5138168334960938,
+          "source_id": "original-ordinal-04-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.08760551635301095,
+          "expected_score": 2.912394483646989,
+          "ground_truth": 3,
+          "ground_truth_probability": 0.9640291252836816,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            4.435482025146484,
+            2.723238229751587,
+            3.352370500564575,
+            8.141946792602539
+          ],
+          "prediction": 3,
+          "probs": [
+            0.02368061402165022,
+            0.004273413593392146,
+            0.008016847101276075,
+            0.9640291252836816
+          ],
+          "prompt_tokens": 136,
+          "raw_expected_abs_error": 0.08760551635301095,
+          "raw_expected_score": 2.912394483646989,
+          "raw_logits": [
+            4.435482025146484,
+            2.723238229751587,
+            3.352370500564575,
+            8.141946792602539
+          ],
+          "raw_probs": [
+            0.02368061402165022,
+            0.004273413593392146,
+            0.008016847101276075,
+            0.9640291252836816
+          ],
+          "selected_label": "D",
+          "signed_margin": 3.7064647674560547,
+          "source_id": "original-ordinal-04-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 1.2724896861259172,
+          "expected_score": 1.2724896861259172,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.5549565376662173,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            11.221534729003906,
+            7.751073837280273,
+            8.239105224609375,
+            10.893267631530762
+          ],
+          "prediction": 0,
+          "probs": [
+            0.5549565376662173,
+            0.01726064247730878,
+            0.028119415920813167,
+            0.3996634039356607
+          ],
+          "prompt_tokens": 140,
+          "raw_expected_abs_error": 1.2724896861259172,
+          "raw_expected_score": 1.2724896861259172,
+          "raw_logits": [
+            11.221534729003906,
+            7.751073837280273,
+            8.239105224609375,
+            10.893267631530762
+          ],
+          "raw_probs": [
+            0.5549565376662173,
+            0.01726064247730878,
+            0.028119415920813167,
+            0.3996634039356607
+          ],
+          "selected_label": "A",
+          "signed_margin": 0.32826709747314453,
+          "source_id": "original-ordinal-05-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.45523821383061963,
+          "expected_score": 0.45523821383061963,
+          "ground_truth": 0,
+          "ground_truth_probability": 0.821113358342727,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            11.571304321289063,
+            8.160743713378906,
+            8.163528442382813,
+            9.685593605041504
+          ],
+          "prediction": 0,
+          "probs": [
+            0.821113358342727,
+            0.02711536565412545,
+            0.027190979832948586,
+            0.124580296170199
+          ],
+          "prompt_tokens": 139,
+          "raw_expected_abs_error": 0.45523821383061963,
+          "raw_expected_score": 0.45523821383061963,
+          "raw_logits": [
+            11.571304321289063,
+            8.160743713378906,
+            8.163528442382813,
+            9.685593605041504
+          ],
+          "raw_probs": [
+            0.821113358342727,
+            0.02711536565412545,
+            0.027190979832948586,
+            0.124580296170199
+          ],
+          "selected_label": "A",
+          "signed_margin": 1.8857107162475586,
+          "source_id": "original-ordinal-05-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.05201209501185411,
+          "expected_score": 1.947987904988146,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.5134662354393554,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            8.249014854431152,
+            7.560258388519287,
+            9.588720321655273,
+            8.998287200927734
+          ],
+          "prediction": 2,
+          "probs": [
+            0.1344885151548967,
+            0.06754015705390412,
+            0.5134662354393554,
+            0.2845050923518437
+          ],
+          "prompt_tokens": 140,
+          "raw_expected_abs_error": 0.05201209501185411,
+          "raw_expected_score": 1.947987904988146,
+          "raw_logits": [
+            8.249014854431152,
+            7.560258388519287,
+            9.588720321655273,
+            8.998287200927734
+          ],
+          "raw_probs": [
+            0.1344885151548967,
+            0.06754015705390412,
+            0.5134662354393554,
+            0.2845050923518437
+          ],
+          "selected_label": "C",
+          "signed_margin": 0.5904331207275391,
+          "source_id": "original-ordinal-06-0",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        },
+        {
+          "abs_error": 0,
+          "correct": true,
+          "evaluations": 1,
+          "expected_abs_error": 0.12010248049233763,
+          "expected_score": 1.8798975195076624,
+          "ground_truth": 2,
+          "ground_truth_probability": 0.3810795011457077,
+          "labels": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "levels": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "logits": [
+            6.34424352645874,
+            7.2689528465271,
+            7.766633987426758,
+            7.511804580688477
+          ],
+          "prediction": 2,
+          "probs": [
+            0.09189232919318517,
+            0.231672995883537,
+            0.3810795011457077,
+            0.29535517377757003
+          ],
+          "prompt_tokens": 147,
+          "raw_expected_abs_error": 0.12010248049233763,
+          "raw_expected_score": 1.8798975195076624,
+          "raw_logits": [
+            6.34424352645874,
+            7.2689528465271,
+            7.766633987426758,
+            7.511804580688477
+          ],
+          "raw_probs": [
+            0.09189232919318517,
+            0.231672995883537,
+            0.3810795011457077,
+            0.29535517377757003
+          ],
+          "selected_label": "C",
+          "signed_margin": 0.25482940673828125,
+          "source_id": "original-ordinal-06-1",
+          "temperature": 1.0,
+          "token_ids": [
+            32,
+            33,
+            34,
+            35
+          ]
+        }
+      ],
+      "stability": {
+        "n_questions": 0,
+        "n_stable": 0,
+        "stability_rate": -1.0
+      }
+    }
+  ]
+}

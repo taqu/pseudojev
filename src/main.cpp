@@ -96,6 +96,7 @@ static void usage_run(const char* prog) {
         "  --choice-prefix-reuse      E2: reuse the KV prefix shared between rotations\n"
         "  --score-ensemble           S2: cyclic label-rotation ensemble for score (N evaluations)\n"
         "  --score-prefix-reuse       S2: reuse the KV prefix shared between label rotations\n"
+        "  --filler-text TEXT         F1: fixed filler inserted before Answer: anchor (empty = disabled)\n"
         "  --threads N                CPU threads (default: 8)\n"
         "  --ctx-size N               context size (default: 4096)\n"
         "  --verbose                  enable llama.cpp verbose logging\n",
@@ -634,6 +635,7 @@ static int32_t cmd_run(int32_t argc, char** argv) {
         else if (a == "--choice-prefix-reuse") exp_cfg.ensemble.choice_prefix_reuse = true;
         else if (a == "--score-ensemble")  exp_cfg.ensemble.score_mode = ScoreEnsembleMode::LABEL_ROTATION;
         else if (a == "--score-prefix-reuse") exp_cfg.ensemble.score_prefix_reuse = true;
+        else if (a == "--filler-text")     exp_cfg.filler_text = next();
         else if (a == "-h" || a == "--help") { usage_run("pjev"); return 0; }
         else {
             spdlog::error("unknown option: {}", a);

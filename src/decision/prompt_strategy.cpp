@@ -74,6 +74,8 @@ std::string PromptStrategy::build_user_content(
         p += "State:\n" + state + "\n\nQuestion:\n" + question + "\n\n" + opts;
     }
     p += "\nReply with exactly one of " + answers + " and nothing else.";
+    if (!cfg_.filler_text.empty())
+        p += "\n" + cfg_.filler_text;
     return p;
 }
 
