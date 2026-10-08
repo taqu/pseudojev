@@ -97,3 +97,77 @@ computes `margin_gain = signed_margin_target - signed_margin_baseline`.
 `source_id, ground_truth, prediction, correct, p_true, p_true_raw, confidence,
 raw_semantic_margin, semantic_margin, signed_margin` and, for E1, the order fields listed
 above. `ground_truth`, `correct` and `signed_margin` are `null` for unlabeled samples.
+
+# choice evaluation metrics and E2
+
+Implementation: `src/experiment/choice_metrics.{h,cpp}`. Per-example records are stored as
+`choice_items` in the result JSON. Compare two runs with
+`pjev compare --primitive choice --baseline A.json --target B.json`.
+
+## Probability metrics
+
+NLL, Brier and ECE come from the existing `compute_primitive_metrics`
+(`src/calibration/calibration_metrics.cpp`). They are applied to the pre-temperature semantic
+logits at the run's temperature (`calibrated`, also reported at top level) and at `T = 1`
+(`raw`). There is no second definition.
+
+| metric | definition |
+|---|---|
+| NLL | `mean(-log P(gt))`. Probabilities are clamped at `1e-15`, the existing convention. |
+| Brier | **summed** multi-class form: `mean_samples(sum_i (P_i - Y_i)^2)`, with one-hot `Y`. The result JSON records `"brier_convention": "sum over options"`. For a binary task this is twice the binary Brier used for noul. |
+| ECE | 15 equal-width bins over the top-class confidence (same binning as noul) |
+
+## Signed winner margin
+
+`signed_winner_margin = S_gt - max_{i != gt} S_i`, where `S` is the pre-temperature semantic
+logit vector: the post prior-correction logits, averaged over rotations for E2. A positive
+value means a correct prediction. This is the multi-class counterpart of the noul signed
+margin. Summary statistics (`mean`, `median`, `p10`, `min`) use the same type-7 percentile.
+
+## E2: cyclic option-rotation ensemble
+
+Enable it with `pjev run --choice-ensemble`. It is off by default.
+
+For `N` options, rotation `r = 0..N-1` binds candidate position `j` (A, B, ...) to semantic
+option `(j + r) mod N`. Every option therefore appears exactly once at every label position,
+at a cost of `N` evaluations, not `N!`. The mapping is kept explicitly (`RotationMapping`,
+`src/decision/rotation.h`) and is never reconstructed from prompt text. Only the
+option-to-label binding changes between rotations. State, question, descriptions and
+instructions stay identical.
+
+```text
+candidate logits (per rotation)
+  -> prior correction in candidate space (prior belongs to the label position)
+  -> remap to semantic order via cand_to_sem
+  -> mean over rotations
+  -> temperature (T_choice, applied once)
+  -> softmax -> argmax
+```
+
+| execution path | flag | notes |
+|---|---|---|
+| sequential reference | `--choice-ensemble` | every rotation evaluated from scratch |
+| prefix reuse | `--choice-ensemble --choice-prefix-reuse` | each rotation reuses the KV cache for the token prefix it shares with the previous rotation, which is everything before the options block. It runs on the single llama context, with no threads. |
+
+## Rotation-stability diagnostics
+
+These are computed over samples that have rotations. Labels are not required.
+
+| field | definition |
+|---|---|
+| `samples_with_any_rotation_disagreement` | samples where the rotations' semantic argmaxes are not all equal |
+| `rotation_disagreement_rate` | that count / `rotation_n` |
+| `mean_number_of_distinct_winners` | mean over samples of the number of distinct per-rotation winners |
+| `mean_winner_agreement` | mean fraction of rotations whose winner equals the ensemble prediction |
+| `mean_semantic_logit_variance` | per sample, the population variance `Var_r(S_r(i))` is taken for each option and averaged over options. The value is the mean of those averages across samples. |
+| `mean_max_semantic_logit_variance`, `max_semantic_logit_variance` | per-sample maximum over options, averaged across samples or maximized across samples |
+| `rotations_per_item`, `prompt_tokens` | inference cost: evaluations per item, and total prompt tokens summed over rotations |
+
+Per item: `rotation_count`, `rotations[]` (`cand_to_sem`, `raw_logits`, `corrected_logits`,
+`semantic_logits`, `prediction`, `prefix_reused`), `winner_counts` (semantic winner frequency),
+`distinct_winners`, `rotation_disagreement`, and the variance summaries.
+
+## Correctness flips
+
+`pjev compare` (both primitives) also reports `correct_to_wrong_count` (baseline correct,
+target wrong) and `wrong_to_correct_count` over matched labeled samples.

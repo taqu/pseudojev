@@ -1,0 +1,778 @@
+{
+  "primitive": "choice",
+  "splits": {
+    "easy": {
+      "baseline": {
+        "label": "baseline",
+        "path": "results/measure/e2/base_easy.json",
+        "metrics": {
+          "accuracy": 1.0,
+          "brier": 0.06306105839853463,
+          "brier_convention": "sum over options",
+          "calibrated": {
+            "brier": 0.06306105839853463,
+            "ece": 0.1876265556336909,
+            "ece_bins": 15,
+            "n": 36,
+            "nll": 0.21631502092323662
+          },
+          "ece": 0.1876265556336909,
+          "ece_bins": 15,
+          "eval_ms": 19429,
+          "labeled": 36,
+          "margins": {
+            "corrected": {
+              "mean": 4.726080298423767,
+              "median": 4.963663578033447,
+              "min": 0.26544857025146484,
+              "n": 36,
+              "p10": 3.1016178131103516
+            },
+            "raw": {
+              "mean": 4.726080298423767,
+              "median": 4.963663578033447,
+              "min": 0.26544857025146484,
+              "n": 36,
+              "p10": 3.1016178131103516
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_signed_winner_margin": 4.726080298423767,
+          "median_signed_winner_margin": 4.963663578033447,
+          "min_signed_winner_margin": 0.26544857025146484,
+          "n": 36,
+          "nll": 0.21631502092323662,
+          "p10_signed_winner_margin": 3.1016178131103516,
+          "prompt_tokens": 3639,
+          "raw": {
+            "brier": 0.012586545209205761,
+            "ece": 0.03389138569422888,
+            "ece_bins": 15,
+            "n": 36,
+            "nll": 0.03859756223500336
+          },
+          "temperature": 2.046567219106836
+        }
+      },
+      "targets": [
+        {
+          "label": "E2",
+          "path": "results/measure/e2/e2_easy.json",
+          "metrics": {
+            "accuracy": 1.0,
+            "brier": 0.04704744770876572,
+            "brier_convention": "sum over options",
+            "calibrated": {
+              "brier": 0.04704744770876572,
+              "ece": 0.16355341327674744,
+              "ece_bins": 15,
+              "n": 36,
+              "nll": 0.18611464544324705
+            },
+            "ece": 0.16355341327674744,
+            "ece_bins": 15,
+            "eval_ms": 93389,
+            "labeled": 36,
+            "margins": {
+              "corrected": {
+                "mean": 5.577069653405084,
+                "median": 5.9405198097229,
+                "min": 0.8401575088500977,
+                "n": 36,
+                "p10": 3.6873626708984375
+              },
+              "raw": {
+                "mean": 5.577069653405084,
+                "median": 5.9405198097229,
+                "min": 0.8401575088500977,
+                "n": 36,
+                "p10": 3.6873626708984375
+              },
+              "source": "pre-temperature logits"
+            },
+            "max_semantic_logit_variance": 4.743906576498226,
+            "mean_max_semantic_logit_variance": 3.2671085639748125,
+            "mean_number_of_distinct_winners": 1.0277777777777777,
+            "mean_semantic_logit_variance": 1.7980163490946266,
+            "mean_signed_winner_margin": 5.577069653405084,
+            "mean_winner_agreement": 0.9930555555555556,
+            "median_signed_winner_margin": 5.9405198097229,
+            "min_signed_winner_margin": 0.8401575088500977,
+            "n": 36,
+            "nll": 0.18611464544324705,
+            "p10_signed_winner_margin": 3.6873626708984375,
+            "prompt_tokens": 17467,
+            "raw": {
+              "brier": 0.006933234018037889,
+              "ece": 0.023124043969272815,
+              "ece_bins": 15,
+              "n": 36,
+              "nll": 0.02607176177525274
+            },
+            "rotation_disagreement_rate": 0.027777777777777776,
+            "rotation_n": 36,
+            "rotations_per_item": 4.75,
+            "samples_with_any_rotation_disagreement": 1,
+            "temperature": 2.046567219106836
+          },
+          "margin_gain": {
+            "n_matched": 36,
+            "mean_margin_gain": 0.8509893549813164,
+            "median_margin_gain": 1.1029834747314453,
+            "improved_margin_count": 26,
+            "degraded_margin_count": 10,
+            "unchanged_margin_count": 0,
+            "correct_to_wrong_count": 0,
+            "wrong_to_correct_count": 0,
+            "correct_to_wrong": [],
+            "wrong_to_correct": []
+          },
+          "quality_better": [
+            "nll",
+            "brier",
+            "ece",
+            "raw.nll",
+            "raw.brier",
+            "raw.ece",
+            "mean_signed_winner_margin",
+            "median_signed_winner_margin",
+            "p10_signed_winner_margin",
+            "min_signed_winner_margin"
+          ],
+          "quality_worse": [],
+          "latency_ratio": 4.806680734983787
+        },
+        {
+          "label": "E2+KV",
+          "path": "results/measure/e2/e2kv_easy.json",
+          "metrics": {
+            "accuracy": 1.0,
+            "brier": 0.047498029625231926,
+            "brier_convention": "sum over options",
+            "calibrated": {
+              "brier": 0.047498029625231926,
+              "ece": 0.16386275646986181,
+              "ece_bins": 15,
+              "n": 36,
+              "nll": 0.18678385292053118
+            },
+            "ece": 0.16386275646986181,
+            "ece_bins": 15,
+            "eval_ms": 61077,
+            "labeled": 36,
+            "margins": {
+              "corrected": {
+                "mean": 5.570268458790249,
+                "median": 5.923837184906006,
+                "min": 0.7296199798583984,
+                "n": 36,
+                "p10": 3.691765785217285
+              },
+              "raw": {
+                "mean": 5.570268458790249,
+                "median": 5.923837184906006,
+                "min": 0.7296199798583984,
+                "n": 36,
+                "p10": 3.691765785217285
+              },
+              "source": "pre-temperature logits"
+            },
+            "max_semantic_logit_variance": 4.743906576498226,
+            "mean_max_semantic_logit_variance": 3.2640992867908545,
+            "mean_number_of_distinct_winners": 1.0555555555555556,
+            "mean_semantic_logit_variance": 1.7966218729370407,
+            "mean_signed_winner_margin": 5.570268458790249,
+            "mean_winner_agreement": 0.9861111111111112,
+            "median_signed_winner_margin": 5.923837184906006,
+            "min_signed_winner_margin": 0.7296199798583984,
+            "n": 36,
+            "nll": 0.18678385292053118,
+            "p10_signed_winner_margin": 3.691765785217285,
+            "prompt_tokens": 17467,
+            "raw": {
+              "brier": 0.0077039183652681765,
+              "ece": 0.023678873383426387,
+              "ece_bins": 15,
+              "n": 36,
+              "nll": 0.027005094921640518
+            },
+            "rotation_disagreement_rate": 0.027777777777777776,
+            "rotation_n": 36,
+            "rotations_per_item": 4.75,
+            "samples_with_any_rotation_disagreement": 1,
+            "temperature": 2.046567219106836
+          },
+          "margin_gain": {
+            "n_matched": 36,
+            "mean_margin_gain": 0.8441881603664823,
+            "median_margin_gain": 1.0562281608581543,
+            "improved_margin_count": 26,
+            "degraded_margin_count": 10,
+            "unchanged_margin_count": 0,
+            "correct_to_wrong_count": 0,
+            "wrong_to_correct_count": 0,
+            "correct_to_wrong": [],
+            "wrong_to_correct": []
+          },
+          "quality_better": [
+            "nll",
+            "brier",
+            "ece",
+            "raw.nll",
+            "raw.brier",
+            "raw.ece",
+            "mean_signed_winner_margin",
+            "median_signed_winner_margin",
+            "p10_signed_winner_margin",
+            "min_signed_winner_margin"
+          ],
+          "quality_worse": [],
+          "latency_ratio": 3.1435997735344072
+        }
+      ],
+      "equivalence": [
+        {
+          "a": "E2",
+          "b": "E2+KV",
+          "n_common": 36,
+          "prediction_mismatches": [],
+          "max_abs_logit_diff": 0.23433876037597656,
+          "max_abs_prob_diff": 0.009625588705781396
+        }
+      ],
+      "verify_problems": []
+    },
+    "original": {
+      "baseline": {
+        "label": "baseline",
+        "path": "results/measure/e2/base_original.json",
+        "metrics": {
+          "accuracy": 0.6944444444444444,
+          "brier": 0.4717191634935964,
+          "brier_convention": "sum over options",
+          "calibrated": {
+            "brier": 0.4717191634935964,
+            "ece": 0.19609470883790558,
+            "ece_bins": 15,
+            "n": 36,
+            "nll": 0.9760194819716421
+          },
+          "ece": 0.19609470883790558,
+          "ece_bins": 15,
+          "eval_ms": 20747,
+          "labeled": 36,
+          "margins": {
+            "corrected": {
+              "mean": 0.7565047211117215,
+              "median": 1.3468451499938965,
+              "min": -5.844113349914551,
+              "n": 36,
+              "p10": -2.5171523094177246
+            },
+            "raw": {
+              "mean": 0.7565047211117215,
+              "median": 1.3468451499938965,
+              "min": -5.844113349914551,
+              "n": 36,
+              "p10": -2.5171523094177246
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_signed_winner_margin": 0.7565047211117215,
+          "median_signed_winner_margin": 1.3468451499938965,
+          "min_signed_winner_margin": -5.844113349914551,
+          "n": 36,
+          "nll": 0.9760194819716421,
+          "p10_signed_winner_margin": -2.5171523094177246,
+          "prompt_tokens": 3991,
+          "raw": {
+            "brier": 0.4285433800295822,
+            "ece": 0.16221927255706053,
+            "ece_bins": 15,
+            "n": 36,
+            "nll": 1.0101349804514614
+          },
+          "temperature": 2.046567219106836
+        }
+      },
+      "targets": [
+        {
+          "label": "E2",
+          "path": "results/measure/e2/e2_original.json",
+          "metrics": {
+            "accuracy": 0.6944444444444444,
+            "brier": 0.4295398209267797,
+            "brier_convention": "sum over options",
+            "calibrated": {
+              "brier": 0.4295398209267797,
+              "ece": 0.25256751084745965,
+              "ece_bins": 15,
+              "n": 36,
+              "nll": 0.8543190512862588
+            },
+            "ece": 0.25256751084745965,
+            "ece_bins": 15,
+            "eval_ms": 105738,
+            "labeled": 36,
+            "margins": {
+              "corrected": {
+                "mean": 1.265777826309204,
+                "median": 1.652796745300293,
+                "min": -2.986865997314453,
+                "n": 36,
+                "p10": -2.20375394821167
+              },
+              "raw": {
+                "mean": 1.265777826309204,
+                "median": 1.652796745300293,
+                "min": -2.986865997314453,
+                "n": 36,
+                "p10": -2.20375394821167
+              },
+              "source": "pre-temperature logits"
+            },
+            "max_semantic_logit_variance": 5.2703456966499616,
+            "mean_max_semantic_logit_variance": 2.6491919695652824,
+            "mean_number_of_distinct_winners": 1.6111111111111112,
+            "mean_semantic_logit_variance": 1.4034427199593604,
+            "mean_signed_winner_margin": 1.265777826309204,
+            "mean_winner_agreement": 0.8624999999999998,
+            "median_signed_winner_margin": 1.652796745300293,
+            "min_signed_winner_margin": -2.986865997314453,
+            "n": 36,
+            "nll": 0.8543190512862588,
+            "p10_signed_winner_margin": -2.20375394821167,
+            "prompt_tokens": 20377,
+            "raw": {
+              "brier": 0.4127878562156395,
+              "ece": 0.1266330532037662,
+              "ece_bins": 15,
+              "n": 36,
+              "nll": 0.7634212826106308
+            },
+            "rotation_disagreement_rate": 0.4166666666666667,
+            "rotation_n": 36,
+            "rotations_per_item": 5.0,
+            "samples_with_any_rotation_disagreement": 15,
+            "temperature": 2.046567219106836
+          },
+          "margin_gain": {
+            "n_matched": 36,
+            "mean_margin_gain": 0.5092731051974826,
+            "median_margin_gain": 0.5578486919403076,
+            "improved_margin_count": 28,
+            "degraded_margin_count": 8,
+            "unchanged_margin_count": 0,
+            "correct_to_wrong_count": 3,
+            "wrong_to_correct_count": 3,
+            "correct_to_wrong": [
+              "original-intent-02-0",
+              "original-routing-06-0",
+              "original-routing-06-1"
+            ],
+            "wrong_to_correct": [
+              "original-intent-03-0",
+              "original-extraction-04-1",
+              "original-routing-02-0"
+            ]
+          },
+          "quality_better": [
+            "nll",
+            "brier",
+            "raw.nll",
+            "raw.brier",
+            "raw.ece",
+            "mean_signed_winner_margin",
+            "median_signed_winner_margin",
+            "p10_signed_winner_margin",
+            "min_signed_winner_margin"
+          ],
+          "quality_worse": [
+            "ece"
+          ],
+          "latency_ratio": 5.096544078661975
+        },
+        {
+          "label": "E2+KV",
+          "path": "results/measure/e2/e2kv_original.json",
+          "metrics": {
+            "accuracy": 0.6944444444444444,
+            "brier": 0.42976832618064914,
+            "brier_convention": "sum over options",
+            "calibrated": {
+              "brier": 0.42976832618064914,
+              "ece": 0.267002586055883,
+              "ece_bins": 15,
+              "n": 36,
+              "nll": 0.8544247350373508
+            },
+            "ece": 0.267002586055883,
+            "ece_bins": 15,
+            "eval_ms": 64205,
+            "labeled": 36,
+            "margins": {
+              "corrected": {
+                "mean": 1.2634915113449097,
+                "median": 1.652796745300293,
+                "min": -2.986865997314453,
+                "n": 36,
+                "p10": -2.193263530731201
+              },
+              "raw": {
+                "mean": 1.2634915113449097,
+                "median": 1.652796745300293,
+                "min": -2.986865997314453,
+                "n": 36,
+                "p10": -2.193263530731201
+              },
+              "source": "pre-temperature logits"
+            },
+            "max_semantic_logit_variance": 4.8558260162416005,
+            "mean_max_semantic_logit_variance": 2.6134118359596816,
+            "mean_number_of_distinct_winners": 1.6388888888888888,
+            "mean_semantic_logit_variance": 1.3977202120885512,
+            "mean_signed_winner_margin": 1.2634915113449097,
+            "mean_winner_agreement": 0.8555555555555554,
+            "median_signed_winner_margin": 1.652796745300293,
+            "min_signed_winner_margin": -2.986865997314453,
+            "n": 36,
+            "nll": 0.8544247350373508,
+            "p10_signed_winner_margin": -2.193263530731201,
+            "prompt_tokens": 20377,
+            "raw": {
+              "brier": 0.41370551234062514,
+              "ece": 0.12716226500770134,
+              "ece_bins": 15,
+              "n": 36,
+              "nll": 0.7645268691153136
+            },
+            "rotation_disagreement_rate": 0.4444444444444444,
+            "rotation_n": 36,
+            "rotations_per_item": 5.0,
+            "samples_with_any_rotation_disagreement": 16,
+            "temperature": 2.046567219106836
+          },
+          "margin_gain": {
+            "n_matched": 36,
+            "mean_margin_gain": 0.5069867902331882,
+            "median_margin_gain": 0.536423921585083,
+            "improved_margin_count": 28,
+            "degraded_margin_count": 8,
+            "unchanged_margin_count": 0,
+            "correct_to_wrong_count": 3,
+            "wrong_to_correct_count": 3,
+            "correct_to_wrong": [
+              "original-intent-02-0",
+              "original-routing-06-0",
+              "original-routing-06-1"
+            ],
+            "wrong_to_correct": [
+              "original-intent-03-0",
+              "original-extraction-04-1",
+              "original-routing-02-0"
+            ]
+          },
+          "quality_better": [
+            "nll",
+            "brier",
+            "raw.nll",
+            "raw.brier",
+            "raw.ece",
+            "mean_signed_winner_margin",
+            "median_signed_winner_margin",
+            "p10_signed_winner_margin",
+            "min_signed_winner_margin"
+          ],
+          "quality_worse": [
+            "ece"
+          ],
+          "latency_ratio": 3.0946642888128406
+        }
+      ],
+      "equivalence": [
+        {
+          "a": "E2",
+          "b": "E2+KV",
+          "n_common": 36,
+          "prediction_mismatches": [],
+          "max_abs_logit_diff": 0.2382068634033203,
+          "max_abs_prob_diff": 0.0076530258106704
+        }
+      ],
+      "verify_problems": []
+    },
+    "hard": {
+      "baseline": {
+        "label": "baseline",
+        "path": "results/measure/e2/base_hard.json",
+        "metrics": {
+          "accuracy": 0.23880597014925373,
+          "brier": 0.8271803166687799,
+          "brier_convention": "sum over options",
+          "calibrated": {
+            "brier": 0.8271803166687799,
+            "ece": 0.24433367580376458,
+            "ece_bins": 15,
+            "n": 67,
+            "nll": 1.560839045147776
+          },
+          "ece": 0.24433367580376458,
+          "ece_bins": 15,
+          "eval_ms": 436914,
+          "labeled": 67,
+          "margins": {
+            "corrected": {
+              "mean": -1.3135336423987773,
+              "median": -1.630723476409912,
+              "min": -4.586942672729492,
+              "n": 67,
+              "p10": -3.962109518051147
+            },
+            "raw": {
+              "mean": -1.3135336423987773,
+              "median": -1.630723476409912,
+              "min": -4.586942672729492,
+              "n": 67,
+              "p10": -3.962109518051147
+            },
+            "source": "pre-temperature logits"
+          },
+          "mean_signed_winner_margin": -1.3135336423987773,
+          "median_signed_winner_margin": -1.630723476409912,
+          "min_signed_winner_margin": -4.586942672729492,
+          "n": 67,
+          "nll": 1.560839045147776,
+          "p10_signed_winner_margin": -3.962109518051147,
+          "prompt_tokens": 73989,
+          "raw": {
+            "brier": 1.0058144112821152,
+            "ece": 0.4268001568653223,
+            "ece_bins": 15,
+            "n": 67,
+            "nll": 2.088906161320361
+          },
+          "temperature": 2.046567219106836
+        }
+      },
+      "targets": [
+        {
+          "label": "E2",
+          "path": "results/measure/e2/e2_hard.json",
+          "metrics": {
+            "accuracy": 0.373134328358209,
+            "brier": 0.715195869803421,
+            "brier_convention": "sum over options",
+            "calibrated": {
+              "brier": 0.715195869803421,
+              "ece": 0.13892157520494486,
+              "ece_bins": 15,
+              "n": 67,
+              "nll": 1.3155177905749342
+            },
+            "ece": 0.13892157520494486,
+            "ece_bins": 15,
+            "eval_ms": 2500687,
+            "labeled": 67,
+            "margins": {
+              "corrected": {
+                "mean": -0.40229731842653077,
+                "median": -0.2530832290649414,
+                "min": -3.8660717010498047,
+                "n": 67,
+                "p10": -2.6080816268920897
+              },
+              "raw": {
+                "mean": -0.40229731842653077,
+                "median": -0.2530832290649414,
+                "min": -3.8660717010498047,
+                "n": 67,
+                "p10": -2.6080816268920897
+              },
+              "source": "pre-temperature logits"
+            },
+            "max_semantic_logit_variance": 5.175717082872829,
+            "mean_max_semantic_logit_variance": 2.3074606990895794,
+            "mean_number_of_distinct_winners": 2.462686567164179,
+            "mean_semantic_logit_variance": 1.3914032494229065,
+            "mean_signed_winner_margin": -0.40229731842653077,
+            "mean_winner_agreement": 0.6179104477611942,
+            "median_signed_winner_margin": -0.2530832290649414,
+            "min_signed_winner_margin": -3.8660717010498047,
+            "n": 67,
+            "nll": 1.3155177905749342,
+            "p10_signed_winner_margin": -2.6080816268920897,
+            "prompt_tokens": 322582,
+            "raw": {
+              "brier": 0.788754564895356,
+              "ece": 0.27443058060919856,
+              "ece_bins": 15,
+              "n": 67,
+              "nll": 1.4528937862834443
+            },
+            "rotation_disagreement_rate": 0.7910447761194029,
+            "rotation_n": 67,
+            "rotations_per_item": 4.134328358208955,
+            "samples_with_any_rotation_disagreement": 53,
+            "temperature": 2.046567219106836
+          },
+          "margin_gain": {
+            "n_matched": 67,
+            "mean_margin_gain": 0.9112363239722465,
+            "median_margin_gain": 0.9222903251647949,
+            "improved_margin_count": 51,
+            "degraded_margin_count": 16,
+            "unchanged_margin_count": 0,
+            "correct_to_wrong_count": 2,
+            "wrong_to_correct_count": 11,
+            "correct_to_wrong": [
+              "hard-opus-c-temporal_numeric-03",
+              "hard-sol-b-long_policy-01"
+            ],
+            "wrong_to_correct": [
+              "hard-opus-a-long_policy-01",
+              "hard-opus-a-long_policy-17",
+              "hard-opus-b-ambiguous-03",
+              "hard-opus-b-probability-04",
+              "hard-opus-b-probability-06",
+              "hard-opus-b-tradeoff-03",
+              "hard-sol-b-long_policy-06",
+              "hard-sol-b-routing_hard-03",
+              "hard-sol-b-routing_hard-09",
+              "hard-sol-b-temporal_numeric-03",
+              "hard-sol-c-multi_hop-07"
+            ]
+          },
+          "quality_better": [
+            "accuracy",
+            "nll",
+            "brier",
+            "ece",
+            "raw.nll",
+            "raw.brier",
+            "raw.ece",
+            "mean_signed_winner_margin",
+            "median_signed_winner_margin",
+            "p10_signed_winner_margin",
+            "min_signed_winner_margin"
+          ],
+          "quality_worse": [],
+          "latency_ratio": 5.723522249229825
+        },
+        {
+          "label": "E2+KV",
+          "path": "results/measure/e2/e2kv_hard.json",
+          "metrics": {
+            "accuracy": 0.373134328358209,
+            "brier": 0.7159667811647511,
+            "brier_convention": "sum over options",
+            "calibrated": {
+              "brier": 0.7159667811647511,
+              "ece": 0.13879110819277438,
+              "ece_bins": 15,
+              "n": 67,
+              "nll": 1.3164393801055747
+            },
+            "ece": 0.13879110819277438,
+            "ece_bins": 15,
+            "eval_ms": 743689,
+            "labeled": 67,
+            "margins": {
+              "corrected": {
+                "mean": -0.4067386935895948,
+                "median": -0.28026676177978516,
+                "min": -3.8660717010498047,
+                "n": 67,
+                "p10": -2.6080816268920897
+              },
+              "raw": {
+                "mean": -0.4067386935895948,
+                "median": -0.28026676177978516,
+                "min": -3.8660717010498047,
+                "n": 67,
+                "p10": -2.6080816268920897
+              },
+              "source": "pre-temperature logits"
+            },
+            "max_semantic_logit_variance": 5.197725840428724,
+            "mean_max_semantic_logit_variance": 2.3066593281039487,
+            "mean_number_of_distinct_winners": 2.4776119402985075,
+            "mean_semantic_logit_variance": 1.3999221204078534,
+            "mean_signed_winner_margin": -0.4067386935895948,
+            "mean_winner_agreement": 0.606716417910448,
+            "median_signed_winner_margin": -0.28026676177978516,
+            "min_signed_winner_margin": -3.8660717010498047,
+            "n": 67,
+            "nll": 1.3164393801055747,
+            "p10_signed_winner_margin": -2.6080816268920897,
+            "prompt_tokens": 322582,
+            "raw": {
+              "brier": 0.7903758817197092,
+              "ece": 0.2659230948951674,
+              "ece_bins": 15,
+              "n": 67,
+              "nll": 1.4554283876876855
+            },
+            "rotation_disagreement_rate": 0.7910447761194029,
+            "rotation_n": 67,
+            "rotations_per_item": 4.134328358208955,
+            "samples_with_any_rotation_disagreement": 53,
+            "temperature": 2.046567219106836
+          },
+          "margin_gain": {
+            "n_matched": 67,
+            "mean_margin_gain": 0.9067949488091824,
+            "median_margin_gain": 0.9666147232055664,
+            "improved_margin_count": 51,
+            "degraded_margin_count": 16,
+            "unchanged_margin_count": 0,
+            "correct_to_wrong_count": 2,
+            "wrong_to_correct_count": 11,
+            "correct_to_wrong": [
+              "hard-opus-c-temporal_numeric-03",
+              "hard-sol-b-long_policy-01"
+            ],
+            "wrong_to_correct": [
+              "hard-opus-a-long_policy-01",
+              "hard-opus-a-long_policy-17",
+              "hard-opus-b-ambiguous-03",
+              "hard-opus-b-probability-04",
+              "hard-opus-b-probability-06",
+              "hard-opus-b-tradeoff-03",
+              "hard-sol-b-long_policy-06",
+              "hard-sol-b-routing_hard-03",
+              "hard-sol-b-routing_hard-09",
+              "hard-sol-b-temporal_numeric-03",
+              "hard-sol-c-multi_hop-07"
+            ]
+          },
+          "quality_better": [
+            "accuracy",
+            "nll",
+            "brier",
+            "ece",
+            "raw.nll",
+            "raw.brier",
+            "raw.ece",
+            "mean_signed_winner_margin",
+            "median_signed_winner_margin",
+            "p10_signed_winner_margin",
+            "min_signed_winner_margin"
+          ],
+          "quality_worse": [],
+          "latency_ratio": 1.7021404670026596
+        }
+      ],
+      "equivalence": [
+        {
+          "a": "E2",
+          "b": "E2+KV",
+          "n_common": 67,
+          "prediction_mismatches": [],
+          "max_abs_logit_diff": 0.3985776901245117,
+          "max_abs_prob_diff": 0.014992266130802456
+        }
+      ],
+      "verify_problems": []
+    }
+  }
+}

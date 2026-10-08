@@ -1,4 +1,5 @@
 #include "decision_engine.h"
+#include "rotation.h"
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -189,6 +190,16 @@ DecisionOutput DecisionEngine::finish_from_logits(
 
 DecisionOutput DecisionEngine::decide_single(const DecisionInput& input)
 {
+    return decide_single_impl(input, nullptr, nullptr, nullptr);
+}
+
+DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
+                                                  const std::vector<int32_t>* prev_tokens,
+                                                  std::vector<int32_t>* tokens_out,
+                                                  int32_t* reused_out)
+{
+    if(reused_out)
+        *reused_out = 0;
     DecisionOutput out;
     out.keys.reserve(input.options.size());
     for(const auto& kv: input.options) out.keys.push_back(kv.first);
@@ -238,16 +249,32 @@ DecisionOutput DecisionEngine::decide_single(const DecisionInput& input)
     out.prompt_token_count = (int32_t)prompt_tokens.size();
     out.tokenize_us = t1 - t0;
 
+    // Shared token prefix with the previously evaluated sequence. Keep at least the last
+    // token for evaluation so logits are produced for the final position.
+    int32_t prefix_len = 0;
+    if(prev_tokens) {
+        size_t limit = prompt_tokens.empty() ? 0 : std::min(prev_tokens->size(), prompt_tokens.size() - 1);
+        while((size_t)prefix_len < limit && (*prev_tokens)[prefix_len] == prompt_tokens[prefix_len])
+            prefix_len++;
+    }
+
     const float* logits = nullptr;
     try {
         auto t2 = now_us();
-        logits = backend_.eval_tokens(prompt_tokens);
+        if(prefix_len > 0)
+            logits = backend_.eval_tokens_reuse_prefix(prompt_tokens, prefix_len);
+        else
+            logits = backend_.eval_tokens(prompt_tokens);
         auto t3 = now_us();
         out.eval_us = t3 - t2;
     } catch(const std::exception& e) {
         out.error = e.what();
         return out;
     }
+    if(reused_out)
+        *reused_out = prefix_len;
+    if(tokens_out)
+        *tokens_out = std::move(prompt_tokens);
 
     return finish_from_logits(input, out.keys, candidates, cand_ids, logits,
                               out.prompt_token_count, out.tokenize_us, out.eval_us);
@@ -257,7 +284,108 @@ DecisionOutput DecisionEngine::decide(const DecisionInput& input)
 {
     if(input.type == Type::Noul && ensemble_cfg_.noul_mode == NoulEnsembleMode::BINARY_ORDER)
         return decide_noul_ensemble(input);
+    if(input.type == Type::Choice && ensemble_cfg_.choice_mode == ChoiceEnsembleMode::CYCLIC_ROTATION)
+        return decide_choice_ensemble(input);
     return decide_single(input);
+}
+
+DecisionOutput DecisionEngine::decide_choice_ensemble(const DecisionInput& input)
+{
+    const int32_t n = (int32_t)input.options.size();
+    if(input.type != Type::Choice || n < 2) {
+        DecisionOutput out;
+        out.error = "choice ensemble: requires choice with at least 2 options";
+        return out;
+    }
+
+    DecisionOutput::ChoiceEnsembleDiag diag;
+    std::vector<double> sum_sem(n, 0.0), sum_raw_sem(n, 0.0);
+    int32_t total_tokens = 0;
+    int64_t total_tokenize_us = 0, total_eval_us = 0;
+    std::vector<int32_t> prev_tokens;
+
+    for(int32_t r = 0; r < n; r++) {
+        RotationMapping map = make_cyclic_rotation(n, r);
+
+        // Same state / question / descriptions; only the option-to-candidate binding changes.
+        // prior_logits stay in candidate order: the prior belongs to the label position.
+        DecisionInput inp = input;
+        inp.options = to_candidate_order(input.options, map);
+        inp.collect_corrected_logits = true;
+
+        const bool reuse = ensemble_cfg_.choice_prefix_reuse && r > 0;
+        std::vector<int32_t> tokens;
+        int32_t reused = 0;
+        DecisionOutput o = decide_single_impl(inp, reuse ? &prev_tokens : nullptr,
+                                              ensemble_cfg_.choice_prefix_reuse ? &tokens : nullptr, &reused);
+        if(!o.ok)
+            return o;
+        if((int32_t)o.corrected_logits.size() != n || (int32_t)o.raw_logits.size() != n) {
+            DecisionOutput out;
+            out.error = "choice ensemble: missing candidate logits";
+            return out;
+        }
+        if(ensemble_cfg_.choice_prefix_reuse)
+            prev_tokens = std::move(tokens);
+
+        DecisionOutput::RotationDiag rd;
+        rd.rotation = r;
+        rd.cand_to_sem = map.cand_to_sem;
+        rd.raw_logits = o.raw_logits;
+        rd.corrected_logits = o.corrected_logits;
+        rd.semantic_logits = to_semantic_order(o.corrected_logits, map);
+        rd.prefix_reused = reused;
+        std::vector<float> raw_sem = to_semantic_order(o.raw_logits, map);
+        rd.semantic_prediction = (int32_t)(std::max_element(rd.semantic_logits.begin(), rd.semantic_logits.end()) -
+                                           rd.semantic_logits.begin());
+        for(int32_t i = 0; i < n; i++) {
+            sum_sem[i] += rd.semantic_logits[i];
+            sum_raw_sem[i] += raw_sem[i];
+        }
+        total_tokens += o.prompt_token_count;
+        total_tokenize_us += o.tokenize_us;
+        total_eval_us += o.eval_us;
+        diag.rotations.push_back(std::move(rd));
+    }
+
+    int64_t td0 = now_us();
+    DecisionOutput out;
+    out.keys.reserve(n);
+    for(const auto& kv: input.options) out.keys.push_back(kv.first);
+    out.prompt_token_count = total_tokens;
+    out.tokenize_us = total_tokenize_us;
+    out.eval_us = total_eval_us;
+
+    std::vector<float> mean_sem(n), mean_raw_sem(n);
+    for(int32_t i = 0; i < n; i++) {
+        diag.mean_semantic_logits.push_back(sum_sem[i] / n);
+        diag.mean_raw_semantic_logits.push_back(sum_raw_sem[i] / n);
+        mean_sem[i] = (float)diag.mean_semantic_logits[i];
+        mean_raw_sem[i] = (float)diag.mean_raw_semantic_logits[i];
+    }
+    if(input.collect_corrected_logits) {
+        out.corrected_logits = mean_sem;
+        out.raw_logits = mean_raw_sem;
+    }
+
+    // Temperature is applied once, after semantic aggregation.
+    std::string err = restricted_softmax(mean_sem, out.raw_probs);
+    if(err.empty()) {
+        double T = calib_cfg_.temperature_for(Type::Choice);
+        if(T != 1.0)
+            err = temperature_softmax(mean_sem, T, out.probs);
+        else
+            out.probs = out.raw_probs;
+    }
+    if(!err.empty()) {
+        out.error = err;
+        return out;
+    }
+    out.selected = argmax(out.probs);
+    out.choice_ensemble_diag = std::move(diag);
+    out.ok = true;
+    out.decision_us = now_us() - td0;
+    return out;
 }
 
 DecisionOutput DecisionEngine::decide_noul_ensemble(const DecisionInput& input)
@@ -358,6 +486,11 @@ std::vector<DecisionOutput> DecisionEngine::decide_batch(
     const std::string& shared_state = inputs[0].state;
     bool can_reuse = true;
     for(const auto& inp: inputs) {
+        // E2 evaluates several prompts per question; route through decide().
+        if(inp.type == Type::Choice && ensemble_cfg_.choice_mode == ChoiceEnsembleMode::CYCLIC_ROTATION) {
+            can_reuse = false;
+            break;
+        }
         if(inp.state != shared_state) {
             can_reuse = false;
             break;

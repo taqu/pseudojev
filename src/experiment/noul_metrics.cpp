@@ -323,24 +323,22 @@ void NoulMetrics::merge_into(json& j) const
 // Margin gain
 // ---------------------------------------------------------------------------
 
-MarginGain compute_margin_gain(const std::vector<NoulSample>& baseline,
-                               const std::vector<NoulSample>& target,
+MarginGain compute_margin_gain(const std::vector<MatchedOutcome>& baseline,
+                               const std::vector<MatchedOutcome>& target,
                                double tol)
 {
     MarginGain g;
-    std::map<std::string, const NoulSample*> base_by_id;
+    std::map<std::string, const MatchedOutcome*> base_by_id;
     for(const auto& s: baseline)
-        if(s.labeled && !s.source_id.empty())
+        if(!s.source_id.empty())
             base_by_id[s.source_id] = &s;
 
     std::vector<double> gains;
     for(const auto& t: target) {
-        if(!t.labeled)
-            continue;
         auto it = base_by_id.find(t.source_id);
         if(it == base_by_id.end())
             continue;
-        double gain = t.signed_margin() - it->second->signed_margin();
+        double gain = t.signed_margin - it->second->signed_margin;
         if(!std::isfinite(gain))
             continue;
         gains.push_back(gain);
@@ -350,11 +348,29 @@ MarginGain compute_margin_gain(const std::vector<NoulSample>& baseline,
             g.improved++;
         else
             g.degraded++;
+        if(it->second->correct && !t.correct)
+            g.correct_to_wrong++;
+        else if(!it->second->correct && t.correct)
+            g.wrong_to_correct++;
     }
     g.n_matched = (int32_t)gains.size();
     g.mean_gain = mean_of(gains);
     g.median_gain = percentile_linear(gains, 0.5);
     return g;
+}
+
+MarginGain compute_margin_gain(const std::vector<NoulSample>& baseline,
+                               const std::vector<NoulSample>& target,
+                               double tol)
+{
+    auto outcomes = [](const std::vector<NoulSample>& v) {
+        std::vector<MatchedOutcome> o;
+        for(const auto& s: v)
+            if(s.labeled)
+                o.push_back({s.source_id, s.signed_margin(), s.correct()});
+        return o;
+    };
+    return compute_margin_gain(outcomes(baseline), outcomes(target), tol);
 }
 
 json MarginGain::to_json() const
@@ -365,7 +381,9 @@ json MarginGain::to_json() const
         {"median_margin_gain", num(median_gain)},
         {"improved_margin_count", improved},
         {"degraded_margin_count", degraded},
-        {"unchanged_margin_count", unchanged}};
+        {"unchanged_margin_count", unchanged},
+        {"correct_to_wrong_count", correct_to_wrong},
+        {"wrong_to_correct_count", wrong_to_correct}};
 }
 
 // ---------------------------------------------------------------------------
@@ -418,11 +436,30 @@ std::string format_noul_comparison(const std::string& title,
     }
     row_i("eval_ms", b_ms, t_ms);
 
-    out += "\nmargin gain (" + target_label + " - " + baseline_label + "), matched by source_id\n";
+    out += format_margin_gain(baseline_label, target_label, gain);
+    return out;
+}
+
+std::string format_margin_gain(const std::string& baseline_label, const std::string& target_label,
+                               const MarginGain& gain)
+{
+    auto f = [](double v) -> std::string {
+        if(!std::isfinite(v))
+            return "-";
+        char s[32];
+        snprintf(s, sizeof(s), "%.4f", v);
+        return s;
+    };
+    std::string out = "\nmargin gain (" + target_label + " - " + baseline_label + "), matched by source_id\n";
+    char buf[256];
     snprintf(buf, sizeof(buf),
              "  matched %d  mean %s  median %s  improved %d  degraded %d  unchanged %d\n",
              gain.n_matched, f(gain.mean_gain).c_str(), f(gain.median_gain).c_str(),
              gain.improved, gain.degraded, gain.unchanged);
+    out += buf;
+    snprintf(buf, sizeof(buf), "  %s correct -> %s wrong: %d   %s wrong -> %s correct: %d\n",
+             baseline_label.c_str(), target_label.c_str(), gain.correct_to_wrong,
+             baseline_label.c_str(), target_label.c_str(), gain.wrong_to_correct);
     out += buf;
     return out;
 }

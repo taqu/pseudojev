@@ -5,6 +5,7 @@
 #include "config.h"
 #include "dataset.h"
 #include "metrics.h"
+#include "choice_metrics.h"
 #include "noul_metrics.h"
 #include "permute.h"
 #include <nlohmann/json.hpp>
@@ -37,6 +38,8 @@ struct ItemResult
     int64_t eval_ms = 0;
     // Semantic (true/false) normalization of a successful noul decision, for metrics.
     std::optional<NoulSample> noul;
+    // Semantic option-space normalization of a successful choice decision, for metrics.
+    std::optional<ChoiceSample> choice;
 };
 
 struct RunResult
@@ -47,6 +50,7 @@ struct RunResult
     StabilityMetrics stability;
     std::vector<ItemResult> items;
     std::vector<NoulSample> noul_samples() const;
+    std::vector<ChoiceSample> choice_samples() const;
     nlohmann::json to_json() const;
 };
 

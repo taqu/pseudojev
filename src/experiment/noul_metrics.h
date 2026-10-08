@@ -157,10 +157,23 @@ struct MarginGain
     int32_t improved = 0;
     int32_t degraded = 0;
     int32_t unchanged = 0;
+    int32_t correct_to_wrong = 0; // baseline correct -> target wrong
+    int32_t wrong_to_correct = 0; // baseline wrong -> target correct
 
     nlohmann::json to_json() const;
 };
 
+// One labeled sample reduced to what a baseline-vs-target comparison needs (any primitive).
+struct MatchedOutcome
+{
+    std::string source_id;
+    double signed_margin = METRIC_UNDEFINED;
+    bool correct = false;
+};
+
+MarginGain compute_margin_gain(const std::vector<MatchedOutcome>& baseline,
+                               const std::vector<MatchedOutcome>& target,
+                               double tol = MARGIN_GAIN_TOL);
 MarginGain compute_margin_gain(const std::vector<NoulSample>& baseline,
                                const std::vector<NoulSample>& target,
                                double tol = MARGIN_GAIN_TOL);
@@ -170,5 +183,8 @@ std::string format_noul_comparison(const std::string& title,
                                    const std::string& baseline_label, const NoulMetrics& baseline, int64_t baseline_eval_ms,
                                    const std::string& target_label, const NoulMetrics& target, int64_t target_eval_ms,
                                    const MarginGain& gain);
+// Margin-gain and correctness-flip lines shared by the noul and choice reports.
+std::string format_margin_gain(const std::string& baseline_label, const std::string& target_label,
+                               const MarginGain& gain);
 } // namespace pjev
 #endif // INC_PJEV_NOUL_METRICS_H_

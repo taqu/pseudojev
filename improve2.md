@@ -1,934 +1,869 @@
-# Task: Implement a JevBench-Derived Calibration Pipeline for `pjev`
+# Task: Implement E2 â€” Cyclic Option Rotation Ensemble for `choice`
 
 ## Objective
 
-Build a reproducible calibration and evaluation pipeline for `pjev` using JevBench-derived data.
+Implement a cyclic option-rotation ensemble for the `choice` primitive.
 
-The purpose of this work is to determine how much of the current decision-quality problem comes from:
+The purpose is to reduce:
 
-- candidate-token prior bias,
-- prompt formulation,
-- probability miscalibration,
-- versus the underlying model capability.
+- candidate-position bias,
+- candidate-token bias,
+- sensitivity to which semantic option is bound to `A`, `B`, `C`, etc.
 
-Do not treat JevBench as a single benchmark score only.
+For a choice task with `N` semantic options, evaluate `N` cyclic rotations so that every semantic option appears exactly once in every candidate-label position.
 
-The system should support:
+Example for four semantic options:
 
 ```text
-JevBench dataset
-    «
-pjev inference
-    «
-raw candidate logits
-    «
-derived tuning dataset
-    «
-post-logit calibration
-    «
-validation-based parameter selection
-    «
-locked configuration
-    «
-held-out evaluation
+Run 0:
+A = option 0
+B = option 1
+C = option 2
+D = option 3
+
+Run 1:
+A = option 1
+B = option 2
+C = option 3
+D = option 0
+
+Run 2:
+A = option 2
+B = option 3
+C = option 0
+D = option 1
+
+Run 3:
+A = option 3
+B = option 0
+C = option 1
+D = option 2
 ```
 
-The implementation must make it possible to rerun calibration without rerunning llama.cpp inference whenever the prompt and model configuration have not changed.
+After inference, remap all candidate scores back into semantic-option space and aggregate them there.
+
+Do not average `A`, `B`, `C`, or `D` directly across runs.
 
 ---
 
-# Core design principle
+# Scope
 
-Separate two classes of experiments.
-
-## 1. Prompt / formulation experiments
-
-These require inference to be rerun.
-
-Examples:
+Implement E2 only for:
 
 ```text
-candidate representation:
-  A/B/C/D
-  Yes/No
-  True/False
-
-prompt layout:
-  state ¨ question ¨ options
-  question ¨ options ¨ state
-  question ¨ state ¨ options
-
-assistant suffix:
-  chat template with think block
-  chat template without think block
-  explicit "Answer:"
-  raw classification prompt
-
-other wording changes
+primitive = choice
 ```
 
-## 2. Post-logit calibration
+Do not modify `noul` E1 behavior in this task.
 
-These operate only on stored logits.
+Do not implement all `N!` permutations.
 
-Examples:
+Use exactly `N` cyclic rotations for `N` options.
 
-```text
-temperature scaling
-candidate prior correction
-prior correction strength
-probability recalculation
-threshold diagnostics
-```
-
-Do not mix these two layers.
-
-A prompt change invalidates stored logits.
-
-A calibration parameter change does not.
+The goal is to give every semantic option equal exposure to every candidate-label position while keeping inference cost linear in the number of options.
 
 ---
 
-# Required output dataset
+# Core invariant
 
-Create a reproducible derived dataset from JevBench inference results.
+Candidate labels and semantic options must remain separate.
 
-Use a line-oriented format such as JSONL unless an existing project format is already clearly preferable.
-
-Each record must contain at least:
+A candidate label such as:
 
 ```text
-source_id
-split
-primitive
-difficulty
+A
+```
 
+is only an internal output token.
+
+It must never be treated as the semantic option itself.
+
+The ensemble pipeline must be:
+
+```text
+semantic options
+    â†“
+rotation-specific candidate binding
+    â†“
+candidate-token logits
+    â†“
+remap to semantic option IDs
+    â†“
+aggregate semantic evidence
+    â†“
+final probabilities
+```
+
+---
+
+# Rotation generation
+
+For `N` semantic options indexed:
+
+```text
+0, 1, 2, ..., N-1
+```
+
+define rotation `r` so candidate position `j` maps to semantic option:
+
+```text
+semantic_index = (j + r) mod N
+```
+
+Equivalent inverse mapping must also be available so candidate logits can be mapped back into semantic order.
+
+For example, with four options:
+
+```text
+rotation 0:
+candidate A -> semantic 0
+candidate B -> semantic 1
+candidate C -> semantic 2
+candidate D -> semantic 3
+
+rotation 1:
+candidate A -> semantic 1
+candidate B -> semantic 2
+candidate C -> semantic 3
+candidate D -> semantic 0
+```
+
+and so on.
+
+Keep this mapping explicit in data structures.
+
+Do not reconstruct it later from prompt text.
+
+---
+
+# Prompt behavior
+
+Each rotation must preserve the same:
+
+```text
 state
 question
-options
-
-ground_truth
-
-prompt_config
-candidate_scheme
-candidate_mapping
-candidate_token_ids
-
-raw_logits
-prior_logits
-corrected_logits
-
-raw_probs
-calibrated_probs
-
-prediction
-calibrated_prediction
-
-model identifier
-model hash if available
-
-prompt token count
-inference latency if already available
+semantic option descriptions
+instruction wording
+answer anchor
 ```
 
-Where practical, also include:
+Only the option-to-candidate-label binding should change.
+
+Example:
 
 ```text
-temperature
-prior_alpha
-prompt template identifier
-layout identifier
-assistant suffix identifier
-```
-
-The stored raw logits must be sufficient to recompute post-logit calibration without running llama.cpp again.
-
----
-
-# Dataset split requirements
-
-This is critical.
-
-Do not tune and evaluate on the same examples.
-
-Create deterministic splits:
-
-```text
-tuning
-validation
-held_out
-```
-
-The split must be reproducible from a fixed seed or stable source IDs.
-
-The held-out split must not influence:
-
-```text
-temperature selection
-prior correction strength
-prompt selection
-candidate-scheme selection
-threshold selection
-```
-
-The final held-out metrics must only be computed after all parameters and prompt choices are frozen.
-
-If JevBench already exposes a meaningful split structure, preserve it where appropriate rather than inventing a conflicting one.
-
-Record the split assignment in the derived dataset.
-
----
-
-# Phase A: Raw inference collection
-
-Implement an inference runner that executes JevBench examples through the real `pjev` decision path.
-
-Do not create a separate toy decision implementation.
-
-The runner should use the same:
-
-```text
-PromptStrategy
-DecisionEngine
-LlamaBackend
-candidate token validation
-restricted candidate logits
-```
-
-as production inference.
-
-For every sample, capture the raw candidate logits before:
-
-```text
-prior correction
-temperature scaling
-softmax calibration
-```
-
-The runner must preserve the semantic mapping between:
-
-```text
-ground-truth answer
-candidate
-internal label
-token ID
-raw logit
-```
-
-This is especially important for `noul`.
-
-Never infer semantic `true` from candidate position.
-
----
-
-# Phase B: Candidate prior measurement
-
-Implement content-free or minimally informative candidate-prior measurement.
-
-The goal is to estimate token / prompt-format preference independently of task content.
-
-For each relevant configuration, measure candidate logits from a content-free prompt.
-
-For example, conceptually:
-
-```text
-State:
-
 Question:
+Which action should be taken?
 
 Possible answers:
-A: No
-B: Yes
+A: Restart the server
+B: Ignore the error
+C: Delete the database
+D: Shut down the network
+
+Answer:
 ```
 
-The exact blank prompt should be generated using the same PromptStrategy path as normal inference.
-
-Do not manually construct a different prompt unless explicitly required.
-
-Store the resulting candidate prior logits.
-
-At minimum, measure priors separately for:
+A later rotation might be:
 
 ```text
-primitive
-candidate scheme
-prompt configuration
-number of candidates
+Possible answers:
+A: Ignore the error
+B: Delete the database
+C: Shut down the network
+D: Restart the server
+
+Answer:
 ```
 
-If later evidence shows that additional conditioning is needed, keep the design extensible.
+Do not change unrelated prompt wording between rotations.
 
 ---
 
-# Phase C: Prior correction
+# Reference aggregation method
 
-Implement configurable candidate prior correction.
-
-Use a parameter:
+For each rotation `r`, obtain candidate logits:
 
 ```text
-alpha
+L_r(A)
+L_r(B)
+...
 ```
 
-with the general form:
+Map them back to semantic-option logits:
 
 ```text
-corrected_logit_i =
-    raw_logit_i - alpha * prior_logit_i
+S_r(option_i)
 ```
 
-where:
+Then aggregate in semantic score space.
+
+The preferred initial implementation is:
 
 ```text
-alpha = 0
+S_ensemble(option_i) =
+    mean_r S_r(option_i)
 ```
 
-means no correction.
-
-Support at least:
+Then compute:
 
 ```text
-alpha ¸ continuous or fine-grid range
+P(option_i) =
+    softmax(S_ensemble / T_choice)
 ```
 
-For an initial implementation, a deterministic grid search is acceptable.
+if temperature calibration is enabled.
 
-Example search range:
-
-```text
-0.0 to 2.0
-```
-
-with a reasonably fine step.
-
-Do not hard-code this range deep inside the engine. Put it in the calibration / tuning layer.
-
-For diagnostics, retain both:
+Without temperature scaling:
 
 ```text
-raw_logits
-corrected_logits
+P(option_i) =
+    softmax(S_ensemble)
 ```
 
 ---
 
-# Phase D: Temperature scaling
+# Important: aggregate logits, not labels
 
-Implement standard temperature scaling over candidate logits.
-
-Use:
+Do not:
 
 ```text
-P_i =
-exp(corrected_logit_i / T)
-/
-sum_j exp(corrected_logit_j / T)
+vote for whichever candidate letter wins
 ```
 
-with:
+as the primary method.
+
+Do not:
 
 ```text
-T > 0
+average probability assigned to A
 ```
 
-Fit temperature by minimizing negative log-likelihood on the tuning split.
+across rotations.
 
-Support primitive-specific temperatures:
+The semantic meaning of `A` changes between rotations.
 
-```text
-T_noul
-T_choice
-T_score
-```
-
-Do not assume one global temperature is optimal.
-
-Start with independent primitive-level temperatures.
-
-If a primitive has too little data, fail safely or fall back to a documented default rather than silently overfitting.
+Always remap candidate scores back to semantic option identity first.
 
 ---
 
-# Special handling for `noul`
+# Alternative diagnostic aggregation
 
-For binary `noul`, expose and store the semantic margin:
-
-```text
-margin =
-    logit_true - logit_false
-```
-
-Also store:
+For research purposes only, optionally compute:
 
 ```text
-raw_margin
-prior_corrected_margin
-calibrated_p_true
+mean semantic probability
+majority semantic vote
 ```
 
-For diagnostics, compute:
+as additional diagnostics.
+
+Do not make these the production E2 result unless benchmark evidence later supports them.
+
+The initial E2 definition is:
 
 ```text
-P(true)
+mean semantic logits
+â†’ softmax
 ```
-
-using the candidate that is semantically bound to true.
-
-Do not assume:
-
-```text
-index 0 = true
-```
-
-or:
-
-```text
-index 1 = true
-```
-
-The semantic mapping must come from candidate metadata.
 
 ---
 
-# Optimization procedure
+# Prior correction
 
-Use the tuning split to fit calibration parameters.
+If candidate prior correction is enabled, apply it before semantic remapping.
 
-A good initial search procedure is:
-
-```text
-for each primitive:
-    search alpha
-        fit temperature T
-        compute tuning NLL
-
-select promising parameter sets
-
-evaluate them on validation
-
-freeze the best validation configuration
-
-evaluate exactly once on held_out
-```
-
-Do not select final parameters from held-out metrics.
-
-Do not optimize directly for accuracy only.
-
-Primary calibration objective:
+For every rotation:
 
 ```text
-NLL
+corrected_logit_candidate =
+    raw_logit_candidate
+    - alpha * prior_logit_candidate
 ```
 
-Also report:
+Then map:
 
 ```text
-Brier score
-ECE
-accuracy
+candidate space
+â†’ semantic option space
 ```
 
-For score-type tasks, additionally report:
+Then aggregate.
+
+This matters because prior bias belongs to the candidate token / position, not directly to the semantic option.
+
+---
+
+# Temperature scaling
+
+Apply `T_choice` after semantic aggregation.
+
+Preferred sequence:
 
 ```text
-MAE
-QWK if already supported or practical
+raw candidate logits
+    â†“
+candidate prior correction
+    â†“
+semantic remapping
+    â†“
+average semantic logits across rotations
+    â†“
+temperature scaling
+    â†“
+softmax
 ```
+
+Do not independently temperature-scale each rotation and then average unless explicitly implemented as a research comparison.
+
+---
+
+# Configuration
+
+Add an explicit configuration mode.
+
+Conceptually:
+
+```text
+ChoiceEnsembleMode::NONE
+ChoiceEnsembleMode::CYCLIC_ROTATION
+```
+
+or the equivalent existing project style.
+
+Do not silently enable E2 by default.
+
+It must remain benchmarkable against the single-order baseline.
+
+---
+
+# Reference implementation
+
+First implement a simple sequential correctness path.
+
+For each choice request:
+
+```text
+for each cyclic rotation:
+    build rotated candidate mapping
+    build prompt
+    evaluate prompt
+    capture candidate logits
+    apply optional prior correction
+    remap candidate logits to semantic option order
+    store semantic scores
+
+average semantic scores
+apply temperature
+softmax
+select argmax
+```
+
+This sequential implementation is the reference behavior.
+
+Keep it straightforward and auditable.
+
+---
+
+# Parallel / batched evaluation
+
+Support an optimized evaluation path only where the backend safely permits it.
+
+The preferred hierarchy is:
+
+```text
+1. sequential reference path
+2. llama.cpp batch / multi-sequence evaluation
+3. shared-prefix KV reuse
+4. multiple independent contexts for true parallelism
+```
+
+Do not call the same mutable llama context concurrently from multiple threads unless the backend explicitly supports it.
+
+If batch support already exists, prefer batching rotations over naÃ¯ve multithreading.
+
+---
+
+# Shared-prefix optimization
+
+All rotations share most of the prompt.
+
+Conceptually:
+
+```text
+shared instruction
+shared state
+shared question
+    â†“
+rotation-specific options block
+    â†“
+Answer:
+```
+
+Where practical, structure the implementation so the shared prefix can later be evaluated once and reused.
+
+Long-term target:
+
+```text
+shared prefix
+    â†“
+evaluate once
+    â†“
+fork KV state
+   â†™   â†“   â†˜
+rot0 rot1 rot2 ...
+   â†“   â†“   â†“
+logits
+    â†“
+semantic aggregation
+```
+
+Do not make KV reuse mandatory for E2 correctness.
+
+Correctness comes first.
+
+---
+
+# Rotation count and cost
+
+For `N` options:
+
+```text
+number of evaluations = N
+```
+
+Examples:
+
+```text
+2 options -> 2 evaluations
+3 options -> 3 evaluations
+4 options -> 4 evaluations
+5 options -> 5 evaluations
+```
+
+Do not generate all permutations.
+
+For four choices:
+
+```text
+cyclic E2 cost â‰ˆ 4x naÃ¯ve baseline inference
+```
+
+before optimization.
+
+Record this cost explicitly in benchmark output.
+
+---
+
+# Diagnostics
+
+Expose enough information to understand whether rotation is helping.
+
+Per sample, record where practical:
+
+```text
+rotation_count
+
+for each rotation:
+    candidate_to_semantic_mapping
+    raw candidate logits
+    corrected candidate logits
+    semantic logits
+    semantic prediction
+
+ensemble:
+    mean semantic logits
+    final probabilities
+    final prediction
+```
+
+Also calculate:
+
+```text
+rotation disagreement count
+rotation disagreement rate
+semantic winner frequency
+```
+
+---
+
+# Rotation disagreement
+
+For each rotation, convert the winning candidate back to semantic option identity.
+
+Then determine whether all rotations agree.
+
+For one sample, examples:
+
+```text
+rot0 -> option 2
+rot1 -> option 2
+rot2 -> option 2
+rot3 -> option 2
+```
+
+means stable.
+
+Whereas:
+
+```text
+rot0 -> option 2
+rot1 -> option 0
+rot2 -> option 2
+rot3 -> option 3
+```
+
+indicates strong order sensitivity.
+
+Aggregate metrics should include:
+
+```text
+samples_with_any_rotation_disagreement
+rotation_disagreement_rate
+mean_number_of_distinct_winners
+```
+
+---
+
+# Semantic score variance
+
+Add a rotation-stability diagnostic.
+
+For each semantic option `i`, compute variance across rotations:
+
+```text
+Var_r(S_r(option_i))
+```
+
+Optionally summarize per sample:
+
+```text
+mean_semantic_logit_variance
+max_semantic_logit_variance
+```
+
+Then aggregate across the dataset.
+
+Low variance means candidate binding is relatively stable.
+
+High variance means the semantic score depends heavily on option order.
+
+This metric is useful even when final accuracy is unchanged.
+
+---
+
+# Signed winner margin
+
+For labeled `choice` examples, compute a ground-truth margin.
+
+Let:
+
+```text
+S_gt = ensemble score for ground-truth option
+S_best_wrong = maximum ensemble score among all incorrect options
+```
+
+Then:
+
+```text
+signed_winner_margin =
+    S_gt - S_best_wrong
+```
+
+Interpretation:
+
+```text
+> 0  correct side
+< 0  incorrect side
+larger positive = stronger classification
+```
+
+Report:
+
+```text
+mean signed winner margin
+median signed winner margin
+p10 signed winner margin
+minimum signed winner margin
+```
+
+This is the multiclass equivalent of the signed semantic margin used for `noul`.
+
+---
+
+# E2 margin gain
+
+When baseline and E2 results can be matched by source ID:
+
+```text
+margin_gain =
+    signed_winner_margin_E2
+    - signed_winner_margin_baseline
+```
+
+Report:
+
+```text
+mean_margin_gain
+median_margin_gain
+improved_margin_count
+degraded_margin_count
+unchanged_margin_count
+```
+
+This allows E2 to show improvement even if accuracy is unchanged.
 
 ---
 
 # Metrics
 
-Implement reproducible metric computation.
-
-At minimum:
-
-## Classification
-
-```text
-accuracy
-negative log-likelihood
-Brier score
-ECE
-```
-
-## `noul`
-
-Also report:
-
-```text
-mean P(true)
-mean semantic margin
-margin distribution
-false-positive / false-negative counts
-```
-
-## `score`
-
-Report:
-
-```text
-accuracy
-MAE
-NLL where applicable
-Brier where applicable
-QWK if already supported
-```
-
-Do not combine calibration quality and classification accuracy into one opaque score.
-
-Report them separately.
-
----
-
-# ECE implementation
-
-Implement Expected Calibration Error with clearly documented binning.
-
-Use a fixed default such as:
-
-```text
-15 equal-width confidence bins
-```
-
-unless the project already defines something else.
-
-Record the bin count in output metadata.
-
-Avoid adaptive behavior that makes runs difficult to compare.
-
----
-
-# Prompt configuration experiments
-
-The calibration pipeline must support comparing multiple prompt configurations.
-
-At minimum make it possible to identify runs such as:
-
-```text
-letters + think
-letters + no-think
-letters + no-think + Answer:
-natural Yes/No
-raw classification prompt
-```
-
-Do not necessarily implement all prompt variants in this task if they do not exist yet.
-
-However, the dataset and runner must record prompt configuration explicitly so results from different prompt forms cannot be mixed accidentally.
-
-A calibration artifact must be tied to the exact prompt configuration that produced its logits.
-
----
-
-# Important consistency rule
-
-Calibration parameters must be invalidated when any of the following changes:
-
-```text
-model
-model hash
-candidate scheme
-prompt layout
-assistant suffix
-candidate token mapping
-primitive formulation
-```
-
-Do not apply a calibration artifact to incompatible logits silently.
-
-Add compatibility metadata and validation.
-
----
-
-# Calibration artifact
-
-Produce a versioned calibration artifact that can be loaded by `pjev`.
-
-A possible format:
-
-```json
-{
-  "version": 1,
-  "model": "...",
-  "model_hash": "...",
-  "prompt_config": "...",
-  "candidate_scheme": "...",
-  "parameters": {
-    "noul": {
-      "temperature": 1.12,
-      "prior_alpha": 0.74
-    },
-    "choice": {
-      "temperature": 0.93,
-      "prior_alpha": 0.31
-    },
-    "score": {
-      "temperature": 1.28,
-      "prior_alpha": 0.0
-    }
-  }
-}
-```
-
-This is illustrative.
-
-Use the project's existing configuration conventions where possible.
-
-The runtime should reject incompatible calibration artifacts with a clear error.
-
----
-
-# Runtime integration
-
-Integrate calibration into the existing decision path without changing its basic architecture.
-
-The intended order is:
-
-```text
-raw candidate logits
-    «
-prior correction
-    «
-temperature scaling
-    «
-softmax
-    «
-probabilities
-    «
-argmax / expected score
-```
-
-Keep:
-
-```text
-raw_probs
-calibrated_probs
-```
-
-distinguishable where the existing API supports it.
-
-Do not overwrite raw diagnostic data.
-
----
-
-# Command-line tooling
-
-Add a reproducible CLI workflow.
-
-Names can follow existing project conventions, but conceptually support commands equivalent to:
-
-```text
-pjev-calibrate collect ...
-pjev-calibrate fit ...
-pjev-calibrate evaluate ...
-```
-
-or a single tool with subcommands.
-
-Required capabilities:
-
-```text
-collect inference results
-fit calibration parameters
-evaluate a saved calibration
-compare calibrated vs uncalibrated metrics
-write JSON / JSONL reports
-```
-
-Prefer machine-readable output.
-
-A human-readable summary is useful but secondary.
-
----
-
-# Example workflow
-
-The finished tooling should support a workflow equivalent to:
-
-```text
-1. Collect logits
-
-jevbench
-    «
-pjev inference
-    «
-results/raw.jsonl
-
-2. Fit
-
-raw.jsonl
-    «
-tuning split
-    «
-fit prior alpha + temperature
-    «
-calibration.json
-
-3. Validate
-
-raw.jsonl + calibration.json
-    «
-validation metrics
-
-4. Freeze
-
-select configuration
-
-5. Held-out evaluation
-
-raw.jsonl + frozen calibration
-    «
-held-out report
-```
-
----
-
-# Required comparison report
-
-Generate a report showing, per primitive:
-
-```text
-uncalibrated
-prior-corrected only
-temperature-only
-prior-corrected + temperature
-```
-
-Include:
+For baseline and E2, report at least:
 
 ```text
 accuracy
 NLL
 Brier
 ECE
+
+mean signed winner margin
+median signed winner margin
+p10 signed winner margin
+min signed winner margin
+
+rotation disagreement rate
+mean semantic logit variance
+
+eval_ms
 ```
 
-For example:
+Use the existing metric implementation where possible.
 
-```text
-noul
-
-                         Acc     NLL     Brier    ECE
-raw                      ...
-temperature              ...
-prior correction         ...
-prior + temperature      ...
-```
-
-The goal is to make the contribution of each calibration step visible.
+Do not create incompatible duplicate definitions of NLL, Brier, or ECE.
 
 ---
 
-# Diagnostic report for candidate bias
+# Multiclass Brier score
 
-Add a report for candidate-token bias.
-
-For each candidate scheme, show something equivalent to:
+If not already implemented, for `K` options use:
 
 ```text
-candidate
-mean raw logit
-content-free prior logit
-selection frequency
-ground-truth frequency
+Brier =
+    mean_samples(
+        sum_i (P_i - Y_i)^2
+    )
 ```
 
-For binary tasks also include:
+where `Y_i` is one-hot ground truth.
 
-```text
-mean margin
-median margin
-margin stddev
-```
+Document whether the implementation uses the summed or normalized-by-`K` convention.
 
-This is important for identifying cases where the model prefers a token such as `A`, `B`, `Yes`, or `No` independent of semantic content.
-
----
-
-# Reproducibility
-
-All tuning must be reproducible.
-
-Record:
-
-```text
-dataset version / identifier
-split seed
-model identifier
-model hash
-prompt configuration
-candidate scheme
-calibration search range
-metric configuration
-ECE bin count
-tool version
-```
-
-Avoid undocumented random search.
-
-If randomness is used, expose and record the seed.
+Use one convention consistently across experiments.
 
 ---
 
 # Tests
 
-Add unit tests and integration tests.
+Add focused unit tests.
 
-At minimum:
+## 1. Rotation mapping
 
-## 1. Temperature scaling
-
-Verify that:
+For four options:
 
 ```text
-T = 1
+semantic options:
+0 1 2 3
 ```
 
-reproduces unscaled softmax.
-
-Verify that lower / higher temperatures behave as expected.
-
-## 2. Prior correction
-
-Given known:
+verify generated rotations:
 
 ```text
-raw logits
-prior logits
-alpha
+rot0: 0 1 2 3
+rot1: 1 2 3 0
+rot2: 2 3 0 1
+rot3: 3 0 1 2
 ```
 
-verify exact corrected logits.
+Verify inverse mapping as well.
 
-## 3. Binary `noul` semantic mapping
+---
 
-Verify that reversed candidate order does not change which probability is reported as `p_true`.
+## 2. Semantic remapping
 
-## 4. Split determinism
-
-The same dataset and seed must always produce identical split assignments.
-
-## 5. No held-out leakage
-
-Add tests or structural safeguards so held-out labels cannot be used during parameter fitting.
-
-## 6. Artifact compatibility
-
-Calibration created for one:
+Given a rotation:
 
 ```text
-model / prompt configuration / candidate scheme
+A -> semantic 2
+B -> semantic 3
+C -> semantic 0
+D -> semantic 1
 ```
 
-must not silently apply to an incompatible configuration.
-
-## 7. Metrics
-
-Use small hand-computable examples to verify:
+and candidate logits:
 
 ```text
-accuracy
-NLL
-Brier
-ECE
+A = 1
+B = 2
+C = 3
+D = 4
+```
+
+verify semantic logits become:
+
+```text
+semantic 0 = 3
+semantic 1 = 4
+semantic 2 = 1
+semantic 3 = 2
 ```
 
 ---
 
-# Performance constraints
+## 3. Position-bias cancellation
 
-Do not rerun model inference during pure calibration parameter search.
+Construct synthetic logits where every rotation strongly prefers candidate `A` regardless of meaning.
 
-Once raw candidate logits have been collected, searches over:
+Example:
 
 ```text
+A = 5
+B = 1
+C = 1
+D = 1
+```
+
+for every rotation.
+
+Because each semantic option appears exactly once as `A`, cyclic averaging should distribute this candidate-position bias symmetrically across semantic options.
+
+The final semantic scores should become equal or approximately equal.
+
+This is a key E2 test.
+
+---
+
+## 4. Semantic evidence survives rotation
+
+Construct synthetic logits where the same semantic option receives the strongest semantic score in every rotation even though its candidate letter changes.
+
+Verify the ensemble strongly selects that semantic option.
+
+---
+
+## 5. Prior correction
+
+Verify candidate priors are subtracted before semantic remapping and aggregation.
+
+---
+
+## 6. Temperature
+
+Verify `T_choice = 1` reproduces unscaled ensemble softmax.
+
+---
+
+## 7. Sequential vs optimized equivalence
+
+If an optimized batched / KV-reuse path is implemented, verify:
+
+```text
+semantic ensemble logits
+probabilities
+selected option
+```
+
+match the sequential reference within floating-point tolerance.
+
+---
+
+# JevBench experiment
+
+Run a controlled comparison:
+
+```text
+Baseline:
+single option ordering
+
+E2:
+full cyclic rotation
+```
+
+Use the same:
+
+```text
+model
+prompt wording
+candidate scheme
 temperature
-prior alpha
-metrics
-threshold diagnostics
+prior correction
+few-shot configuration
 ```
 
-must operate only on stored data.
+Do not change multiple experimental variables simultaneously.
 
-This is one of the primary reasons for building the derived dataset.
+Evaluate separately on:
+
+```text
+easy
+original
+hard
+```
+
+where those splits exist.
 
 ---
 
-# Do not overfit the benchmark
+# Required report
 
-The calibration tool must not become an automatic JevBench prompt optimizer that repeatedly inspects held-out performance.
-
-Do not:
+Produce a comparison similar to:
 
 ```text
-search prompts against held_out
-search alpha against held_out
-search temperature against held_out
-select model against held_out
+choice / original
+
+metric                       baseline      E2
+------------------------------------------------
+accuracy                     ...
+NLL                          ...
+Brier                        ...
+ECE                          ...
+
+mean winner margin           ...
+median winner margin         ...
+p10 winner margin            ...
+min winner margin            ...
+
+rotation disagreement rate   n/a           ...
+mean semantic variance       n/a           ...
+
+eval_ms                      ...
 ```
 
-The held-out set is for final evaluation only.
+Also report:
+
+```text
+baseline correct -> E2 wrong
+baseline wrong -> E2 correct
+```
+
+counts.
 
 ---
 
-# Initial recommended experiment
+# Acceptance criteria
 
-Once the pipeline works, run an initial controlled experiment for `noul`.
+E2 is correctly implemented when:
 
-Use the same Bonsai model and compare:
-
-```text
-Configuration A:
-letters
-current chat template with think block
-
-Configuration B:
-letters
-chat template without think block
-```
-
-If already implemented, optionally add:
-
-```text
-Configuration C:
-letters
-chat template without think block
-explicit Answer:
-
-Configuration D:
-natural Yes/No
-```
-
-For each configuration:
-
-```text
-collect fresh raw logits
-measure content-free priors
-fit alpha and T on tuning
-select on validation
-report held-out metrics
-```
-
-Do not reuse logits across prompt configurations.
-
----
-
-# Questions the final report should answer
-
-The implementation should make it possible to answer:
-
-1. How much does candidate prior correction improve NLL?
-2. How much does temperature scaling improve calibration?
-3. Does calibration improve accuracy, or only probability quality?
-4. Does removing the `<think>...</think>` suffix improve held-out performance?
-5. Are `A/B` candidates more stable than `Yes/No` candidates?
-6. How strong is candidate-position bias?
-7. How strong is candidate-token bias?
-8. Does `noul` semantic margin react appropriately to input-state changes?
-9. Are improvements stable on validation and held-out data?
-10. Is Bonsai 1.7B still viable after formulation and calibration are properly controlled?
+1. `N` cyclic rotations are generated for `N` options.
+2. Every semantic option appears exactly once in every candidate-label position.
+3. Candidate logits are remapped into semantic-option space correctly.
+4. Semantic logits are aggregated, not raw candidate labels.
+5. Candidate-position bias cancels in synthetic tests.
+6. Consistent semantic evidence survives rotation.
+7. Prior correction works in candidate space.
+8. Existing choice behavior remains available as baseline.
+9. Sequential reference tests pass.
+10. Any optimized path matches reference output numerically.
+11. JevBench can compare baseline and E2 cleanly.
 
 ---
 
@@ -936,19 +871,18 @@ The implementation should make it possible to answer:
 
 Do not in this task:
 
-- replace the Bonsai model;
-- redesign the HTTP server;
-- optimize KV-cache reuse;
-- redesign the CLI architecture;
-- implement background workers;
-- alter unrelated production behavior;
-- introduce a large ML framework unless clearly necessary.
+- implement all permutations;
+- modify E1 `noul` behavior;
+- add few-shot examples;
+- optimize example selection;
+- change model architecture;
+- redesign calibration;
+- alter multilingual behavior;
+- make E2 default automatically.
 
-Prefer a small, auditable calibration implementation.
+This experiment should answer one question:
 
-Simple C++ or Python-based offline calibration tooling is acceptable if it integrates cleanly with the native C++ runtime and produces a stable versioned calibration artifact.
-
-The runtime inference path itself should remain native C++.
+> Does cyclic candidate rotation improve `choice` quality by reducing option-position and candidate-token bias?
 
 ---
 
@@ -956,43 +890,47 @@ The runtime inference path itself should remain native C++.
 
 Provide:
 
-1. JevBench inference collection tooling.
-2. Derived JSONL dataset generation.
-3. Deterministic tuning / validation / held-out splitting.
-4. Candidate-prior measurement.
-5. Prior correction with tunable `alpha`.
-6. Primitive-specific temperature scaling.
-7. NLL / Brier / ECE / accuracy evaluation.
-8. Versioned calibration artifact output.
-9. Runtime loading and compatibility validation.
-10. Tests.
-11. A comparison report for calibrated vs uncalibrated results.
-12. Documentation describing the complete reproduction procedure.
+1. cyclic rotation generator;
+2. explicit semantic mapping;
+3. sequential reference ensemble;
+4. optional safe batched / optimized evaluation;
+5. semantic-logit aggregation;
+6. E2 configuration switch;
+7. unit tests;
+8. JevBench baseline-vs-E2 report;
+9. latency comparison;
+10. rotation-stability diagnostics.
 
 At completion, report:
 
 ```text
 files changed
-commands used
 tests run
-dataset split sizes
-selected alpha values
-selected temperatures
-validation metrics
-held-out metrics
+
+baseline:
+  accuracy
+  NLL
+  Brier
+  ECE
+  winner-margin metrics
+  eval_ms
+
+E2:
+  accuracy
+  NLL
+  Brier
+  ECE
+  winner-margin metrics
+  rotation disagreement rate
+  semantic logit variance
+  eval_ms
+
+implementation:
+  sequential / batched / parallel
+  number of rotations
+  whether KV reuse is used
 ```
 
-Do not claim improvement based on tuning-set metrics alone.
+Do not promote E2 to the default path based only on training/tuning data.
 
-The main success criterion is not merely a higher JevBench score.
-
-The success criterion is a reproducible system that can distinguish:
-
-```text
-model capability
-prompt/formulation effects
-candidate prior bias
-probability calibration
-```
-
-without contaminating the held-out evaluation.
+Use held-out JevBench results and latency cost to decide whether it is worth enabling.

@@ -124,6 +124,41 @@ namespace
         }
         return s;
     }
+
+    // Maps a choice DecisionOutput into semantic option space (out.keys order). For E2 the
+    // per-rotation scores are already remapped by the engine via the explicit rotation mapping.
+    ChoiceSample make_choice_sample(const DatasetRow& row, const DecisionOutput& out, double temperature)
+    {
+        ChoiceSample s;
+        s.source_id = row.id;
+        s.keys = out.keys;
+        if(row.expected.is_string()) {
+            const std::string e = row.expected.get<std::string>();
+            for(int i = 0; i < (int)out.keys.size(); i++)
+                if(out.keys[i] == e)
+                    s.ground_truth = i;
+        }
+        s.prediction = out.selected;
+        s.temperature = temperature;
+        s.logits.assign(out.corrected_logits.begin(), out.corrected_logits.end());
+        s.raw_logits.assign(out.raw_logits.begin(), out.raw_logits.end());
+        s.probs = out.probs;
+        s.prompt_tokens = out.prompt_token_count;
+        if(out.choice_ensemble_diag) {
+            for(const auto& rd: out.choice_ensemble_diag->rotations) {
+                ChoiceRotation r;
+                r.rotation = rd.rotation;
+                r.cand_to_sem = rd.cand_to_sem;
+                r.raw_logits.assign(rd.raw_logits.begin(), rd.raw_logits.end());
+                r.corrected_logits.assign(rd.corrected_logits.begin(), rd.corrected_logits.end());
+                r.semantic_logits.assign(rd.semantic_logits.begin(), rd.semantic_logits.end());
+                r.prediction = rd.semantic_prediction;
+                r.prefix_reused = rd.prefix_reused;
+                s.rotations.push_back(std::move(r));
+            }
+        }
+        return s;
+    }
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -160,8 +195,9 @@ RunResult run_experiment(ILlamaBackend& backend,
         DecisionInput inp = row.input;
         inp.options = permute_options(row.input.options, cfg.option_order, cfg.random_seed);
         inp.prior_correction = cfg.prior_correction;
-        // noul always collects logits so semantic margins can be measured
-        inp.collect_corrected_logits = cfg.collect_corrected_logits || row.input.type == Type::Noul;
+        // noul / choice always collect logits so semantic margins can be measured
+        inp.collect_corrected_logits = cfg.collect_corrected_logits || row.input.type == Type::Noul ||
+                                       row.input.type == Type::Choice;
         if(cfg.prior_correction) {
             auto key = std::make_pair(static_cast<int32_t>(row.input.type), static_cast<int32_t>(row.input.options.size()));
             auto it = prior_cache.find(key);
@@ -197,6 +233,8 @@ RunResult run_experiment(ILlamaBackend& backend,
         ir.correct = check_correct(ir, row.expected, row.input.type);
         if(out.ok && row.input.type == Type::Noul)
             ir.noul = make_noul_sample(row, out);
+        if(out.ok && row.input.type == Type::Choice)
+            ir.choice = make_choice_sample(row, out, cfg.calibration.temperature_for(Type::Choice));
 
         // Populate correct_index and expected_score for calibration use
         if(!row.expected.is_null()) {
@@ -237,6 +275,15 @@ std::vector<NoulSample> RunResult::noul_samples() const
     return samples;
 }
 
+std::vector<ChoiceSample> RunResult::choice_samples() const
+{
+    std::vector<ChoiceSample> samples;
+    for(const auto& item: items)
+        if(item.choice)
+            samples.push_back(*item.choice);
+    return samples;
+}
+
 json RunResult::to_json() const
 {
     const auto& m = metrics;
@@ -266,6 +313,10 @@ json RunResult::to_json() const
         {"labeled", m.choice.labeled},
         {"accuracy", m.choice.accuracy()},
         {"eval_ms", choice_eval_ms}};
+    const std::vector<ChoiceSample> choice_samples_v = choice_samples();
+    compute_choice_metrics(choice_samples_v).merge_into(choice_j);
+    json choice_items_j = json::array();
+    for(const auto& s: choice_samples_v) choice_items_j.push_back(s.to_json());
     json noul_j = {
         {"n", m.noul.n},
         {"labeled", m.noul.labeled},
@@ -295,6 +346,9 @@ json RunResult::to_json() const
         {"option_order", c.order_str()},
         {"prior_correction", c.prior_correction},
         {"noul_ensemble", c.ensemble.noul_mode == NoulEnsembleMode::BINARY_ORDER ? "binary-order" : "none"},
+        {"choice_ensemble", c.ensemble.choice_mode == ChoiceEnsembleMode::CYCLIC_ROTATION
+                                ? (c.ensemble.choice_prefix_reuse ? "cyclic-rotation+prefix-reuse" : "cyclic-rotation")
+                                : "none"},
         {"metrics", json{
                         {"n_total", m.n_total},
                         {"n_errors", m.n_errors},
@@ -302,7 +356,8 @@ json RunResult::to_json() const
                         {"noul", noul_j},
                         {"score", score_j}}},
         {"stability", stab_j},
-        {"noul_items", noul_items_j}};
+        {"noul_items", noul_items_j},
+        {"choice_items", choice_items_j}};
 }
 
 // ---------------------------------------------------------------------------

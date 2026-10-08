@@ -55,6 +55,7 @@ set(PJEV_HEADER
     src/calibration/calibration_fit.h
     src/decision/prompt_strategy.h
     src/decision/decision_engine.h
+    src/decision/rotation.h
     src/server/jev_api.h
     src/server/server_config.h
     src/server/http_server.h
@@ -64,6 +65,7 @@ set(PJEV_HEADER
     src/experiment/dataset.h
     src/experiment/runner.h
     src/experiment/noul_metrics.h
+    src/experiment/choice_metrics.h
     src/multilingual/multilingual.h
     src/model/model_identity.h
     src/model/value_profile.h
@@ -93,6 +95,7 @@ set(PJEV_SOURCE
     src/experiment/dataset.cpp
     src/experiment/runner.cpp
     src/experiment/noul_metrics.cpp
+    src/experiment/choice_metrics.cpp
     src/multilingual/multilingual.cpp
     src/model/model_identity.cpp
     src/model/value_profile.cpp

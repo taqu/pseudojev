@@ -1,0 +1,1457 @@
+{
+  "choice_ensemble": "none",
+  "choice_items": [
+    {
+      "correct": true,
+      "ground_truth": "track_order",
+      "ground_truth_index": 0,
+      "keys": [
+        "track_order",
+        "cancel_order",
+        "change_address",
+        "report_damage",
+        "billing_question"
+      ],
+      "logits": [
+        12.597555160522461,
+        5.254275321960449,
+        5.719666481018066,
+        5.106581211090088,
+        4.47761869430542
+      ],
+      "prediction": 0,
+      "probs": [
+        0.903336821110607,
+        0.024978098860724118,
+        0.03135583147947115,
+        0.023239017211039912,
+        0.017090231338158016
+      ],
+      "prompt_tokens": 120,
+      "raw_logits": [
+        12.597555160522461,
+        5.254275321960449,
+        5.719666481018066,
+        5.106581211090088,
+        4.47761869430542
+      ],
+      "signed_margin": 6.8778886795043945,
+      "source_id": "easy-intent-00",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "cancel_order",
+      "ground_truth_index": 1,
+      "keys": [
+        "track_order",
+        "cancel_order",
+        "change_address",
+        "report_damage",
+        "billing_question"
+      ],
+      "logits": [
+        6.38347864151001,
+        10.758186340332031,
+        4.700184345245361,
+        3.3146064281463623,
+        3.5129494667053223
+      ],
+      "prediction": 1,
+      "probs": [
+        0.09627005232283549,
+        0.816266164821815,
+        0.04229465952132189,
+        0.021491026186336706,
+        0.023678097147690945
+      ],
+      "prompt_tokens": 120,
+      "raw_logits": [
+        6.38347864151001,
+        10.758186340332031,
+        4.700184345245361,
+        3.3146064281463623,
+        3.5129494667053223
+      ],
+      "signed_margin": 4.3747076988220215,
+      "source_id": "easy-intent-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "change_address",
+      "ground_truth_index": 2,
+      "keys": [
+        "track_order",
+        "cancel_order",
+        "change_address",
+        "report_damage",
+        "billing_question"
+      ],
+      "logits": [
+        5.540075778961182,
+        3.279510498046875,
+        9.126688003540039,
+        1.503922462463379,
+        0.6540553569793701
+      ],
+      "prediction": 2,
+      "probs": [
+        0.13639971229593026,
+        0.045196752719469394,
+        0.7868921397312655,
+        0.01898087565802773,
+        0.012530519595307035
+      ],
+      "prompt_tokens": 123,
+      "raw_logits": [
+        5.540075778961182,
+        3.279510498046875,
+        9.126688003540039,
+        1.503922462463379,
+        0.6540553569793701
+      ],
+      "signed_margin": 3.5866122245788574,
+      "source_id": "easy-intent-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "report_damage",
+      "ground_truth_index": 3,
+      "keys": [
+        "track_order",
+        "cancel_order",
+        "change_address",
+        "report_damage",
+        "billing_question"
+      ],
+      "logits": [
+        9.211895942687988,
+        7.420454025268555,
+        7.597301959991455,
+        13.058258056640625,
+        5.389695644378662
+      ],
+      "prediction": 3,
+      "probs": [
+        0.11661457598594725,
+        0.04859566784759084,
+        0.052981689485263515,
+        0.7637920901122862,
+        0.01801597656891212
+      ],
+      "prompt_tokens": 112,
+      "raw_logits": [
+        9.211895942687988,
+        7.420454025268555,
+        7.597301959991455,
+        13.058258056640625,
+        5.389695644378662
+      ],
+      "signed_margin": 3.8463621139526367,
+      "source_id": "easy-intent-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "billing_question",
+      "ground_truth_index": 4,
+      "keys": [
+        "track_order",
+        "cancel_order",
+        "change_address",
+        "report_damage",
+        "billing_question"
+      ],
+      "logits": [
+        6.677962303161621,
+        5.6124162673950195,
+        5.774736404418945,
+        3.9947783946990967,
+        10.155086517333984
+      ],
+      "prediction": 4,
+      "probs": [
+        0.12538656431409376,
+        0.07449642089171285,
+        0.0806456163867483,
+        0.03379577739221935,
+        0.6856756210152258
+      ],
+      "prompt_tokens": 117,
+      "raw_logits": [
+        6.677962303161621,
+        5.6124162673950195,
+        5.774736404418945,
+        3.9947783946990967,
+        10.155086517333984
+      ],
+      "signed_margin": 3.4771242141723633,
+      "source_id": "easy-intent-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "track_order",
+      "ground_truth_index": 0,
+      "keys": [
+        "track_order",
+        "cancel_order",
+        "change_address",
+        "report_damage",
+        "billing_question"
+      ],
+      "logits": [
+        10.783247947692871,
+        4.5519256591796875,
+        4.9531989097595215,
+        3.7688777446746826,
+        4.279163360595703
+      ],
+      "prediction": 0,
+      "probs": [
+        0.847697626075612,
+        0.04035664411296438,
+        0.04909844769463683,
+        0.027526268062002056,
+        0.03532101405478467
+      ],
+      "prompt_tokens": 116,
+      "raw_logits": [
+        10.783247947692871,
+        4.5519256591796875,
+        4.9531989097595215,
+        3.7688777446746826,
+        4.279163360595703
+      ],
+      "signed_margin": 5.83004903793335,
+      "source_id": "easy-intent-05",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "set_alarm",
+      "ground_truth_index": 0,
+      "keys": [
+        "set_alarm",
+        "play_music",
+        "weather",
+        "send_message",
+        "turn_off_lights"
+      ],
+      "logits": [
+        14.130796432495117,
+        5.936895370483398,
+        6.436982154846191,
+        6.0990309715271,
+        6.691651344299316
+      ],
+      "prediction": 0,
+      "probs": [
+        0.9193853407839234,
+        0.016776449321099268,
+        0.021420106286280903,
+        0.018159598707186534,
+        0.024258504901509752
+      ],
+      "prompt_tokens": 107,
+      "raw_logits": [
+        14.130796432495117,
+        5.936895370483398,
+        6.436982154846191,
+        6.0990309715271,
+        6.691651344299316
+      ],
+      "signed_margin": 7.439145088195801,
+      "source_id": "easy-intent-06",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "play_music",
+      "ground_truth_index": 1,
+      "keys": [
+        "set_alarm",
+        "play_music",
+        "weather",
+        "send_message",
+        "turn_off_lights"
+      ],
+      "logits": [
+        8.539942741394043,
+        13.574363708496094,
+        5.953577995300293,
+        5.553690433502197,
+        6.294715881347656
+      ],
+      "prediction": 1,
+      "probs": [
+        0.07378486802156183,
+        0.8635812640540442,
+        0.02085087959605808,
+        0.017150062841341473,
+        0.024632925486994472
+      ],
+      "prompt_tokens": 100,
+      "raw_logits": [
+        8.539942741394043,
+        13.574363708496094,
+        5.953577995300293,
+        5.553690433502197,
+        6.294715881347656
+      ],
+      "signed_margin": 5.034420967102051,
+      "source_id": "easy-intent-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "weather",
+      "ground_truth_index": 2,
+      "keys": [
+        "set_alarm",
+        "play_music",
+        "weather",
+        "send_message",
+        "turn_off_lights"
+      ],
+      "logits": [
+        7.41371488571167,
+        4.731760501861572,
+        12.280046463012695,
+        4.4175262451171875,
+        4.408546447753906
+      ],
+      "prediction": 2,
+      "probs": [
+        0.07992022918747338,
+        0.021554059222315517,
+        0.8616343372144637,
+        0.018486154528961997,
+        0.018405219846785375
+      ],
+      "prompt_tokens": 102,
+      "raw_logits": [
+        7.41371488571167,
+        4.731760501861572,
+        12.280046463012695,
+        4.4175262451171875,
+        4.408546447753906
+      ],
+      "signed_margin": 4.866331577301025,
+      "source_id": "easy-intent-08",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "send_message",
+      "ground_truth_index": 3,
+      "keys": [
+        "set_alarm",
+        "play_music",
+        "weather",
+        "send_message",
+        "turn_off_lights"
+      ],
+      "logits": [
+        10.190683364868164,
+        6.861808776855469,
+        7.392322063446045,
+        13.295595169067383,
+        8.46137809753418
+      ],
+      "prediction": 3,
+      "probs": [
+        0.1552775222107161,
+        0.03052814338078709,
+        0.03956203845939895,
+        0.7079302586099528,
+        0.06670203733914508
+      ],
+      "prompt_tokens": 105,
+      "raw_logits": [
+        10.190683364868164,
+        6.861808776855469,
+        7.392322063446045,
+        13.295595169067383,
+        8.46137809753418
+      ],
+      "signed_margin": 3.1049118041992188,
+      "source_id": "easy-intent-09",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "turn_off_lights",
+      "ground_truth_index": 4,
+      "keys": [
+        "set_alarm",
+        "play_music",
+        "weather",
+        "send_message",
+        "turn_off_lights"
+      ],
+      "logits": [
+        9.339395523071289,
+        6.720690727233887,
+        7.623190879821777,
+        6.647658348083496,
+        14.43063735961914
+      ],
+      "prediction": 4,
+      "probs": [
+        0.07136515636023277,
+        0.019850915222633582,
+        0.030852954849618374,
+        0.0191550196918687,
+        0.8587759538756466
+      ],
+      "prompt_tokens": 103,
+      "raw_logits": [
+        9.339395523071289,
+        6.720690727233887,
+        7.623190879821777,
+        6.647658348083496,
+        14.43063735961914
+      ],
+      "signed_margin": 5.091241836547852,
+      "source_id": "easy-intent-10",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "set_alarm",
+      "ground_truth_index": 0,
+      "keys": [
+        "set_alarm",
+        "play_music",
+        "weather",
+        "send_message",
+        "turn_off_lights"
+      ],
+      "logits": [
+        13.94822883605957,
+        6.699423789978027,
+        7.200223922729492,
+        6.746735572814941,
+        7.979483127593994
+      ],
+      "prediction": 0,
+      "probs": [
+        0.8697907585919035,
+        0.025186777378140242,
+        0.03216959199205546,
+        0.02577581834987668,
+        0.04707705368802421
+      ],
+      "prompt_tokens": 103,
+      "raw_logits": [
+        13.94822883605957,
+        6.699423789978027,
+        7.200223922729492,
+        6.746735572814941,
+        7.979483127593994
+      ],
+      "signed_margin": 5.968745708465576,
+      "source_id": "easy-intent-11",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "paypal",
+      "ground_truth_index": 1,
+      "keys": [
+        "credit_card",
+        "paypal",
+        "bank_transfer",
+        "cash"
+      ],
+      "logits": [
+        9.073443412780762,
+        14.602561950683594,
+        6.363266944885254,
+        8.413938522338867
+      ],
+      "prediction": 1,
+      "probs": [
+        0.05918947163466,
+        0.8821822533426311,
+        0.015744465077864922,
+        0.04288380994484411
+      ],
+      "prompt_tokens": 79,
+      "raw_logits": [
+        9.073443412780762,
+        14.602561950683594,
+        6.363266944885254,
+        8.413938522338867
+      ],
+      "signed_margin": 5.529118537902832,
+      "source_id": "easy-extraction-00",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "cash",
+      "ground_truth_index": 3,
+      "keys": [
+        "credit_card",
+        "paypal",
+        "bank_transfer",
+        "cash"
+      ],
+      "logits": [
+        11.180299758911133,
+        6.294224739074707,
+        9.282455444335938,
+        14.046542167663574
+      ],
+      "prediction": 3,
+      "probs": [
+        0.18035079035879686,
+        0.016567694950219255,
+        0.07134827984741056,
+        0.7317332348435733
+      ],
+      "prompt_tokens": 81,
+      "raw_logits": [
+        11.180299758911133,
+        6.294224739074707,
+        9.282455444335938,
+        14.046542167663574
+      ],
+      "signed_margin": 2.8662424087524414,
+      "source_id": "easy-extraction-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "bank_transfer",
+      "ground_truth_index": 2,
+      "keys": [
+        "credit_card",
+        "paypal",
+        "bank_transfer",
+        "cash"
+      ],
+      "logits": [
+        7.705534934997559,
+        6.140407562255859,
+        12.566773414611816,
+        6.278613090515137
+      ],
+      "prediction": 2,
+      "probs": [
+        0.07862998957022647,
+        0.03659808069827163,
+        0.8456170047811347,
+        0.039154924950367216
+      ],
+      "prompt_tokens": 82,
+      "raw_logits": [
+        7.705534934997559,
+        6.140407562255859,
+        12.566773414611816,
+        6.278613090515137
+      ],
+      "signed_margin": 4.861238479614258,
+      "source_id": "easy-extraction-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "high",
+      "ground_truth_index": 2,
+      "keys": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "logits": [
+        5.637080192565918,
+        4.0386457443237305,
+        11.36274528503418,
+        5.50579309463501
+      ],
+      "prediction": 2,
+      "probs": [
+        0.05318431306650905,
+        0.024354862102296065,
+        0.8725811511790964,
+        0.04987967365209849
+      ],
+      "prompt_tokens": 85,
+      "raw_logits": [
+        5.637080192565918,
+        4.0386457443237305,
+        11.36274528503418,
+        5.50579309463501
+      ],
+      "signed_margin": 5.725665092468262,
+      "source_id": "easy-extraction-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "low",
+      "ground_truth_index": 0,
+      "keys": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "logits": [
+        14.822694778442383,
+        5.857646942138672,
+        6.230158805847168,
+        7.461184501647949
+      ],
+      "prediction": 0,
+      "probs": [
+        0.9479190936228878,
+        0.01186674288375966,
+        0.014235767990556742,
+        0.025978395502795723
+      ],
+      "prompt_tokens": 83,
+      "raw_logits": [
+        14.822694778442383,
+        5.857646942138672,
+        6.230158805847168,
+        7.461184501647949
+      ],
+      "signed_margin": 7.361510276794434,
+      "source_id": "easy-extraction-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "urgent",
+      "ground_truth_index": 3,
+      "keys": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "logits": [
+        6.9550933837890625,
+        5.071244239807129,
+        10.32495403289795,
+        10.590402603149414
+      ],
+      "prediction": 3,
+      "probs": [
+        0.08002868755096042,
+        0.03187726225185951,
+        0.4152899248875212,
+        0.4728041253096588
+      ],
+      "prompt_tokens": 83,
+      "raw_logits": [
+        6.9550933837890625,
+        5.071244239807129,
+        10.32495403289795,
+        10.590402603149414
+      ],
+      "signed_margin": 0.26544857025146484,
+      "source_id": "easy-extraction-05",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "M",
+      "ground_truth_index": 1,
+      "keys": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "logits": [
+        8.292551040649414,
+        11.221765518188477,
+        7.772741317749023,
+        9.036381721496582
+      ],
+      "prediction": 1,
+      "probs": [
+        0.1351708493467808,
+        0.5655628106946301,
+        0.10485185987458863,
+        0.19441448008400056
+      ],
+      "prompt_tokens": 76,
+      "raw_logits": [
+        8.292551040649414,
+        11.221765518188477,
+        7.772741317749023,
+        9.036381721496582
+      ],
+      "signed_margin": 2.1853837966918945,
+      "source_id": "easy-extraction-06",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "XL",
+      "ground_truth_index": 3,
+      "keys": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "logits": [
+        9.367417335510254,
+        6.6124114990234375,
+        8.214476585388184,
+        12.47873306274414
+      ],
+      "prediction": 3,
+      "probs": [
+        0.15617796547491897,
+        0.040643409483883446,
+        0.08891160630341496,
+        0.7142670187377825
+      ],
+      "prompt_tokens": 74,
+      "raw_logits": [
+        9.367417335510254,
+        6.6124114990234375,
+        8.214476585388184,
+        12.47873306274414
+      ],
+      "signed_margin": 3.1113157272338867,
+      "source_id": "easy-extraction-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "thursday",
+      "ground_truth_index": 3,
+      "keys": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday"
+      ],
+      "logits": [
+        8.271005630493164,
+        6.194128036499023,
+        7.328519821166992,
+        13.163911819458008,
+        7.349874973297119
+      ],
+      "prediction": 3,
+      "probs": [
+        0.07378393615006429,
+        0.026744549391415594,
+        0.04655436229869849,
+        0.805874469472637,
+        0.04704268268718471
+      ],
+      "prompt_tokens": 80,
+      "raw_logits": [
+        8.271005630493164,
+        6.194128036499023,
+        7.328519821166992,
+        13.163911819458008,
+        7.349874973297119
+      ],
+      "signed_margin": 4.892906188964844,
+      "source_id": "easy-extraction-08",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "monday",
+      "ground_truth_index": 0,
+      "keys": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday"
+      ],
+      "logits": [
+        8.724496841430664,
+        3.7900681495666504,
+        3.61942720413208,
+        2.7805371284484863,
+        4.195795059204102
+      ],
+      "prediction": 0,
+      "probs": [
+        0.7482593380409497,
+        0.0671328725613866,
+        0.061762397333642215,
+        0.040992685990908884,
+        0.08185270607311257
+      ],
+      "prompt_tokens": 82,
+      "raw_logits": [
+        8.724496841430664,
+        3.7900681495666504,
+        3.61942720413208,
+        2.7805371284484863,
+        4.195795059204102
+      ],
+      "signed_margin": 4.5287017822265625,
+      "source_id": "easy-extraction-09",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "friday",
+      "ground_truth_index": 4,
+      "keys": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday"
+      ],
+      "logits": [
+        6.918590545654297,
+        5.122591495513916,
+        5.549166679382324,
+        3.9732775688171387,
+        10.490428924560547
+      ],
+      "prediction": 4,
+      "probs": [
+        0.12670101610191395,
+        0.052681455216975114,
+        0.06489028917270694,
+        0.030044576949166735,
+        0.7256826625592373
+      ],
+      "prompt_tokens": 78,
+      "raw_logits": [
+        6.918590545654297,
+        5.122591495513916,
+        5.549166679382324,
+        3.9732775688171387,
+        10.490428924560547
+      ],
+      "signed_margin": 3.57183837890625,
+      "source_id": "easy-extraction-10",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "credit_card",
+      "ground_truth_index": 0,
+      "keys": [
+        "credit_card",
+        "paypal",
+        "bank_transfer",
+        "cash"
+      ],
+      "logits": [
+        12.677982330322266,
+        6.449127197265625,
+        7.9594573974609375,
+        9.579658508300781
+      ],
+      "prediction": 0,
+      "probs": [
+        0.7313079196019641,
+        0.034857633600393796,
+        0.07291208244669056,
+        0.16092236435095156
+      ],
+      "prompt_tokens": 85,
+      "raw_logits": [
+        12.677982330322266,
+        6.449127197265625,
+        7.9594573974609375,
+        9.579658508300781
+      ],
+      "signed_margin": 3.0983238220214844,
+      "source_id": "easy-extraction-11",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "get_weather",
+      "ground_truth_index": 0,
+      "keys": [
+        "get_weather",
+        "send_email",
+        "create_calendar_event",
+        "convert_currency",
+        "translate_text"
+      ],
+      "logits": [
+        13.56686782836914,
+        5.802191257476807,
+        6.679996490478516,
+        4.284093856811523,
+        8.013480186462402
+      ],
+      "prediction": 0,
+      "probs": [
+        0.8817669497531232,
+        0.01984451263091203,
+        0.03047307275474837,
+        0.009451279065530564,
+        0.05846418579568576
+      ],
+      "prompt_tokens": 110,
+      "raw_logits": [
+        13.56686782836914,
+        5.802191257476807,
+        6.679996490478516,
+        4.284093856811523,
+        8.013480186462402
+      ],
+      "signed_margin": 5.553387641906738,
+      "source_id": "easy-tool_selection-00",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "send_email",
+      "ground_truth_index": 1,
+      "keys": [
+        "get_weather",
+        "send_email",
+        "create_calendar_event",
+        "convert_currency",
+        "translate_text"
+      ],
+      "logits": [
+        10.340579986572266,
+        16.390384674072266,
+        6.984943389892578,
+        6.958286285400391,
+        8.409646987915039
+      ],
+      "prediction": 1,
+      "probs": [
+        0.04762536774946402,
+        0.9154720372435068,
+        0.009241683166421218,
+        0.009122088254461942,
+        0.018538823586146103
+      ],
+      "prompt_tokens": 111,
+      "raw_logits": [
+        10.340579986572266,
+        16.390384674072266,
+        6.984943389892578,
+        6.958286285400391,
+        8.409646987915039
+      ],
+      "signed_margin": 6.0498046875,
+      "source_id": "easy-tool_selection-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "create_calendar_event",
+      "ground_truth_index": 2,
+      "keys": [
+        "get_weather",
+        "send_email",
+        "create_calendar_event",
+        "convert_currency",
+        "translate_text"
+      ],
+      "logits": [
+        8.012187957763672,
+        6.229193687438965,
+        13.06335163116455,
+        3.8655765056610107,
+        4.167335033416748
+      ],
+      "prediction": 2,
+      "probs": [
+        0.07405616457613956,
+        0.03098835891071489,
+        0.8738764394162126,
+        0.009763917296751733,
+        0.011315119800181125
+      ],
+      "prompt_tokens": 114,
+      "raw_logits": [
+        8.012187957763672,
+        6.229193687438965,
+        13.06335163116455,
+        3.8655765056610107,
+        4.167335033416748
+      ],
+      "signed_margin": 5.051163673400879,
+      "source_id": "easy-tool_selection-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "convert_currency",
+      "ground_truth_index": 3,
+      "keys": [
+        "get_weather",
+        "send_email",
+        "create_calendar_event",
+        "convert_currency",
+        "translate_text"
+      ],
+      "logits": [
+        10.19976806640625,
+        7.201428413391113,
+        8.114651679992676,
+        14.895081520080566,
+        8.72974681854248
+      ],
+      "prediction": 3,
+      "probs": [
+        0.08335730722506622,
+        0.019260922187352057,
+        0.030093230954936774,
+        0.826644591440792,
+        0.04064394819185295
+      ],
+      "prompt_tokens": 112,
+      "raw_logits": [
+        10.19976806640625,
+        7.201428413391113,
+        8.114651679992676,
+        14.895081520080566,
+        8.72974681854248
+      ],
+      "signed_margin": 4.695313453674316,
+      "source_id": "easy-tool_selection-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "translate_text",
+      "ground_truth_index": 4,
+      "keys": [
+        "get_weather",
+        "send_email",
+        "create_calendar_event",
+        "convert_currency",
+        "translate_text"
+      ],
+      "logits": [
+        8.930413246154785,
+        6.9588470458984375,
+        7.997563362121582,
+        4.5399250984191895,
+        13.125873565673828
+      ],
+      "prediction": 4,
+      "probs": [
+        0.1010053096358128,
+        0.03854476587217417,
+        0.06403059990313789,
+        0.011821018757037173,
+        0.7845983058318379
+      ],
+      "prompt_tokens": 108,
+      "raw_logits": [
+        8.930413246154785,
+        6.9588470458984375,
+        7.997563362121582,
+        4.5399250984191895,
+        13.125873565673828
+      ],
+      "signed_margin": 4.195460319519043,
+      "source_id": "easy-tool_selection-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "create_calendar_event",
+      "ground_truth_index": 2,
+      "keys": [
+        "get_weather",
+        "send_email",
+        "create_calendar_event",
+        "convert_currency",
+        "translate_text"
+      ],
+      "logits": [
+        8.107479095458984,
+        7.205681800842285,
+        12.387432098388672,
+        3.778536796569824,
+        3.7350895404815674
+      ],
+      "prediction": 2,
+      "probs": [
+        0.10022443654048194,
+        0.06450695550364581,
+        0.8113470581150743,
+        0.012087729786578483,
+        0.011833820054219466
+      ],
+      "prompt_tokens": 114,
+      "raw_logits": [
+        8.107479095458984,
+        7.205681800842285,
+        12.387432098388672,
+        3.778536796569824,
+        3.7350895404815674
+      ],
+      "signed_margin": 4.2799530029296875,
+      "source_id": "easy-tool_selection-05",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "search_flights",
+      "ground_truth_index": 0,
+      "keys": [
+        "search_flights",
+        "book_restaurant",
+        "set_reminder",
+        "get_stock_price",
+        "call_taxi"
+      ],
+      "logits": [
+        13.247577667236328,
+        5.822504043579102,
+        6.818469047546387,
+        4.941948890686035,
+        6.430407524108887
+      ],
+      "prediction": 0,
+      "probs": [
+        0.8906117323168014,
+        0.02366142638161061,
+        0.03849381741845232,
+        0.015387978119820303,
+        0.031845045763315476
+      ],
+      "prompt_tokens": 114,
+      "raw_logits": [
+        13.247577667236328,
+        5.822504043579102,
+        6.818469047546387,
+        4.941948890686035,
+        6.430407524108887
+      ],
+      "signed_margin": 6.429108619689941,
+      "source_id": "easy-tool_selection-06",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "book_restaurant",
+      "ground_truth_index": 1,
+      "keys": [
+        "search_flights",
+        "book_restaurant",
+        "set_reminder",
+        "get_stock_price",
+        "call_taxi"
+      ],
+      "logits": [
+        8.415346145629883,
+        13.47410774230957,
+        6.45280647277832,
+        5.067051887512207,
+        7.04132604598999
+      ],
+      "prediction": 1,
+      "probs": [
+        0.0717714136638962,
+        0.8500659928000834,
+        0.0275098482225761,
+        0.01397726902895934,
+        0.03667547628448484
+      ],
+      "prompt_tokens": 114,
+      "raw_logits": [
+        8.415346145629883,
+        13.47410774230957,
+        6.45280647277832,
+        5.067051887512207,
+        7.04132604598999
+      ],
+      "signed_margin": 5.0587615966796875,
+      "source_id": "easy-tool_selection-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "set_reminder",
+      "ground_truth_index": 2,
+      "keys": [
+        "search_flights",
+        "book_restaurant",
+        "set_reminder",
+        "get_stock_price",
+        "call_taxi"
+      ],
+      "logits": [
+        7.918892860412598,
+        5.605686664581299,
+        13.3374605178833,
+        3.9577548503875732,
+        6.121857166290283
+      ],
+      "prediction": 2,
+      "probs": [
+        0.06248628654707771,
+        0.020179377286635165,
+        0.8823461096299434,
+        0.009019993560206992,
+        0.025968232976136804
+      ],
+      "prompt_tokens": 113,
+      "raw_logits": [
+        7.918892860412598,
+        5.605686664581299,
+        13.3374605178833,
+        3.9577548503875732,
+        6.121857166290283
+      ],
+      "signed_margin": 5.418567657470703,
+      "source_id": "easy-tool_selection-08",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "get_stock_price",
+      "ground_truth_index": 3,
+      "keys": [
+        "search_flights",
+        "book_restaurant",
+        "set_reminder",
+        "get_stock_price",
+        "call_taxi"
+      ],
+      "logits": [
+        9.625273704528809,
+        7.107217788696289,
+        7.706480979919434,
+        14.722900390625,
+        8.38115406036377
+      ],
+      "prediction": 3,
+      "probs": [
+        0.06993301055935948,
+        0.02043312845577406,
+        0.0273843411799772,
+        0.8441716904503942,
+        0.038077829354495094
+      ],
+      "prompt_tokens": 110,
+      "raw_logits": [
+        9.625273704528809,
+        7.107217788696289,
+        7.706480979919434,
+        14.722900390625,
+        8.38115406036377
+      ],
+      "signed_margin": 5.097626686096191,
+      "source_id": "easy-tool_selection-09",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "call_taxi",
+      "ground_truth_index": 4,
+      "keys": [
+        "search_flights",
+        "book_restaurant",
+        "set_reminder",
+        "get_stock_price",
+        "call_taxi"
+      ],
+      "logits": [
+        8.978338241577148,
+        6.792718887329102,
+        7.023909568786621,
+        5.07097053527832,
+        14.229499816894531
+      ],
+      "prediction": 4,
+      "probs": [
+        0.06716684925802979,
+        0.02308621594648058,
+        0.025847162640504906,
+        0.009953753596404985,
+        0.8739460185585798
+      ],
+      "prompt_tokens": 110,
+      "raw_logits": [
+        8.978338241577148,
+        6.792718887329102,
+        7.023909568786621,
+        5.07097053527832,
+        14.229499816894531
+      ],
+      "signed_margin": 5.251161575317383,
+      "source_id": "easy-tool_selection-10",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "set_reminder",
+      "ground_truth_index": 2,
+      "keys": [
+        "search_flights",
+        "book_restaurant",
+        "set_reminder",
+        "get_stock_price",
+        "call_taxi"
+      ],
+      "logits": [
+        7.8819169998168945,
+        5.963473320007324,
+        13.44526481628418,
+        4.210729122161865,
+        6.331236362457275
+      ],
+      "prediction": 2,
+      "probs": [
+        0.05819886385332154,
+        0.022793375668587166,
+        0.8820476134478483,
+        0.009679775081846038,
+        0.02728037194839693
+      ],
+      "prompt_tokens": 113,
+      "raw_logits": [
+        7.8819169998168945,
+        5.963473320007324,
+        13.44526481628418,
+        4.210729122161865,
+        6.331236362457275
+      ],
+      "signed_margin": 5.563347816467285,
+      "source_id": "easy-tool_selection-11",
+      "temperature": 2.046567219106836
+    }
+  ],
+  "experiment": "run",
+  "layout": "auto",
+  "metrics": {
+    "choice": {
+      "accuracy": 1.0,
+      "brier": 0.06306105839853463,
+      "brier_convention": "sum over options",
+      "calibrated": {
+        "brier": 0.06306105839853463,
+        "ece": 0.1876265556336909,
+        "ece_bins": 15,
+        "n": 36,
+        "nll": 0.21631502092323662
+      },
+      "ece": 0.1876265556336909,
+      "ece_bins": 15,
+      "eval_ms": 19429,
+      "labeled": 36,
+      "margins": {
+        "corrected": {
+          "mean": 4.726080298423767,
+          "median": 4.963663578033447,
+          "min": 0.26544857025146484,
+          "n": 36,
+          "p10": 3.1016178131103516
+        },
+        "raw": {
+          "mean": 4.726080298423767,
+          "median": 4.963663578033447,
+          "min": 0.26544857025146484,
+          "n": 36,
+          "p10": 3.1016178131103516
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_signed_winner_margin": 4.726080298423767,
+      "median_signed_winner_margin": 4.963663578033447,
+      "min_signed_winner_margin": 0.26544857025146484,
+      "n": 36,
+      "nll": 0.21631502092323662,
+      "p10_signed_winner_margin": 3.1016178131103516,
+      "prompt_tokens": 3639,
+      "raw": {
+        "brier": 0.012586545209205761,
+        "ece": 0.03389138569422888,
+        "ece_bins": 15,
+        "n": 36,
+        "nll": 0.03859756223500336
+      },
+      "temperature": 2.046567219106836
+    },
+    "n_errors": 0,
+    "n_total": 36,
+    "noul": {
+      "accuracy": -1.0,
+      "brier": null,
+      "calibrated": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "mean_confidence_correct": null,
+        "n": 0,
+        "nll": null
+      },
+      "ece": null,
+      "ece_bins": 15,
+      "eval_ms": 0,
+      "labeled": 0,
+      "margins": {
+        "corrected": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "raw": {
+          "mean": null,
+          "median": null,
+          "min": null,
+          "n": 0,
+          "p10": null
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_confidence_correct": null,
+      "mean_signed_margin": null,
+      "median_signed_margin": null,
+      "min_signed_margin": null,
+      "n": 0,
+      "nll": null,
+      "p10_signed_margin": null,
+      "raw": {
+        "brier": null,
+        "ece": null,
+        "ece_bins": 15,
+        "mean_confidence_correct": null,
+        "n": 0,
+        "nll": null
+      }
+    },
+    "score": {
+      "accuracy": -1.0,
+      "eval_ms": 0,
+      "labeled": 0,
+      "mae": -1.0,
+      "n": 0,
+      "qwk": -1.0
+    }
+  },
+  "noul_ensemble": "none",
+  "noul_items": [],
+  "option_order": "original",
+  "prior_correction": false,
+  "scheme": "natural",
+  "stability": {
+    "n_questions": 0,
+    "n_stable": 0,
+    "stability_rate": -1.0
+  }
+}

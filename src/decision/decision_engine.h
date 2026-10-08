@@ -13,10 +13,15 @@ namespace pjev
 {
 
 enum class NoulEnsembleMode { NONE, BINARY_ORDER };
+enum class ChoiceEnsembleMode { NONE, CYCLIC_ROTATION };
 
 struct EnsembleConfig
 {
     NoulEnsembleMode noul_mode = NoulEnsembleMode::NONE;
+    ChoiceEnsembleMode choice_mode = ChoiceEnsembleMode::NONE;
+    // E2 optimized path: reuse the KV prefix shared with the previous rotation.
+    // false = sequential reference path (every rotation evaluated from scratch).
+    bool choice_prefix_reuse = false;
 };
 
 struct DecisionInput
@@ -64,6 +69,24 @@ struct DecisionOutput
         std::vector<std::string> ord2_keys;
     };
     std::optional<EnsembleDiag> ensemble_diag;
+
+    // E2 cyclic rotation diagnostics (only populated when ChoiceEnsembleMode::CYCLIC_ROTATION is active).
+    // All semantic vectors are in the original option order (same as keys).
+    struct RotationDiag {
+        int32_t rotation = 0;
+        std::vector<int32_t> cand_to_sem;     // candidate position -> semantic option index
+        std::vector<float> raw_logits;        // candidate order, pre prior-correction
+        std::vector<float> corrected_logits;  // candidate order, post prior-correction
+        std::vector<float> semantic_logits;   // semantic order (corrected)
+        int32_t semantic_prediction = -1;     // argmax of semantic_logits
+        int32_t prefix_reused = 0;            // KV prefix tokens reused (0 = full evaluation)
+    };
+    struct ChoiceEnsembleDiag {
+        std::vector<RotationDiag> rotations;
+        std::vector<double> mean_semantic_logits;     // corrected, pre temperature
+        std::vector<double> mean_raw_semantic_logits; // pre prior-correction
+    };
+    std::optional<ChoiceEnsembleDiag> choice_ensemble_diag;
 };
 
 struct BatchConfig {
@@ -120,6 +143,17 @@ private:
 
     // Single-ordering inference path (no ensemble dispatch).
     DecisionOutput decide_single(const DecisionInput& input);
+    // decide_single with optional KV prefix reuse: when prev_tokens is non-null, the token prefix
+    // shared with prev_tokens (the most recently evaluated sequence) is reused. The evaluated
+    // prompt tokens are written to tokens_out and the reused length to reused_out when non-null.
+    DecisionOutput decide_single_impl(const DecisionInput& input,
+                                      const std::vector<int32_t>* prev_tokens,
+                                      std::vector<int32_t>* tokens_out,
+                                      int32_t* reused_out);
+
+    // Cyclic option-rotation ensemble for choice (E2): evaluates N rotations, remaps candidate
+    // logits to semantic option order, averages them, then applies temperature and softmax.
+    DecisionOutput decide_choice_ensemble(const DecisionInput& input);
 
     // Binary option-order ensemble for noul: evaluates both candidate orderings and combines
     // semantic margins. Input must be type=="noul" with exactly 2 options (false/true).

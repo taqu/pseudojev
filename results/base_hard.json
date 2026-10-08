@@ -1,0 +1,3127 @@
+{
+  "choice_ensemble": "none",
+  "choice_items": [
+    {
+      "correct": false,
+      "ground_truth": "pay_subject_to_15000_sublimit",
+      "ground_truth_index": 3,
+      "keys": [
+        "deny_vacancy_exclusion",
+        "deny_repeated_seepage",
+        "pay_subject_to_10000_sublimit",
+        "pay_subject_to_15000_sublimit",
+        "pay_full_estimate_less_deductible"
+      ],
+      "logits": [
+        10.676925659179688,
+        7.622097015380859,
+        8.914063453674316,
+        10.126072883605957,
+        8.530179023742676
+      ],
+      "prediction": 0,
+      "probs": [
+        0.3620982468904637,
+        0.08139027235670311,
+        0.15301567939638394,
+        0.27665083553061365,
+        0.12684496582583568
+      ],
+      "prompt_tokens": 3827,
+      "raw_logits": [
+        10.676925659179688,
+        7.622097015380859,
+        8.914063453674316,
+        10.126072883605957,
+        8.530179023742676
+      ],
+      "signed_margin": -0.5508527755737305,
+      "source_id": "hard-opus-a-long_policy-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "cfo",
+      "ground_truth_index": 3,
+      "keys": [
+        "budget_holder",
+        "department_head",
+        "vp_and_finance_director",
+        "cfo",
+        "executive_committee"
+      ],
+      "logits": [
+        5.824481964111328,
+        4.052367210388184,
+        5.002591609954834,
+        3.9785826206207275,
+        4.2346343994140625
+      ],
+      "prediction": 0,
+      "probs": [
+        0.33834501346977053,
+        0.14233307885837848,
+        0.2264380776502432,
+        0.13729296624678064,
+        0.15559086377482723
+      ],
+      "prompt_tokens": 2543,
+      "raw_logits": [
+        5.824481964111328,
+        4.052367210388184,
+        5.002591609954834,
+        3.9785826206207275,
+        4.2346343994140625
+      ],
+      "signed_margin": -1.8458993434906006,
+      "source_id": "hard-opus-a-long_policy-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "parts_covered_labour_charged",
+      "ground_truth_index": 1,
+      "keys": [
+        "full_repair_no_charge",
+        "parts_covered_labour_charged",
+        "pro_rata_replacement_credit",
+        "not_covered"
+      ],
+      "logits": [
+        10.712902069091797,
+        8.94417953491211,
+        9.211392402648926,
+        9.73198127746582
+      ],
+      "prediction": 0,
+      "probs": [
+        0.3967103021499504,
+        0.16716270599485275,
+        0.19047748580263196,
+        0.24564950605256478
+      ],
+      "prompt_tokens": 2330,
+      "raw_logits": [
+        10.712902069091797,
+        8.94417953491211,
+        9.211392402648926,
+        9.73198127746582
+      ],
+      "signed_margin": -1.7687225341796875,
+      "source_id": "hard-opus-a-long_policy-08",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "license_required",
+      "ground_truth_index": 2,
+      "keys": [
+        "no_license_required",
+        "license_exception_lvs",
+        "license_required",
+        "shipment_prohibited"
+      ],
+      "logits": [
+        8.68345832824707,
+        8.055814743041992,
+        6.7155890464782715,
+        7.781344413757324
+      ],
+      "prediction": 0,
+      "probs": [
+        0.3620942489924137,
+        0.26645979942381964,
+        0.1384290837277517,
+        0.23301686785601494
+      ],
+      "prompt_tokens": 2472,
+      "raw_logits": [
+        8.68345832824707,
+        8.055814743041992,
+        6.7155890464782715,
+        7.781344413757324
+      ],
+      "signed_margin": -1.9678692817687988,
+      "source_id": "hard-opus-a-long_policy-09",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "database_oncall",
+      "ground_truth_index": 2,
+      "keys": [
+        "security_incident_response",
+        "no_page_ticket_only",
+        "database_oncall",
+        "vendor_support",
+        "platform_oncall"
+      ],
+      "logits": [
+        9.326135635375977,
+        7.558210372924805,
+        9.244193077087402,
+        8.878765106201172,
+        8.715287208557129
+      ],
+      "prediction": 0,
+      "probs": [
+        0.2545899950748026,
+        0.10731895441006643,
+        0.24459783269747754,
+        0.20460040194144483,
+        0.1888928158762085
+      ],
+      "prompt_tokens": 2299,
+      "raw_logits": [
+        9.326135635375977,
+        7.558210372924805,
+        9.244193077087402,
+        8.878765106201172,
+        8.715287208557129
+      ],
+      "signed_margin": -0.08194255828857422,
+      "source_id": "hard-opus-a-long_policy-17",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "on_time",
+      "ground_truth_index": 1,
+      "keys": [
+        "early",
+        "on_time",
+        "late"
+      ],
+      "logits": [
+        9.746238708496094,
+        7.034549713134766,
+        10.23379135131836
+      ],
+      "prediction": 2,
+      "probs": [
+        0.3945076704775303,
+        0.10486195025322073,
+        0.5006303792692489
+      ],
+      "prompt_tokens": 1091,
+      "raw_logits": [
+        9.746238708496094,
+        7.034549713134766,
+        10.23379135131836
+      ],
+      "signed_margin": -3.1992416381835938,
+      "source_id": "hard-opus-a-probability-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "escalated",
+      "ground_truth_index": 1,
+      "keys": [
+        "resolved_first_contact",
+        "escalated",
+        "reopened"
+      ],
+      "logits": [
+        4.400592803955078,
+        1.6174540519714355,
+        2.547830104827881
+      ],
+      "prediction": 0,
+      "probs": [
+        0.6020091157551041,
+        0.1545266740025578,
+        0.2434642102423382
+      ],
+      "prompt_tokens": 1203,
+      "raw_logits": [
+        4.400592803955078,
+        1.6174540519714355,
+        2.547830104827881
+      ],
+      "signed_margin": -2.7831387519836426,
+      "source_id": "hard-opus-a-probability-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "sep_26",
+      "ground_truth_index": 2,
+      "keys": [
+        "sep_24",
+        "sep_25",
+        "sep_26",
+        "sep_27",
+        "sep_28"
+      ],
+      "logits": [
+        3.6648669242858887,
+        0.896045982837677,
+        1.363603115081787,
+        0.44535136222839355,
+        -0.9647595882415771
+      ],
+      "prediction": 0,
+      "probs": [
+        0.5277490081405066,
+        0.1364162620043453,
+        0.17142916895090474,
+        0.10945255445482907,
+        0.05495300644941428
+      ],
+      "prompt_tokens": 1276,
+      "raw_logits": [
+        3.6648669242858887,
+        0.896045982837677,
+        1.363603115081787,
+        0.44535136222839355,
+        -0.9647595882415771
+      ],
+      "signed_margin": -2.3012638092041016,
+      "source_id": "hard-opus-a-temporal_numeric-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "real_incident",
+      "ground_truth_index": 1,
+      "keys": [
+        "cannot_determine",
+        "real_incident",
+        "false_positive"
+      ],
+      "logits": [
+        7.35145378112793,
+        9.762716293334961,
+        7.741764068603516
+      ],
+      "prediction": 1,
+      "probs": [
+        0.183196119111979,
+        0.5951156815498,
+        0.22168819933822104
+      ],
+      "prompt_tokens": 519,
+      "raw_logits": [
+        7.35145378112793,
+        9.762716293334961,
+        7.741764068603516
+      ],
+      "signed_margin": 2.0209522247314453,
+      "source_id": "hard-opus-b-ambiguous-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "time_barred",
+      "ground_truth_index": 1,
+      "keys": [
+        "within_limitation",
+        "time_barred",
+        "insufficient_information"
+      ],
+      "logits": [
+        5.98433780670166,
+        7.220582962036133,
+        7.885741233825684
+      ],
+      "prediction": 2,
+      "probs": [
+        0.18650870389895158,
+        0.34122286825794784,
+        0.4722684278431006
+      ],
+      "prompt_tokens": 474,
+      "raw_logits": [
+        5.98433780670166,
+        7.220582962036133,
+        7.885741233825684
+      ],
+      "signed_margin": -0.6651582717895508,
+      "source_id": "hard-opus-b-ambiguous-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "within_policy",
+      "ground_truth_index": 0,
+      "keys": [
+        "within_policy",
+        "over_limit",
+        "insufficient_information"
+      ],
+      "logits": [
+        7.467473030090332,
+        9.335216522216797,
+        8.778759956359863
+      ],
+      "prediction": 1,
+      "probs": [
+        0.18557341424889848,
+        0.46223488257225853,
+        0.352191703178843
+      ],
+      "prompt_tokens": 481,
+      "raw_logits": [
+        7.467473030090332,
+        9.335216522216797,
+        8.778759956359863
+      ],
+      "signed_margin": -1.8677434921264648,
+      "source_id": "hard-opus-b-ambiguous-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "legitimate",
+      "ground_truth_index": 0,
+      "keys": [
+        "legitimate",
+        "compromised",
+        "inconclusive"
+      ],
+      "logits": [
+        9.953310012817383,
+        10.916938781738281,
+        11.06021499633789
+      ],
+      "prediction": 2,
+      "probs": [
+        0.2315437133922476,
+        0.3707840990094355,
+        0.39767218759831696
+      ],
+      "prompt_tokens": 620,
+      "raw_logits": [
+        9.953310012817383,
+        10.916938781738281,
+        11.06021499633789
+      ],
+      "signed_margin": -1.1069049835205078,
+      "source_id": "hard-opus-b-ambiguous-09",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "ask_user_which_alex",
+      "ground_truth_index": 0,
+      "keys": [
+        "ask_user_which_alex",
+        "send_to_alex_moreno",
+        "send_to_alexandra_lind"
+      ],
+      "logits": [
+        11.570592880249023,
+        8.229409217834473,
+        10.947481155395508
+      ],
+      "prediction": 0,
+      "probs": [
+        0.51734626915806,
+        0.10110230537971247,
+        0.3815514254622275
+      ],
+      "prompt_tokens": 82,
+      "raw_logits": [
+        11.570592880249023,
+        8.229409217834473,
+        10.947481155395508
+      ],
+      "signed_margin": 0.6231117248535156,
+      "source_id": "hard-opus-b-ambiguous-10",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "cannot_determine",
+      "ground_truth_index": 2,
+      "keys": [
+        "grade_correct",
+        "grade_should_be_higher",
+        "cannot_determine"
+      ],
+      "logits": [
+        10.056248664855957,
+        7.976705551147461,
+        12.73448371887207
+      ],
+      "prediction": 2,
+      "probs": [
+        0.19750496553348573,
+        0.07149667480728937,
+        0.7309983596592249
+      ],
+      "prompt_tokens": 444,
+      "raw_logits": [
+        10.056248664855957,
+        7.976705551147461,
+        12.73448371887207
+      ],
+      "signed_margin": 2.6782350540161133,
+      "source_id": "hard-opus-b-ambiguous-11",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "cannot_determine",
+      "ground_truth_index": 0,
+      "keys": [
+        "cannot_determine",
+        "charge_platform_team",
+        "charge_data_team",
+        "split_50_50"
+      ],
+      "logits": [
+        8.502351760864258,
+        5.196011543273926,
+        5.73686408996582,
+        8.553913116455078
+      ],
+      "prediction": 3,
+      "probs": [
+        0.40270570648409365,
+        0.08005003383937088,
+        0.10426387081067098,
+        0.4129803888658644
+      ],
+      "prompt_tokens": 569,
+      "raw_logits": [
+        8.502351760864258,
+        5.196011543273926,
+        5.73686408996582,
+        8.553913116455078
+      ],
+      "signed_margin": -0.05156135559082031,
+      "source_id": "hard-opus-b-ambiguous-13",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "tier3_cfo",
+      "ground_truth_index": 2,
+      "keys": [
+        "tier1_team_lead",
+        "tier2_department_head",
+        "tier3_cfo",
+        "tier4_board"
+      ],
+      "logits": [
+        9.610157012939453,
+        10.27254581451416,
+        8.163482666015625,
+        11.827887535095215
+      ],
+      "prediction": 3,
+      "probs": [
+        0.17150430502406935,
+        0.23704899078990158,
+        0.08458271047250944,
+        0.5068639937135196
+      ],
+      "prompt_tokens": 2893,
+      "raw_logits": [
+        9.610157012939453,
+        10.27254581451416,
+        8.163482666015625,
+        11.827887535095215
+      ],
+      "signed_margin": -3.66440486907959,
+      "source_id": "hard-opus-b-multi_hop-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "bjorn",
+      "ground_truth_index": 2,
+      "keys": [
+        "no_page_ticket_only",
+        "ana",
+        "bjorn",
+        "chen",
+        "dmitri",
+        "esra"
+      ],
+      "logits": [
+        11.926324844360352,
+        9.900440216064453,
+        8.247992515563965,
+        9.253824234008789,
+        10.842058181762695,
+        11.800477981567383
+      ],
+      "prediction": 0,
+      "probs": [
+        0.2996356101161738,
+        0.11134940997892986,
+        0.049662443933672536,
+        0.08118427698433514,
+        0.17640268694736777,
+        0.2817655720395209
+      ],
+      "prompt_tokens": 2246,
+      "raw_logits": [
+        11.926324844360352,
+        9.900440216064453,
+        8.247992515563965,
+        9.253824234008789,
+        10.842058181762695,
+        11.800477981567383
+      ],
+      "signed_margin": -3.6783323287963867,
+      "source_id": "hard-opus-b-multi_hop-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "credit_20_percent",
+      "ground_truth_index": 2,
+      "keys": [
+        "no_credit",
+        "credit_10_percent",
+        "credit_20_percent",
+        "credit_25_percent",
+        "credit_50_percent",
+        "credit_full_month"
+      ],
+      "logits": [
+        7.847204685211182,
+        6.4927802085876465,
+        6.39471435546875,
+        5.87852144241333,
+        4.787237167358398,
+        8.364965438842773
+      ],
+      "prediction": 5,
+      "probs": [
+        0.2562833151471472,
+        0.1322217527847175,
+        0.12603545019688522,
+        0.09793847168575655,
+        0.057461361396063684,
+        0.3300596487894298
+      ],
+      "prompt_tokens": 2540,
+      "raw_logits": [
+        7.847204685211182,
+        6.4927802085876465,
+        6.39471435546875,
+        5.87852144241333,
+        4.787237167358398,
+        8.364965438842773
+      ],
+      "signed_margin": -1.9702510833740234,
+      "source_id": "hard-opus-b-multi_hop-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "merchant_wins",
+      "ground_truth_index": 1,
+      "keys": [
+        "customer_wins",
+        "merchant_wins",
+        "customer_withdraws"
+      ],
+      "logits": [
+        3.4034557342529297,
+        0.7253987789154053,
+        1.5027046203613281
+      ],
+      "prediction": 0,
+      "probs": [
+        0.6005084098597816,
+        0.16226262742150918,
+        0.23722896271870936
+      ],
+      "prompt_tokens": 1860,
+      "raw_logits": [
+        3.4034557342529297,
+        0.7253987789154053,
+        1.5027046203613281
+      ],
+      "signed_margin": -2.6780569553375244,
+      "source_id": "hard-opus-b-probability-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "upstream_provider",
+      "ground_truth_index": 1,
+      "keys": [
+        "bad_push",
+        "upstream_provider",
+        "database_hardware"
+      ],
+      "logits": [
+        5.914090633392334,
+        3.4776344299316406,
+        5.16326904296875
+      ],
+      "prediction": 0,
+      "probs": [
+        0.5007593768663711,
+        0.1522641649096599,
+        0.34697645822396905
+      ],
+      "prompt_tokens": 477,
+      "raw_logits": [
+        5.914090633392334,
+        3.4776344299316406,
+        5.16326904296875
+      ],
+      "signed_margin": -2.4364562034606934,
+      "source_id": "hard-opus-b-probability-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "attended",
+      "ground_truth_index": 2,
+      "keys": [
+        "no_show",
+        "late_cancellation",
+        "attended"
+      ],
+      "logits": [
+        7.922255039215088,
+        4.524109363555908,
+        6.759411811828613
+      ],
+      "prediction": 0,
+      "probs": [
+        0.5692785271099653,
+        0.1081974040926835,
+        0.3225240687973511
+      ],
+      "prompt_tokens": 581,
+      "raw_logits": [
+        7.922255039215088,
+        4.524109363555908,
+        6.759411811828613
+      ],
+      "signed_margin": -1.1628432273864746,
+      "source_id": "hard-opus-b-probability-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "upheld",
+      "ground_truth_index": 2,
+      "keys": [
+        "overturned",
+        "modified",
+        "upheld"
+      ],
+      "logits": [
+        4.6937713623046875,
+        1.869384527206421,
+        4.20967960357666
+      ],
+      "prediction": 0,
+      "probs": [
+        0.48997538219950587,
+        0.12325982485975572,
+        0.3867647929407385
+      ],
+      "prompt_tokens": 975,
+      "raw_logits": [
+        4.6937713623046875,
+        1.869384527206421,
+        4.20967960357666
+      ],
+      "signed_margin": -0.48409175872802734,
+      "source_id": "hard-opus-b-probability-06",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "escalate_to_engineering",
+      "ground_truth_index": 2,
+      "keys": [
+        "escalate_to_security",
+        "page_oncall",
+        "escalate_to_engineering",
+        "process_refund",
+        "send_kb_article"
+      ],
+      "logits": [
+        8.19286060333252,
+        6.378989219665527,
+        9.55898666381836,
+        5.658317565917969,
+        4.753080368041992
+      ],
+      "prediction": 2,
+      "probs": [
+        0.26057635816997216,
+        0.1074039004151134,
+        0.5079670980311524,
+        0.07552469487935566,
+        0.048527948504406386
+      ],
+      "prompt_tokens": 810,
+      "raw_logits": [
+        8.19286060333252,
+        6.378989219665527,
+        9.55898666381836,
+        5.658317565917969,
+        4.753080368041992
+      ],
+      "signed_margin": 1.3661260604858398,
+      "source_id": "hard-opus-b-tradeoff-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "order_b",
+      "ground_truth_index": 1,
+      "keys": [
+        "order_a",
+        "order_b",
+        "order_c",
+        "order_d"
+      ],
+      "logits": [
+        1.1015830039978027,
+        -1.401138186454773,
+        0.0895380973815918,
+        -1.7403781414031982
+      ],
+      "prediction": 0,
+      "probs": [
+        0.4643254441060487,
+        0.13668764116551665,
+        0.2831784273462111,
+        0.11580848738222346
+      ],
+      "prompt_tokens": 741,
+      "raw_logits": [
+        1.1015830039978027,
+        -1.401138186454773,
+        0.0895380973815918,
+        -1.7403781414031982
+      ],
+      "signed_margin": -2.5027211904525757,
+      "source_id": "hard-opus-b-tradeoff-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "p0_fix_24h",
+      "ground_truth_index": 4,
+      "keys": [
+        "out_of_scope",
+        "p3_backlog",
+        "p2_fix_30d",
+        "p1_fix_7d",
+        "p0_fix_24h"
+      ],
+      "logits": [
+        6.088649749755859,
+        3.5540566444396973,
+        8.313274383544922,
+        3.557528018951416,
+        5.5322113037109375
+      ],
+      "prediction": 2,
+      "probs": [
+        0.18841388290972225,
+        0.05460799666151294,
+        0.5587175187228816,
+        0.05470070100380529,
+        0.14355990070207794
+      ],
+      "prompt_tokens": 672,
+      "raw_logits": [
+        6.088649749755859,
+        3.5540566444396973,
+        8.313274383544922,
+        3.557528018951416,
+        5.5322113037109375
+      ],
+      "signed_margin": -2.7810630798339844,
+      "source_id": "hard-opus-b-tradeoff-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "refund_now",
+      "ground_truth_index": 1,
+      "keys": [
+        "wait_for_inspection",
+        "refund_now",
+        "offer_store_credit",
+        "escalate_to_fraud_team",
+        "deny_refund"
+      ],
+      "logits": [
+        11.278694152832031,
+        9.68399429321289,
+        9.848694801330566,
+        6.867715358734131,
+        8.589192390441895
+      ],
+      "prediction": 0,
+      "probs": [
+        0.42724904944863173,
+        0.1960088718949034,
+        0.21243507118238433,
+        0.049504372828118315,
+        0.11480263464596217
+      ],
+      "prompt_tokens": 560,
+      "raw_logits": [
+        11.278694152832031,
+        9.68399429321289,
+        9.848694801330566,
+        6.867715358734131,
+        8.589192390441895
+      ],
+      "signed_margin": -1.5946998596191406,
+      "source_id": "hard-opus-b-tradeoff-12",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "erase_but_retain_transaction_records",
+      "ground_truth_index": 2,
+      "keys": [
+        "erase_all",
+        "restrict_all_pending_legal_hold",
+        "erase_but_retain_transaction_records",
+        "reject_unverified_request",
+        "erase_marketing_only"
+      ],
+      "logits": [
+        8.13062572479248,
+        5.676828384399414,
+        8.609997749328613,
+        4.515188217163086,
+        2.444538116455078
+      ],
+      "prediction": 2,
+      "probs": [
+        0.3573349056221085,
+        0.10773682120605221,
+        0.45164916429490976,
+        0.06107405862948035,
+        0.022205050247449107
+      ],
+      "prompt_tokens": 3494,
+      "raw_logits": [
+        8.13062572479248,
+        5.676828384399414,
+        8.609997749328613,
+        4.515188217163086,
+        2.444538116455078
+      ],
+      "signed_margin": 0.4793720245361328,
+      "source_id": "hard-opus-c-long_policy-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "eur_400",
+      "ground_truth_index": 4,
+      "keys": [
+        "eur_0",
+        "eur_150",
+        "eur_200",
+        "eur_300",
+        "eur_400",
+        "eur_600"
+      ],
+      "logits": [
+        8.638879776000977,
+        8.171531677246094,
+        7.161108016967773,
+        9.633596420288086,
+        8.625947952270508,
+        7.987919807434082
+      ],
+      "prediction": 3,
+      "probs": [
+        0.17766086473883036,
+        0.14138962908405153,
+        0.08629771103668221,
+        0.28885302647685696,
+        0.17654180273649375,
+        0.12925696592708508
+      ],
+      "prompt_tokens": 3421,
+      "raw_logits": [
+        8.638879776000977,
+        8.171531677246094,
+        7.161108016967773,
+        9.633596420288086,
+        8.625947952270508,
+        7.987919807434082
+      ],
+      "signed_margin": -1.0076484680175781,
+      "source_id": "hard-opus-c-long_policy-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "credit_minus_restocking_fee",
+      "ground_truth_index": 1,
+      "keys": [
+        "full_credit",
+        "credit_minus_restocking_fee",
+        "repair_or_replace_only",
+        "reject_return"
+      ],
+      "logits": [
+        12.467256546020508,
+        7.976442813873291,
+        9.122098922729492,
+        10.591948509216309
+      ],
+      "prediction": 0,
+      "probs": [
+        0.5860052575023127,
+        0.06530140000636551,
+        0.11429782074150888,
+        0.2343955217498129
+      ],
+      "prompt_tokens": 3548,
+      "raw_logits": [
+        12.467256546020508,
+        7.976442813873291,
+        9.122098922729492,
+        10.591948509216309
+      ],
+      "signed_margin": -4.490813732147217,
+      "source_id": "hard-opus-c-long_policy-10",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "kuznets_technik",
+      "ground_truth_index": 2,
+      "keys": [
+        "halvorsen_polymer",
+        "ortega_seal_works",
+        "kuznets_technik"
+      ],
+      "logits": [
+        8.817234992980957,
+        4.890561580657959,
+        7.7391510009765625
+      ],
+      "prediction": 0,
+      "probs": [
+        0.5756030669347967,
+        0.0845002932014398,
+        0.3398966398637636
+      ],
+      "prompt_tokens": 539,
+      "raw_logits": [
+        8.817234992980957,
+        4.890561580657959,
+        7.7391510009765625
+      ],
+      "signed_margin": -1.0780839920043945,
+      "source_id": "hard-opus-c-probability-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "eur_692_00",
+      "ground_truth_index": 0,
+      "keys": [
+        "eur_692_00",
+        "eur_617_00",
+        "eur_688_00",
+        "eur_693_90",
+        "eur_812_00"
+      ],
+      "logits": [
+        4.941991329193115,
+        1.7544050216674805,
+        2.1522440910339355,
+        2.1808173656463623,
+        -0.8503978252410889
+      ],
+      "prediction": 0,
+      "probs": [
+        0.5602355047689712,
+        0.1180170335283404,
+        0.14334041441184986,
+        0.14535570603283296,
+        0.033051341258005545
+      ],
+      "prompt_tokens": 811,
+      "raw_logits": [
+        4.941991329193115,
+        1.7544050216674805,
+        2.1522440910339355,
+        2.1808173656463623,
+        -0.8503978252410889
+      ],
+      "signed_margin": 2.761173963546753,
+      "source_id": "hard-opus-c-temporal_numeric-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "usd_2335_00",
+      "ground_truth_index": 3,
+      "keys": [
+        "usd_2222_50",
+        "usd_2303_01",
+        "usd_2303_33",
+        "usd_2335_00",
+        "usd_2340_00"
+      ],
+      "logits": [
+        3.117387533187866,
+        -1.2947790622711182,
+        -0.11080646514892578,
+        -1.469555139541626,
+        -3.271113395690918
+      ],
+      "prediction": 0,
+      "probs": [
+        0.6790121938290384,
+        0.07862994505239873,
+        0.1402279001003071,
+        0.0721937141250167,
+        0.02993624689323913
+      ],
+      "prompt_tokens": 717,
+      "raw_logits": [
+        3.117387533187866,
+        -1.2947790622711182,
+        -0.11080646514892578,
+        -1.469555139541626,
+        -3.271113395690918
+      ],
+      "signed_margin": -4.586942672729492,
+      "source_id": "hard-opus-c-temporal_numeric-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "sep_18_book_set",
+      "ground_truth_index": 3,
+      "keys": [
+        "sep_15_office_chair",
+        "sep_16_taxi",
+        "sep_17_parking",
+        "sep_18_book_set",
+        "sep_21_client_dinner",
+        "none_declined"
+      ],
+      "logits": [
+        7.631158828735352,
+        6.527848243713379,
+        5.106108665466309,
+        3.6663460731506348,
+        3.185847282409668,
+        8.040705680847168
+      ],
+      "prediction": 5,
+      "probs": [
+        0.29814873704509565,
+        0.1739015703471599,
+        0.08681632365680446,
+        0.042961029615871615,
+        0.03397111526576579,
+        0.36420122406930255
+      ],
+      "prompt_tokens": 933,
+      "raw_logits": [
+        7.631158828735352,
+        6.527848243713379,
+        5.106108665466309,
+        3.6663460731506348,
+        3.185847282409668,
+        8.040705680847168
+      ],
+      "signed_margin": -4.374359607696533,
+      "source_id": "hard-opus-c-temporal_numeric-06",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "eur_498_81",
+      "ground_truth_index": 1,
+      "keys": [
+        "eur_506_06",
+        "eur_498_81",
+        "eur_513_69",
+        "eur_497_40",
+        "eur_532_01"
+      ],
+      "logits": [
+        4.677932262420654,
+        0.7613308429718018,
+        1.9706776142120361,
+        0.633934497833252,
+        -1.247833251953125
+      ],
+      "prediction": 0,
+      "probs": [
+        0.6219657233138424,
+        0.09175693714205498,
+        0.16567993924556115,
+        0.08621932128099032,
+        0.034378079017551195
+      ],
+      "prompt_tokens": 932,
+      "raw_logits": [
+        4.677932262420654,
+        0.7613308429718018,
+        1.9706776142120361,
+        0.633934497833252,
+        -1.247833251953125
+      ],
+      "signed_margin": -3.9166014194488525,
+      "source_id": "hard-opus-c-temporal_numeric-08",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "expired_30_month_cap",
+      "ground_truth_index": 2,
+      "keys": [
+        "covered",
+        "expired_24_month_term",
+        "expired_30_month_cap"
+      ],
+      "logits": [
+        10.182125091552734,
+        7.806266784667969,
+        9.95422077178955
+      ],
+      "prediction": 0,
+      "probs": [
+        0.45293513525384416,
+        0.14186128257757435,
+        0.4052035821685813
+      ],
+      "prompt_tokens": 792,
+      "raw_logits": [
+        10.182125091552734,
+        7.806266784667969,
+        9.95422077178955
+      ],
+      "signed_margin": -0.2279043197631836,
+      "source_id": "hard-opus-c-temporal_numeric-12",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "deny_missing_approval",
+      "ground_truth_index": 1,
+      "keys": [
+        "grant_access",
+        "deny_missing_approval",
+        "deny_inactive_user",
+        "grant_owner_exception"
+      ],
+      "logits": [
+        12.325634002685547,
+        9.835526466369629,
+        8.051593780517578,
+        10.946562767028809
+      ],
+      "prediction": 0,
+      "probs": [
+        0.518180610048029,
+        0.15348453440268364,
+        0.06419524267067925,
+        0.26413961287860815
+      ],
+      "prompt_tokens": 267,
+      "raw_logits": [
+        12.325634002685547,
+        9.835526466369629,
+        8.051593780517578,
+        10.946562767028809
+      ],
+      "signed_margin": -2.490107536315918,
+      "source_id": "hard-sol-a-adversarial-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "retain_until_2031",
+      "ground_truth_index": 0,
+      "keys": [
+        "retain_until_2031",
+        "delete_now",
+        "retain_indefinitely",
+        "needs_signature_review"
+      ],
+      "logits": [
+        10.251846313476563,
+        9.622426986694336,
+        7.106493949890137,
+        7.5738630294799805
+      ],
+      "prediction": 0,
+      "probs": [
+        0.45034619507381723,
+        0.33111567729361807,
+        0.09684626419660408,
+        0.12169186343596064
+      ],
+      "prompt_tokens": 278,
+      "raw_logits": [
+        10.251846313476563,
+        9.622426986694336,
+        7.106493949890137,
+        7.5738630294799805
+      ],
+      "signed_margin": 0.6294193267822266,
+      "source_id": "hard-sol-a-adversarial-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "standard_research",
+      "ground_truth_index": 0,
+      "keys": [
+        "standard_research",
+        "ethics_review",
+        "major_grants",
+        "manual_hold"
+      ],
+      "logits": [
+        9.576714515686035,
+        5.8296332359313965,
+        8.577476501464844,
+        4.705843448638916
+      ],
+      "prediction": 0,
+      "probs": [
+        0.5357577397325238,
+        0.08586460065968626,
+        0.32879396681036294,
+        0.04958369279742683
+      ],
+      "prompt_tokens": 289,
+      "raw_logits": [
+        9.576714515686035,
+        5.8296332359313965,
+        8.577476501464844,
+        4.705843448638916
+      ],
+      "signed_margin": 0.9992380142211914,
+      "source_id": "hard-sol-a-adversarial-11",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "accept_s2_dusk",
+      "ground_truth_index": 1,
+      "keys": [
+        "reject_tier",
+        "accept_s2_dusk",
+        "reject_cutoff",
+        "reroute_s3"
+      ],
+      "logits": [
+        6.561877250671387,
+        7.389444828033447,
+        6.83455753326416,
+        6.088918209075928
+      ],
+      "prediction": 1,
+      "probs": [
+        0.22550258054023117,
+        0.3378831852433325,
+        0.25764160337583086,
+        0.17897263084060547
+      ],
+      "prompt_tokens": 89,
+      "raw_logits": [
+        6.561877250671387,
+        7.389444828033447,
+        6.83455753326416,
+        6.088918209075928
+      ],
+      "signed_margin": 0.5548872947692871,
+      "source_id": "hard-sol-a-multi_hop-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "security_primary",
+      "ground_truth_index": 2,
+      "keys": [
+        "heron_q2",
+        "insufficient_information",
+        "security_primary",
+        "executive_bridge"
+      ],
+      "logits": [
+        6.406327247619629,
+        5.175179481506348,
+        6.001333713531494,
+        4.180850028991699
+      ],
+      "prediction": 0,
+      "probs": [
+        0.36961769724747845,
+        0.20253282945111406,
+        0.3032568173203073,
+        0.12459265598110018
+      ],
+      "prompt_tokens": 83,
+      "raw_logits": [
+        6.406327247619629,
+        5.175179481506348,
+        6.001333713531494,
+        4.180850028991699
+      ],
+      "signed_margin": -0.40499353408813477,
+      "source_id": "hard-sol-a-multi_hop-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "require_director",
+      "ground_truth_index": 3,
+      "keys": [
+        "pay_manager_approved",
+        "require_finance_board",
+        "reject_category",
+        "require_director"
+      ],
+      "logits": [
+        8.838438987731934,
+        7.276454925537109,
+        5.656004905700684,
+        7.056489944458008
+      ],
+      "prediction": 0,
+      "probs": [
+        0.47709760714820876,
+        0.22240490499110777,
+        0.10075686322764563,
+        0.19974062463303785
+      ],
+      "prompt_tokens": 81,
+      "raw_logits": [
+        8.838438987731934,
+        7.276454925537109,
+        5.656004905700684,
+        7.056489944458008
+      ],
+      "signed_margin": -1.7819490432739258,
+      "source_id": "hard-sol-a-multi_hop-05",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "admit",
+      "ground_truth_index": 2,
+      "keys": [
+        "manual_equivalency",
+        "deny_score",
+        "admit",
+        "deny_prerequisite"
+      ],
+      "logits": [
+        9.256904602050781,
+        6.490118026733398,
+        8.726943969726563,
+        10.360491752624512
+      ],
+      "prediction": 3,
+      "probs": [
+        0.26700095412862307,
+        0.06908491665319944,
+        0.20608758117521875,
+        0.4578265480429588
+      ],
+      "prompt_tokens": 85,
+      "raw_logits": [
+        9.256904602050781,
+        6.490118026733398,
+        8.726943969726563,
+        10.360491752624512
+      ],
+      "signed_margin": -1.6335477828979492,
+      "source_id": "hard-sol-a-multi_hop-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "central_engineering",
+      "ground_truth_index": 3,
+      "keys": [
+        "safety_shutdown",
+        "local_maintenance",
+        "insufficient_log",
+        "central_engineering"
+      ],
+      "logits": [
+        2.8588595390319824,
+        4.429892539978027,
+        2.1063928604125977,
+        3.7018232345581055
+      ],
+      "prediction": 1,
+      "probs": [
+        0.1866822325186285,
+        0.4022407864791349,
+        0.12924829035762167,
+        0.281828690644615
+      ],
+      "prompt_tokens": 92,
+      "raw_logits": [
+        2.8588595390319824,
+        4.429892539978027,
+        2.1063928604125977,
+        3.7018232345581055
+      ],
+      "signed_margin": -0.7280693054199219,
+      "source_id": "hard-sol-a-multi_hop-08",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "require_steward",
+      "ground_truth_index": 1,
+      "keys": [
+        "confirm_l3",
+        "require_steward",
+        "switch_l4",
+        "reject_capacity"
+      ],
+      "logits": [
+        6.2530837059021,
+        3.4798872470855713,
+        4.855662822723389,
+        3.8980979919433594
+      ],
+      "prediction": 0,
+      "probs": [
+        0.4808745691020469,
+        0.12403436199446916,
+        0.2429351059575979,
+        0.1521559629458861
+      ],
+      "prompt_tokens": 92,
+      "raw_logits": [
+        6.2530837059021,
+        3.4798872470855713,
+        4.855662822723389,
+        3.8980979919433594
+      ],
+      "signed_margin": -2.7731964588165283,
+      "source_id": "hard-sol-a-multi_hop-09",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "approve_45_days",
+      "ground_truth_index": 3,
+      "keys": [
+        "deny_sensitive",
+        "needs_field_review",
+        "reduce_to_30_days",
+        "approve_45_days"
+      ],
+      "logits": [
+        5.429225444793701,
+        4.332284927368164,
+        5.6592817306518555,
+        4.933676242828369
+      ],
+      "prediction": 2,
+      "probs": [
+        0.28661419287988055,
+        0.16769495246073796,
+        0.32071338708982733,
+        0.2249774675695542
+      ],
+      "prompt_tokens": 85,
+      "raw_logits": [
+        5.429225444793701,
+        4.332284927368164,
+        5.6592817306518555,
+        4.933676242828369
+      ],
+      "signed_margin": -0.7256054878234863,
+      "source_id": "hard-sol-a-multi_hop-10",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "needs_authentication",
+      "ground_truth_index": 3,
+      "keys": [
+        "wrong_issue_class",
+        "expired",
+        "covered_recurrence",
+        "needs_authentication"
+      ],
+      "logits": [
+        4.9733476638793945,
+        3.645169496536255,
+        6.508532524108887,
+        2.2134251594543457
+      ],
+      "prediction": 2,
+      "probs": [
+        0.25644569406037104,
+        0.13401321332014723,
+        0.5429643664986321,
+        0.06657672612084961
+      ],
+      "prompt_tokens": 92,
+      "raw_logits": [
+        4.9733476638793945,
+        3.645169496536255,
+        6.508532524108887,
+        2.2134251594543457
+      ],
+      "signed_margin": -4.295107364654541,
+      "source_id": "hard-sol-a-multi_hop-12",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "keep_open_unresolved",
+      "ground_truth_index": 1,
+      "keys": [
+        "close_confirmed",
+        "keep_open_unresolved",
+        "close_agent_verified",
+        "await_internal_metrics"
+      ],
+      "logits": [
+        9.267273902893066,
+        10.994787216186523,
+        7.6635541915893555,
+        10.684377670288086
+      ],
+      "prediction": 1,
+      "probs": [
+        0.17297423528851813,
+        0.4023190975992066,
+        0.07900634553162214,
+        0.3457003215806532
+      ],
+      "prompt_tokens": 333,
+      "raw_logits": [
+        9.267273902893066,
+        10.994787216186523,
+        7.6635541915893555,
+        10.684377670288086
+      ],
+      "signed_margin": 0.3104095458984375,
+      "source_id": "hard-sol-a-trap-06",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "late",
+      "ground_truth_index": 1,
+      "keys": [
+        "on_time",
+        "late",
+        "indeterminate",
+        "canceled"
+      ],
+      "logits": [
+        8.908698081970215,
+        4.344016075134277,
+        5.42167854309082,
+        4.062456130981445
+      ],
+      "prediction": 0,
+      "probs": [
+        0.7229939965378855,
+        0.07771061693824691,
+        0.13157310833283511,
+        0.06772227819103244
+      ],
+      "prompt_tokens": 267,
+      "raw_logits": [
+        8.908698081970215,
+        4.344016075134277,
+        5.42167854309082,
+        4.062456130981445
+      ],
+      "signed_margin": -4.5646820068359375,
+      "source_id": "hard-sol-a-trap-08",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "blocked_second_review",
+      "ground_truth_index": 2,
+      "keys": [
+        "ready_one_review",
+        "ready_two_reviews",
+        "blocked_second_review",
+        "blocked_failed_test"
+      ],
+      "logits": [
+        9.513078689575195,
+        9.652825355529785,
+        12.448185920715332,
+        6.688429355621338
+      ],
+      "prediction": 2,
+      "probs": [
+        0.1534136814713188,
+        0.16425523368619216,
+        0.6437427823864817,
+        0.038588302456007174
+      ],
+      "prompt_tokens": 189,
+      "raw_logits": [
+        9.513078689575195,
+        9.652825355529785,
+        12.448185920715332,
+        6.688429355621338
+      ],
+      "signed_margin": 2.795360565185547,
+      "source_id": "hard-sol-a-trap-10",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "reject_entire_claim",
+      "ground_truth_index": 3,
+      "keys": [
+        "approve_all",
+        "approve_meals_only",
+        "approve_lodging_only",
+        "reject_entire_claim"
+      ],
+      "logits": [
+        12.257918357849121,
+        9.796743392944336,
+        12.77869987487793,
+        14.114657402038574
+      ],
+      "prediction": 3,
+      "probs": [
+        0.1973290468465717,
+        0.059280813607918835,
+        0.2545095852554884,
+        0.48888055429002103
+      ],
+      "prompt_tokens": 2722,
+      "raw_logits": [
+        12.257918357849121,
+        9.796743392944336,
+        12.77869987487793,
+        14.114657402038574
+      ],
+      "signed_margin": 1.3359575271606445,
+      "source_id": "hard-sol-b-long_policy-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "deny_current_export",
+      "ground_truth_index": 3,
+      "keys": [
+        "analytics_owner_only",
+        "privacy_only",
+        "privacy_and_security",
+        "deny_current_export"
+      ],
+      "logits": [
+        10.26862907409668,
+        8.560357093811035,
+        13.511963844299316,
+        10.180511474609375
+      ],
+      "prediction": 2,
+      "probs": [
+        0.1375511576670784,
+        0.05969777612372625,
+        0.6709966627290889,
+        0.13175440348010642
+      ],
+      "prompt_tokens": 2568,
+      "raw_logits": [
+        10.26862907409668,
+        8.560357093811035,
+        13.511963844299316,
+        10.180511474609375
+      ],
+      "signed_margin": -3.3314523696899414,
+      "source_id": "hard-sol-b-long_policy-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "delete_profile_omar_april_and_table",
+      "ground_truth_index": 1,
+      "keys": [
+        "delete_everything",
+        "delete_profile_omar_april_and_table",
+        "delete_only_profile",
+        "delete_nothing"
+      ],
+      "logits": [
+        12.943414688110352,
+        13.54442024230957,
+        11.020919799804688,
+        12.808403015136719
+      ],
+      "prediction": 1,
+      "probs": [
+        0.27260095283822694,
+        0.36564912768933616,
+        0.10655205236817739,
+        0.25519786710425946
+      ],
+      "prompt_tokens": 2523,
+      "raw_logits": [
+        12.943414688110352,
+        13.54442024230957,
+        11.020919799804688,
+        12.808403015136719
+      ],
+      "signed_margin": 0.6010055541992188,
+      "source_id": "hard-sol-b-long_policy-05",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "east_ward",
+      "ground_truth_index": 1,
+      "keys": [
+        "harbor_neighbors",
+        "east_ward",
+        "river_arts",
+        "no_award"
+      ],
+      "logits": [
+        11.723937034606934,
+        12.326717376708984,
+        11.485183715820313,
+        12.717891693115234
+      ],
+      "prediction": 3,
+      "probs": [
+        0.205860940065886,
+        0.2763679932180038,
+        0.18319304875974174,
+        0.33457801795636843
+      ],
+      "prompt_tokens": 2614,
+      "raw_logits": [
+        11.723937034606934,
+        12.326717376708984,
+        11.485183715820313,
+        12.717891693115234
+      ],
+      "signed_margin": -0.39117431640625,
+      "source_id": "hard-sol-b-long_policy-06",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "office_file_repair",
+      "ground_truth_index": 1,
+      "keys": [
+        "spreadsheet_formula",
+        "office_file_repair",
+        "data_pipeline",
+        "desktop_support",
+        "finance_review"
+      ],
+      "logits": [
+        8.412739753723145,
+        6.735236167907715,
+        5.723716735839844,
+        2.992218017578125,
+        6.777672290802002
+      ],
+      "prediction": 0,
+      "probs": [
+        0.448449978762326,
+        0.19757735101666593,
+        0.12052755598325565,
+        0.031728174165274674,
+        0.20171694007247767
+      ],
+      "prompt_tokens": 139,
+      "raw_logits": [
+        8.412739753723145,
+        6.735236167907715,
+        5.723716735839844,
+        2.992218017578125,
+        6.777672290802002
+      ],
+      "signed_margin": -1.6775035858154297,
+      "source_id": "hard-sol-b-routing_hard-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "ledger_reconciliation",
+      "ground_truth_index": 1,
+      "keys": [
+        "payment_disputes",
+        "ledger_reconciliation",
+        "mobile_app",
+        "customer_support",
+        "fraud_review"
+      ],
+      "logits": [
+        8.531527519226074,
+        4.501155853271484,
+        4.8913397789001465,
+        2.7049953937530518,
+        6.179191589355469
+      ],
+      "prediction": 0,
+      "probs": [
+        0.594086950667341,
+        0.08290480567553739,
+        0.10031807676575294,
+        0.0344685582979888,
+        0.1882216085933801
+      ],
+      "prompt_tokens": 123,
+      "raw_logits": [
+        8.531527519226074,
+        4.501155853271484,
+        4.8913397789001465,
+        2.7049953937530518,
+        6.179191589355469
+      ],
+      "signed_margin": -4.03037166595459,
+      "source_id": "hard-sol-b-routing_hard-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "network_dns",
+      "ground_truth_index": 1,
+      "keys": [
+        "authoritative_dns",
+        "network_dns",
+        "tls_certificates",
+        "api_platform",
+        "endpoint_devices"
+      ],
+      "logits": [
+        8.289340019226074,
+        6.209984302520752,
+        6.956022262573242,
+        6.151495933532715,
+        5.4029011726379395
+      ],
+      "prediction": 0,
+      "probs": [
+        0.4033585229441125,
+        0.14602890543089517,
+        0.210258128319168,
+        0.1419146494794952,
+        0.09843979382632913
+      ],
+      "prompt_tokens": 123,
+      "raw_logits": [
+        8.289340019226074,
+        6.209984302520752,
+        6.956022262573242,
+        6.151495933532715,
+        5.4029011726379395
+      ],
+      "signed_margin": -2.0793557167053223,
+      "source_id": "hard-sol-b-routing_hard-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "release_notarization",
+      "ground_truth_index": 1,
+      "keys": [
+        "code_signing",
+        "release_notarization",
+        "macos_runtime",
+        "ci_infrastructure",
+        "endpoint_security"
+      ],
+      "logits": [
+        6.867629528045654,
+        2.540804147720337,
+        3.128683090209961,
+        1.2895712852478027,
+        1.1684625148773193
+      ],
+      "prediction": 0,
+      "probs": [
+        0.7097780335539899,
+        0.08569251668943269,
+        0.11420747241717012,
+        0.046496834427845836,
+        0.04382514291156123
+      ],
+      "prompt_tokens": 118,
+      "raw_logits": [
+        6.867629528045654,
+        2.540804147720337,
+        3.128683090209961,
+        1.2895712852478027,
+        1.1684625148773193
+      ],
+      "signed_margin": -4.326825380325317,
+      "source_id": "hard-sol-b-routing_hard-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "source_access",
+      "ground_truth_index": 1,
+      "keys": [
+        "vpn_network",
+        "source_access",
+        "git_client",
+        "repository_admin",
+        "identity_login"
+      ],
+      "logits": [
+        7.323986053466797,
+        3.9124112129211426,
+        5.25432014465332,
+        2.459420680999756,
+        4.567673683166504
+      ],
+      "prediction": 0,
+      "probs": [
+        0.524803737065635,
+        0.09909213913841178,
+        0.19089772346414371,
+        0.048719793805276995,
+        0.13648660652653263
+      ],
+      "prompt_tokens": 125,
+      "raw_logits": [
+        7.323986053466797,
+        3.9124112129211426,
+        5.25432014465332,
+        2.459420680999756,
+        4.567673683166504
+      ],
+      "signed_margin": -3.4115748405456543,
+      "source_id": "hard-sol-b-routing_hard-09",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "late_by_under_2h",
+      "ground_truth_index": 2,
+      "keys": [
+        "before_open",
+        "within_window",
+        "late_by_under_2h",
+        "late_by_2h_or_more"
+      ],
+      "logits": [
+        5.6586103439331055,
+        7.696036338806152,
+        6.06531286239624,
+        4.4879279136657715
+      ],
+      "prediction": 1,
+      "probs": [
+        0.18213623258191974,
+        0.4928911331970417,
+        0.22217807041185555,
+        0.10279456380918293
+      ],
+      "prompt_tokens": 106,
+      "raw_logits": [
+        5.6586103439331055,
+        7.696036338806152,
+        6.06531286239624,
+        4.4879279136657715
+      ],
+      "signed_margin": -1.630723476409912,
+      "source_id": "hard-sol-b-temporal_numeric-01",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "over_limit",
+      "ground_truth_index": 3,
+      "keys": [
+        "at_least_100gb_below",
+        "under_100gb_below",
+        "exactly_equal",
+        "over_limit"
+      ],
+      "logits": [
+        6.195639610290527,
+        6.3611650466918945,
+        5.04959774017334,
+        3.6517717838287354
+      ],
+      "prediction": 1,
+      "probs": [
+        0.3396763529162662,
+        0.3682907881787072,
+        0.19402960303479957,
+        0.098003255870227
+      ],
+      "prompt_tokens": 112,
+      "raw_logits": [
+        6.195639610290527,
+        6.3611650466918945,
+        5.04959774017334,
+        3.6517717838287354
+      ],
+      "signed_margin": -2.709393262863159,
+      "source_id": "hard-sol-b-temporal_numeric-02",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "9_credits",
+      "ground_truth_index": 1,
+      "keys": [
+        "6_credits",
+        "9_credits",
+        "12_credits",
+        "15_credits"
+      ],
+      "logits": [
+        7.0591206550598145,
+        5.896676063537598,
+        5.267191410064697,
+        4.513583183288574
+      ],
+      "prediction": 0,
+      "probs": [
+        0.44022522102742406,
+        0.24945765785798202,
+        0.18340713367100583,
+        0.1269099874435881
+      ],
+      "prompt_tokens": 104,
+      "raw_logits": [
+        7.0591206550598145,
+        5.896676063537598,
+        5.267191410064697,
+        4.513583183288574
+      ],
+      "signed_margin": -1.1624445915222168,
+      "source_id": "hard-sol-b-temporal_numeric-03",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "pass",
+      "ground_truth_index": 0,
+      "keys": [
+        "pass",
+        "narrow_fail",
+        "clear_fail"
+      ],
+      "logits": [
+        11.504827499389648,
+        7.990464687347412,
+        9.459848403930664
+      ],
+      "prediction": 0,
+      "probs": [
+        0.6461060758491172,
+        0.11602026512641635,
+        0.2378736590244665
+      ],
+      "prompt_tokens": 85,
+      "raw_logits": [
+        11.504827499389648,
+        7.990464687347412,
+        9.459848403930664
+      ],
+      "signed_margin": 2.0449790954589844,
+      "source_id": "hard-sol-b-temporal_numeric-04",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "programme_review",
+      "ground_truth_index": 3,
+      "keys": [
+        "reject_draw",
+        "release_draw",
+        "partial_release",
+        "programme_review"
+      ],
+      "logits": [
+        8.271456718444824,
+        5.431468963623047,
+        6.387652397155762,
+        8.011214256286621
+      ],
+      "prediction": 0,
+      "probs": [
+        0.39547936309279275,
+        0.09873258286223399,
+        0.15753195345223106,
+        0.34825610059274226
+      ],
+      "prompt_tokens": 2439,
+      "raw_logits": [
+        8.271456718444824,
+        5.431468963623047,
+        6.387652397155762,
+        8.011214256286621
+      ],
+      "signed_margin": -0.2602424621582031,
+      "source_id": "hard-sol-c-multi_hop-07",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "bus_substitution",
+      "ground_truth_index": 0,
+      "keys": [
+        "bus_substitution",
+        "call_fen_cross",
+        "pass_fen_cross",
+        "terminate_oakmere"
+      ],
+      "logits": [
+        11.279711723327637,
+        6.34564208984375,
+        7.274348258972168,
+        10.000414848327637
+      ],
+      "prediction": 0,
+      "probs": [
+        0.5661836911076257,
+        0.0508061908315238,
+        0.07998231059546905,
+        0.3030278074653816
+      ],
+      "prompt_tokens": 2445,
+      "raw_logits": [
+        11.279711723327637,
+        6.34564208984375,
+        7.274348258972168,
+        10.000414848327637
+      ],
+      "signed_margin": 1.279296875,
+      "source_id": "hard-sol-c-multi_hop-09",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "coverage_excluded",
+      "ground_truth_index": 2,
+      "keys": [
+        "documentation_needed",
+        "coverage_confirmed",
+        "coverage_excluded",
+        "adjuster_referral"
+      ],
+      "logits": [
+        10.501114845275879,
+        9.213211059570313,
+        8.431384086608887,
+        8.981854438781738
+      ],
+      "prediction": 0,
+      "probs": [
+        0.4214607442512184,
+        0.22462382436282474,
+        0.15330178035768124,
+        0.2006136510282757
+      ],
+      "prompt_tokens": 2526,
+      "raw_logits": [
+        10.501114845275879,
+        9.213211059570313,
+        8.431384086608887,
+        8.981854438781738
+      ],
+      "signed_margin": -2.069730758666992,
+      "source_id": "hard-sol-c-multi_hop-11",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": false,
+      "ground_truth": "conservation_hold",
+      "ground_truth_index": 1,
+      "keys": [
+        "digital_copy_only",
+        "conservation_hold",
+        "deny_request",
+        "supervised_delivery"
+      ],
+      "logits": [
+        7.539454460144043,
+        4.268125534057617,
+        4.238471984863281,
+        6.553951740264893
+      ],
+      "prediction": 0,
+      "probs": [
+        0.49521045598547586,
+        0.10013667322795314,
+        0.09869621293797301,
+        0.3059566578485981
+      ],
+      "prompt_tokens": 522,
+      "raw_logits": [
+        7.539454460144043,
+        4.268125534057617,
+        4.238471984863281,
+        6.553951740264893
+      ],
+      "signed_margin": -3.271328926086426,
+      "source_id": "hard-sol-c-multi_hop-12",
+      "temperature": 2.046567219106836
+    },
+    {
+      "correct": true,
+      "ground_truth": "normal_release",
+      "ground_truth_index": 1,
+      "keys": [
+        "scrap_lot",
+        "normal_release",
+        "rework",
+        "engineering_review"
+      ],
+      "logits": [
+        10.476659774780273,
+        12.56533432006836,
+        7.886508941650391,
+        9.989115715026855
+      ],
+      "prediction": 1,
+      "probs": [
+        0.20640338602156635,
+        0.5727257898788182,
+        0.05821976681428531,
+        0.1626510572853301
+      ],
+      "prompt_tokens": 2501,
+      "raw_logits": [
+        10.476659774780273,
+        12.56533432006836,
+        7.886508941650391,
+        9.989115715026855
+      ],
+      "signed_margin": 2.088674545288086,
+      "source_id": "hard-sol-c-multi_hop-13",
+      "temperature": 2.046567219106836
+    }
+  ],
+  "experiment": "run",
+  "layout": "auto",
+  "metrics": {
+    "choice": {
+      "accuracy": 0.23880597014925373,
+      "brier": 0.8271803166687799,
+      "brier_convention": "sum over options",
+      "calibrated": {
+        "brier": 0.8271803166687799,
+        "ece": 0.24433367580376458,
+        "ece_bins": 15,
+        "n": 67,
+        "nll": 1.560839045147776
+      },
+      "ece": 0.24433367580376458,
+      "ece_bins": 15,
+      "eval_ms": 436127,
+      "labeled": 67,
+      "margins": {
+        "corrected": {
+          "mean": -1.3135336423987773,
+          "median": -1.630723476409912,
+          "min": -4.586942672729492,
+          "n": 67,
+          "p10": -3.962109518051147
+        },
+        "raw": {
+          "mean": -1.3135336423987773,
+          "median": -1.630723476409912,
+          "min": -4.586942672729492,
+          "n": 67,
+          "p10": -3.962109518051147
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_signed_winner_margin": -1.3135336423987773,
+      "median_signed_winner_margin": -1.630723476409912,
+      "min_signed_winner_margin": -4.586942672729492,
+      "n": 67,
+      "nll": 1.560839045147776,
+      "p10_signed_winner_margin": -3.962109518051147,
+      "prompt_tokens": 73989,
+      "raw": {
+        "brier": 1.0058144112821152,
+        "ece": 0.4268001568653223,
+        "ece_bins": 15,
+        "n": 67,
+        "nll": 2.088906161320361
+      },
+      "temperature": 2.046567219106836
+    },
+    "n_errors": 0,
+    "n_total": 111,
+    "noul": {
+      "accuracy": 0.4473684210526316,
+      "brier": 0.25059273767472784,
+      "calibrated": {
+        "brier": 0.25059273767472784,
+        "ece": 0.055394381714092555,
+        "ece_bins": 15,
+        "mean_confidence_correct": 0.5024390382557118,
+        "n": 38,
+        "nll": 0.6943327850597906
+      },
+      "ece": 0.055394381714092555,
+      "ece_bins": 15,
+      "eval_ms": 285348,
+      "labeled": 38,
+      "margins": {
+        "corrected": {
+          "mean": -0.2322275199388203,
+          "median": -0.19819426536560059,
+          "min": -3.817056655883789,
+          "n": 38,
+          "p10": -1.9923295021057128
+        },
+        "raw": {
+          "mean": -0.2322275199388203,
+          "median": -0.19819426536560059,
+          "min": -3.817056655883789,
+          "n": 38,
+          "p10": -1.9923295021057128
+        },
+        "source": "pre-temperature logits"
+      },
+      "mean_confidence_correct": 0.5024390382557118,
+      "mean_signed_margin": -0.2322275199388203,
+      "median_signed_margin": -0.19819426536560059,
+      "min_signed_margin": -3.817056655883789,
+      "n": 38,
+      "nll": 0.6943327850597906,
+      "order_disagreement_count": 8,
+      "order_disagreement_rate": 0.21052631578947367,
+      "order_n": 38,
+      "p10_signed_margin": -1.9923295021057128,
+      "raw": {
+        "brier": 0.3431433870866316,
+        "ece": 0.33159690360223043,
+        "ece_bins": 15,
+        "mean_confidence_correct": 0.7129047943915046,
+        "n": 38,
+        "nll": 1.0081201048963646
+      }
+    },
+    "score": {
+      "accuracy": 0.0,
+      "eval_ms": 60177,
+      "labeled": 6,
+      "mae": 1.8333333333333333,
+      "n": 6,
+      "qwk": -0.21052631578947367
+    }
+  },
+  "noul_ensemble": "binary-order",
+  "noul_items": [
+    {
+      "confidence": 0.5014668041182386,
+      "correct": true,
+      "ensemble_semantic_margin": 0.5867233276367188,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5684757232666016,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.6049709320068359,
+      "order_disagreement": false,
+      "p_true": 0.5014668041182386,
+      "p_true_raw": 0.6426129722335002,
+      "prediction": true,
+      "raw_semantic_margin": 0.5867233276367188,
+      "semantic_margin": 0.5867233276367188,
+      "signed_margin": 0.5867233276367188,
+      "source_id": "hard-opus-a-long_policy-11"
+    },
+    {
+      "confidence": 0.5039785165519622,
+      "correct": true,
+      "ensemble_semantic_margin": 1.591440200805664,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 2.303896903991699,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8789834976196289,
+      "order_disagreement": false,
+      "p_true": 0.5039785165519622,
+      "p_true_raw": 0.830818632756734,
+      "prediction": true,
+      "raw_semantic_margin": 1.591440200805664,
+      "semantic_margin": 1.591440200805664,
+      "signed_margin": 1.591440200805664,
+      "source_id": "hard-opus-a-long_policy-13"
+    },
+    {
+      "confidence": 0.5062631680998965,
+      "correct": false,
+      "ensemble_semantic_margin": 2.5053982734680176,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 2.8713436126708984,
+      "order2_prediction": true,
+      "order2_semantic_margin": 2.1394529342651367,
+      "order_disagreement": false,
+      "p_true": 0.5062631680998965,
+      "p_true_raw": 0.9245193935896736,
+      "prediction": true,
+      "raw_semantic_margin": 2.5053982734680176,
+      "semantic_margin": 2.5053982734680176,
+      "signed_margin": -2.5053982734680176,
+      "source_id": "hard-opus-a-long_policy-19"
+    },
+    {
+      "confidence": 0.5042668487156572,
+      "correct": true,
+      "ensemble_semantic_margin": 1.7067809104919434,
+      "ground_truth": true,
+      "order1_prediction": false,
+      "order1_semantic_margin": -0.2781867980957031,
+      "order2_prediction": true,
+      "order2_semantic_margin": 3.69174861907959,
+      "order_disagreement": true,
+      "p_true": 0.5042668487156572,
+      "p_true_raw": 0.8464182872123782,
+      "prediction": true,
+      "raw_semantic_margin": 1.7067809104919434,
+      "semantic_margin": 1.7067809104919434,
+      "signed_margin": 1.7067809104919434,
+      "source_id": "hard-opus-a-probability-03"
+    },
+    {
+      "confidence": 0.5002737521864715,
+      "correct": false,
+      "ensemble_semantic_margin": 0.10950088500976563,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.1997833251953125,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.01921844482421875,
+      "order_disagreement": false,
+      "p_true": 0.5002737521864715,
+      "p_true_raw": 0.5273479005896252,
+      "prediction": true,
+      "raw_semantic_margin": 0.10950088500976563,
+      "semantic_margin": 0.10950088500976563,
+      "signed_margin": -0.10950088500976563,
+      "source_id": "hard-opus-a-probability-08"
+    },
+    {
+      "confidence": 0.5008379308525288,
+      "correct": false,
+      "ensemble_semantic_margin": -0.3351726531982422,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.865239143371582,
+      "order2_prediction": false,
+      "order2_semantic_margin": -1.5355844497680664,
+      "order_disagreement": true,
+      "p_true": 0.49916206914747113,
+      "p_true_raw": 0.41698257180515624,
+      "prediction": false,
+      "raw_semantic_margin": -0.3351726531982422,
+      "semantic_margin": -0.3351726531982422,
+      "signed_margin": -0.3351726531982422,
+      "source_id": "hard-opus-a-temporal_numeric-03"
+    },
+    {
+      "confidence": 0.5007172186257915,
+      "correct": false,
+      "ensemble_semantic_margin": 0.28688764572143555,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.7456197738647461,
+      "order2_prediction": false,
+      "order2_semantic_margin": -0.171844482421875,
+      "order_disagreement": true,
+      "p_true": 0.5007172186257915,
+      "p_true_raw": 0.5712340069133036,
+      "prediction": true,
+      "raw_semantic_margin": 0.28688764572143555,
+      "semantic_margin": 0.28688764572143555,
+      "signed_margin": -0.28688764572143555,
+      "source_id": "hard-opus-a-temporal_numeric-06"
+    },
+    {
+      "confidence": 0.5002607619538396,
+      "correct": false,
+      "ensemble_semantic_margin": 0.10430479049682617,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 2.7849807739257813,
+      "order2_prediction": false,
+      "order2_semantic_margin": -2.576371192932129,
+      "order_disagreement": true,
+      "p_true": 0.5002607619538396,
+      "p_true_raw": 0.5260525820069949,
+      "prediction": true,
+      "raw_semantic_margin": 0.10430479049682617,
+      "semantic_margin": 0.10430479049682617,
+      "signed_margin": -0.10430479049682617,
+      "source_id": "hard-opus-a-temporal_numeric-09"
+    },
+    {
+      "confidence": 0.509541483224318,
+      "correct": false,
+      "ensemble_semantic_margin": 3.817056655883789,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 2.7170705795288086,
+      "order2_prediction": true,
+      "order2_semantic_margin": 4.9170427322387695,
+      "order_disagreement": false,
+      "p_true": 0.509541483224318,
+      "p_true_raw": 0.978480822129802,
+      "prediction": true,
+      "raw_semantic_margin": 3.817056655883789,
+      "semantic_margin": 3.817056655883789,
+      "signed_margin": -3.817056655883789,
+      "source_id": "hard-opus-b-multi_hop-08"
+    },
+    {
+      "confidence": 0.5013998394459583,
+      "correct": true,
+      "ensemble_semantic_margin": 0.5599372386932373,
+      "ground_truth": true,
+      "order1_prediction": false,
+      "order1_semantic_margin": -1.3195724487304688,
+      "order2_prediction": true,
+      "order2_semantic_margin": 2.4394469261169434,
+      "order_disagreement": true,
+      "p_true": 0.5013998394459583,
+      "p_true_raw": 0.6364380184018481,
+      "prediction": true,
+      "raw_semantic_margin": 0.5599372386932373,
+      "semantic_margin": 0.5599372386932373,
+      "signed_margin": 0.5599372386932373,
+      "source_id": "hard-opus-b-probability-03"
+    },
+    {
+      "confidence": 0.5022137103975312,
+      "correct": true,
+      "ensemble_semantic_margin": 0.8854899406433105,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.2092924118041992,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.5616874694824219,
+      "order_disagreement": false,
+      "p_true": 0.5022137103975312,
+      "p_true_raw": 0.7079585785546904,
+      "prediction": true,
+      "raw_semantic_margin": 0.8854899406433105,
+      "semantic_margin": 0.8854899406433105,
+      "signed_margin": 0.8854899406433105,
+      "source_id": "hard-opus-b-tradeoff-06"
+    },
+    {
+      "confidence": 0.5005684599838315,
+      "correct": true,
+      "ensemble_semantic_margin": 0.22738409042358398,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.1670246124267578,
+      "order2_prediction": false,
+      "order2_semantic_margin": -0.7122564315795898,
+      "order_disagreement": true,
+      "p_true": 0.5005684599838315,
+      "p_true_raw": 0.5566023540700283,
+      "prediction": true,
+      "raw_semantic_margin": 0.22738409042358398,
+      "semantic_margin": 0.22738409042358398,
+      "signed_margin": 0.22738409042358398,
+      "source_id": "hard-opus-b-tradeoff-08"
+    },
+    {
+      "confidence": 0.5063927016206426,
+      "correct": true,
+      "ensemble_semantic_margin": 2.557219982147217,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 2.7481346130371094,
+      "order2_prediction": true,
+      "order2_semantic_margin": 2.366305351257324,
+      "order_disagreement": false,
+      "p_true": 0.5063927016206426,
+      "p_true_raw": 0.9280570646072155,
+      "prediction": true,
+      "raw_semantic_margin": 2.557219982147217,
+      "semantic_margin": 2.557219982147217,
+      "signed_margin": 2.557219982147217,
+      "source_id": "hard-opus-c-long_policy-04"
+    },
+    {
+      "confidence": 0.5093747798298234,
+      "correct": false,
+      "ensemble_semantic_margin": 3.7503514289855957,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 2.260830879211426,
+      "order2_prediction": true,
+      "order2_semantic_margin": 5.239871978759766,
+      "order_disagreement": false,
+      "p_true": 0.5093747798298234,
+      "p_true_raw": 0.9770305181410615,
+      "prediction": true,
+      "raw_semantic_margin": 3.7503514289855957,
+      "semantic_margin": 3.7503514289855957,
+      "signed_margin": -3.7503514289855957,
+      "source_id": "hard-opus-c-long_policy-11"
+    },
+    {
+      "confidence": 0.5035908296425675,
+      "correct": true,
+      "ensemble_semantic_margin": 1.436356544494629,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.8253936767578125,
+      "order2_prediction": true,
+      "order2_semantic_margin": 1.0473194122314453,
+      "order_disagreement": false,
+      "p_true": 0.5035908296425675,
+      "p_true_raw": 0.8078898073137669,
+      "prediction": true,
+      "raw_semantic_margin": 1.436356544494629,
+      "semantic_margin": 1.436356544494629,
+      "signed_margin": 1.436356544494629,
+      "source_id": "hard-opus-c-temporal_numeric-02"
+    },
+    {
+      "confidence": 0.5029677614872058,
+      "correct": true,
+      "ensemble_semantic_margin": -1.1871185302734375,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.09853553771972656,
+      "order2_prediction": false,
+      "order2_semantic_margin": -2.4727725982666016,
+      "order_disagreement": true,
+      "p_true": 0.4970322385127942,
+      "p_true_raw": 0.2337746803880038,
+      "prediction": false,
+      "raw_semantic_margin": -1.1871185302734375,
+      "semantic_margin": -1.1871185302734375,
+      "signed_margin": 1.1871185302734375,
+      "source_id": "hard-sol-a-adversarial-06"
+    },
+    {
+      "confidence": 0.5012584850498258,
+      "correct": true,
+      "ensemble_semantic_margin": 0.5033950805664063,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.37189579010009766,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.6348943710327148,
+      "order_disagreement": false,
+      "p_true": 0.5012584850498258,
+      "p_true_raw": 0.6232568553940274,
+      "prediction": true,
+      "raw_semantic_margin": 0.5033950805664063,
+      "semantic_margin": 0.5033950805664063,
+      "signed_margin": 0.5033950805664063,
+      "source_id": "hard-sol-a-adversarial-08"
+    },
+    {
+      "confidence": 0.5038881293176717,
+      "correct": false,
+      "ensemble_semantic_margin": 1.5552830696105957,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 2.545787811279297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.5647783279418945,
+      "order_disagreement": false,
+      "p_true": 0.5038881293176717,
+      "p_true_raw": 0.8256754619028809,
+      "prediction": true,
+      "raw_semantic_margin": 1.5552830696105957,
+      "semantic_margin": 1.5552830696105957,
+      "signed_margin": -1.5552830696105957,
+      "source_id": "hard-sol-a-trap-02"
+    },
+    {
+      "confidence": 0.5050669139772522,
+      "correct": false,
+      "ensemble_semantic_margin": 2.0268349647521973,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 4.322490692138672,
+      "order2_prediction": false,
+      "order2_semantic_margin": -0.26882076263427734,
+      "order_disagreement": true,
+      "p_true": 0.5050669139772522,
+      "p_true_raw": 0.8835859115989275,
+      "prediction": true,
+      "raw_semantic_margin": 2.0268349647521973,
+      "semantic_margin": 2.0268349647521973,
+      "signed_margin": -2.0268349647521973,
+      "source_id": "hard-sol-a-trap-04"
+    },
+    {
+      "confidence": 0.5029994330757032,
+      "correct": false,
+      "ensemble_semantic_margin": 1.1997876167297363,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.1554327011108398,
+      "order2_prediction": true,
+      "order2_semantic_margin": 1.2441425323486328,
+      "order_disagreement": false,
+      "p_true": 0.5029994330757032,
+      "p_true_raw": 0.7684869995412678,
+      "prediction": true,
+      "raw_semantic_margin": 1.1997876167297363,
+      "semantic_margin": 1.1997876167297363,
+      "signed_margin": -1.1997876167297363,
+      "source_id": "hard-sol-a-trap-13"
+    },
+    {
+      "confidence": 0.5049436925316597,
+      "correct": false,
+      "ensemble_semantic_margin": 1.977541446685791,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 2.3680267333984375,
+      "order2_prediction": true,
+      "order2_semantic_margin": 1.5870561599731445,
+      "order_disagreement": false,
+      "p_true": 0.5049436925316597,
+      "p_true_raw": 0.8784188348086087,
+      "prediction": true,
+      "raw_semantic_margin": 1.977541446685791,
+      "semantic_margin": 1.977541446685791,
+      "signed_margin": -1.977541446685791,
+      "source_id": "hard-sol-a-trap-15"
+    },
+    {
+      "confidence": 0.5021247795570842,
+      "correct": true,
+      "ensemble_semantic_margin": 0.849916934967041,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.3294706344604492,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.3703632354736328,
+      "order_disagreement": false,
+      "p_true": 0.5021247795570842,
+      "p_true_raw": 0.7005497173973589,
+      "prediction": true,
+      "raw_semantic_margin": 0.849916934967041,
+      "semantic_margin": 0.849916934967041,
+      "signed_margin": 0.849916934967041,
+      "source_id": "hard-sol-b-judge_hard-01"
+    },
+    {
+      "confidence": 0.5021247795570842,
+      "correct": false,
+      "ensemble_semantic_margin": 0.849916934967041,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.3294706344604492,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.3703632354736328,
+      "order_disagreement": false,
+      "p_true": 0.5021247795570842,
+      "p_true_raw": 0.7005497173973589,
+      "prediction": true,
+      "raw_semantic_margin": 0.849916934967041,
+      "semantic_margin": 0.849916934967041,
+      "signed_margin": -0.849916934967041,
+      "source_id": "hard-sol-b-judge_hard-02"
+    },
+    {
+      "confidence": 0.5021247795570842,
+      "correct": true,
+      "ensemble_semantic_margin": 0.849916934967041,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.3294706344604492,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.3703632354736328,
+      "order_disagreement": false,
+      "p_true": 0.5021247795570842,
+      "p_true_raw": 0.7005497173973589,
+      "prediction": true,
+      "raw_semantic_margin": 0.849916934967041,
+      "semantic_margin": 0.849916934967041,
+      "signed_margin": 0.849916934967041,
+      "source_id": "hard-sol-b-judge_hard-05"
+    },
+    {
+      "confidence": 0.5021247795570842,
+      "correct": false,
+      "ensemble_semantic_margin": 0.849916934967041,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.3294706344604492,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.3703632354736328,
+      "order_disagreement": false,
+      "p_true": 0.5021247795570842,
+      "p_true_raw": 0.7005497173973589,
+      "prediction": true,
+      "raw_semantic_margin": 0.849916934967041,
+      "semantic_margin": 0.849916934967041,
+      "signed_margin": -0.849916934967041,
+      "source_id": "hard-sol-b-judge_hard-08"
+    },
+    {
+      "confidence": 0.5021247795570842,
+      "correct": false,
+      "ensemble_semantic_margin": 0.849916934967041,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.3294706344604492,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.3703632354736328,
+      "order_disagreement": false,
+      "p_true": 0.5021247795570842,
+      "p_true_raw": 0.7005497173973589,
+      "prediction": true,
+      "raw_semantic_margin": 0.849916934967041,
+      "semantic_margin": 0.849916934967041,
+      "signed_margin": -0.849916934967041,
+      "source_id": "hard-sol-b-judge_hard-10"
+    },
+    {
+      "confidence": 0.5021247795570842,
+      "correct": false,
+      "ensemble_semantic_margin": 0.849916934967041,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.3294706344604492,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.3703632354736328,
+      "order_disagreement": false,
+      "p_true": 0.5021247795570842,
+      "p_true_raw": 0.7005497173973589,
+      "prediction": true,
+      "raw_semantic_margin": 0.849916934967041,
+      "semantic_margin": 0.849916934967041,
+      "signed_margin": -0.849916934967041,
+      "source_id": "hard-sol-b-judge_hard-14"
+    },
+    {
+      "confidence": 0.5021247795570842,
+      "correct": true,
+      "ensemble_semantic_margin": 0.849916934967041,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.3294706344604492,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.3703632354736328,
+      "order_disagreement": false,
+      "p_true": 0.5021247795570842,
+      "p_true_raw": 0.7005497173973589,
+      "prediction": true,
+      "raw_semantic_margin": 0.849916934967041,
+      "semantic_margin": 0.849916934967041,
+      "signed_margin": 0.849916934967041,
+      "source_id": "hard-sol-b-judge_hard-15"
+    },
+    {
+      "confidence": 0.5021247795570842,
+      "correct": false,
+      "ensemble_semantic_margin": 0.849916934967041,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 1.3294706344604492,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.3703632354736328,
+      "order_disagreement": false,
+      "p_true": 0.5021247795570842,
+      "p_true_raw": 0.7005497173973589,
+      "prediction": true,
+      "raw_semantic_margin": 0.849916934967041,
+      "semantic_margin": 0.849916934967041,
+      "signed_margin": -0.849916934967041,
+      "source_id": "hard-sol-b-judge_hard-18"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": false,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": -0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-03"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": true,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": 0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-05"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": false,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": -0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-07"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": false,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": -0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-08"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": true,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": 0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-09"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": true,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": 0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-10"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": false,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": -0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-11"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": false,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": false,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": -0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-13"
+    },
+    {
+      "confidence": 0.5017463386656071,
+      "correct": true,
+      "ensemble_semantic_margin": 0.6985383033752441,
+      "ground_truth": true,
+      "order1_prediction": true,
+      "order1_semantic_margin": 0.5107555389404297,
+      "order2_prediction": true,
+      "order2_semantic_margin": 0.8863210678100586,
+      "order_disagreement": false,
+      "p_true": 0.5017463386656071,
+      "p_true_raw": 0.6678636155768296,
+      "prediction": true,
+      "raw_semantic_margin": 0.6985383033752441,
+      "semantic_margin": 0.6985383033752441,
+      "signed_margin": 0.6985383033752441,
+      "source_id": "hard-sol-c-judge_hard-15"
+    }
+  ],
+  "option_order": "original",
+  "prior_correction": false,
+  "scheme": "natural",
+  "stability": {
+    "n_questions": 0,
+    "n_stable": 0,
+    "stability_rate": -1.0
+  }
+}

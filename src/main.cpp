@@ -29,6 +29,7 @@
 #include "server/http_server.h"
 #include "experiment/config.h"
 #include "experiment/noul_metrics.h"
+#include "experiment/choice_metrics.h"
 #include "experiment/dataset.h"
 #include "experiment/runner.h"
 #include "distribution/release_config.h"
@@ -88,6 +89,9 @@ static void usage_run(const char* prog) {
         "  --scheme SCHEME            natural|letters (default: natural)\n"
         "  --prior-correction         enable prior correction\n"
         "  --option-order ORDER       original|reversed|random (default: original)\n"
+        "  --ensemble                 E1: binary option-order ensemble for noul\n"
+        "  --choice-ensemble          E2: cyclic option-rotation ensemble for choice (N evaluations)\n"
+        "  --choice-prefix-reuse      E2: reuse the KV prefix shared between rotations\n"
         "  --threads N                CPU threads (default: 8)\n"
         "  --ctx-size N               context size (default: 4096)\n"
         "  --verbose                  enable llama.cpp verbose logging\n",
@@ -97,13 +101,14 @@ static void usage_run(const char* prog) {
 static void usage_compare(const char* prog) {
     fprintf(stderr,
         "usage: %s compare --baseline FILE --target FILE [options]\n"
-        "  Recompute noul confidence / calibration / margin metrics from two stored\n"
+        "  Recompute confidence / calibration / margin metrics from two stored\n"
         "  'run' result JSON files and print them side by side (no model needed).\n"
         "  --baseline FILE            result JSON of the baseline run (required)\n"
         "  --target FILE              result JSON of the compared run (required)\n"
+        "  --primitive TYPE           noul|choice (default: noul)\n"
         "  --baseline-label NAME      column label (default: baseline)\n"
         "  --target-label NAME        column label (default: target)\n"
-        "  --title TEXT               table title (default: noul)\n"
+        "  --title TEXT               table title (default: the primitive)\n"
         "  --ece-bins N               equal-width ECE bins (default: 15)\n"
         "  --output FILE              also write the comparison as JSON\n",
         prog);
@@ -596,7 +601,7 @@ static int32_t cmd_run(int32_t argc, char** argv) {
     llama_cfg.model_path = "models/bonsai.gguf";
     ExperimentConfig exp_cfg;
     exp_cfg.name = "run";
-    bool ensemble_binary = false;
+    bool ensemble_binary = true;
     std::string input_path;
     std::string output_path;
     std::string calibration_path = "models/calibration.json";
@@ -620,6 +625,8 @@ static int32_t cmd_run(int32_t argc, char** argv) {
         else if (a == "--prior-correction") exp_cfg.prior_correction = true;
         else if (a == "--option-order")    exp_cfg.option_order = parse_order(next());
         else if (a == "--ensemble")        ensemble_binary = true;
+        else if (a == "--choice-ensemble") exp_cfg.ensemble.choice_mode = ChoiceEnsembleMode::CYCLIC_ROTATION;
+        else if (a == "--choice-prefix-reuse") exp_cfg.ensemble.choice_prefix_reuse = true;
         else if (a == "-h" || a == "--help") { usage_run("pjev"); return 0; }
         else {
             spdlog::error("unknown option: {}", a);
@@ -699,74 +706,58 @@ static int32_t cmd_run(int32_t argc, char** argv) {
 // compare subcommand
 // ---------------------------------------------------------------------------
 
-static bool load_noul_result(const std::string& path, std::vector<NoulSample>& samples,
-                             int64_t& eval_ms, std::string& err) {
+// Loads "<primitive>_items" and metrics.<primitive>.eval_ms from a stored 'run' result.
+static bool load_result_items(const std::string& path, const std::string& primitive,
+                              nlohmann::json& items, int64_t& eval_ms, std::string& err) {
     std::ifstream f(path);
     if (!f) { err = "cannot open: " + path; return false; }
     nlohmann::json j;
     try { f >> j; } catch (const std::exception& e) {
         err = path + ": JSON parse error: " + e.what(); return false;
     }
-    if (!j.contains("noul_items") || !j["noul_items"].is_array()) {
-        err = path + ": no \"noul_items\" (re-run 'pjev run' with this version)";
+    const std::string key = primitive + "_items";
+    if (!j.contains(key) || !j[key].is_array()) {
+        err = path + ": no \"" + key + "\" (re-run 'pjev run' with this version)";
         return false;
     }
-    for (const auto& it : j["noul_items"]) samples.push_back(NoulSample::from_json(it));
+    items = j[key];
     eval_ms = -1;
-    if (j.contains("metrics") && j["metrics"].contains("noul") &&
-        j["metrics"]["noul"].contains("eval_ms") && j["metrics"]["noul"]["eval_ms"].is_number())
-        eval_ms = j["metrics"]["noul"]["eval_ms"].get<int64_t>();
+    if (j.contains("metrics") && j["metrics"].contains(primitive) &&
+        j["metrics"][primitive].contains("eval_ms") && j["metrics"][primitive]["eval_ms"].is_number())
+        eval_ms = j["metrics"][primitive]["eval_ms"].get<int64_t>();
     return true;
 }
 
-static int32_t cmd_compare(int32_t argc, char** argv) {
+struct CompareArgs {
     std::string baseline_path, target_path, output_path;
-    std::string baseline_label = "baseline", target_label = "target", title = "noul";
+    std::string baseline_label = "baseline", target_label = "target", title;
     int32_t ece_bins = DEFAULT_ECE_BINS;
+};
 
-    for (int32_t i = 0; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_compare("pjev"); exit(2); }
-            return argv[++i];
-        };
-        if      (a == "--baseline")       baseline_path = next();
-        else if (a == "--target")         target_path = next();
-        else if (a == "--baseline-label") baseline_label = next();
-        else if (a == "--target-label")   target_label = next();
-        else if (a == "--title")          title = next();
-        else if (a == "--ece-bins")       ece_bins = std::stoi(next());
-        else if (a == "--output")         output_path = next();
-        else if (a == "-h" || a == "--help") { usage_compare("pjev"); return 0; }
-        else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
-            usage_compare("pjev");
-            return 2;
-        }
-    }
-    if (baseline_path.empty() || target_path.empty() || ece_bins < 1) {
-        usage_compare("pjev");
-        return 2;
-    }
-
-    std::vector<NoulSample> base_s, tgt_s;
+// Sample: NoulSample | ChoiceSample. compute / format are the primitive's metric functions.
+template <class Sample, class Compute, class Format>
+static int32_t run_compare(const CompareArgs& a, const std::string& primitive,
+                           Compute compute, Format format) {
+    nlohmann::json base_j, tgt_j;
     int64_t base_ms = -1, tgt_ms = -1;
     std::string err;
-    if (!load_noul_result(baseline_path, base_s, base_ms, err) ||
-        !load_noul_result(target_path, tgt_s, tgt_ms, err)) {
+    if (!load_result_items(a.baseline_path, primitive, base_j, base_ms, err) ||
+        !load_result_items(a.target_path, primitive, tgt_j, tgt_ms, err)) {
         fprintf(stderr, "error: %s\n", err.c_str());
         return 1;
     }
+    std::vector<Sample> base_s, tgt_s;
+    for (const auto& it : base_j) base_s.push_back(Sample::from_json(it));
+    for (const auto& it : tgt_j)  tgt_s.push_back(Sample::from_json(it));
 
-    NoulMetrics bm = compute_noul_metrics(base_s, ece_bins);
-    NoulMetrics tm = compute_noul_metrics(tgt_s, ece_bins);
+    auto bm = compute(base_s, a.ece_bins);
+    auto tm = compute(tgt_s, a.ece_bins);
     MarginGain gain = compute_margin_gain(base_s, tgt_s);
 
-    printf("%s", format_noul_comparison(title, baseline_label, bm, base_ms,
-                                        target_label, tm, tgt_ms, gain).c_str());
+    printf("%s", format(a.title, a.baseline_label, bm, base_ms, a.target_label, tm, tgt_ms, gain).c_str());
 
-    if (!output_path.empty()) {
-        auto side = [](const NoulMetrics& m, int64_t ms) {
+    if (!a.output_path.empty()) {
+        auto side = [](const auto& m, int64_t ms) {
             nlohmann::json j = {{"n", m.n}, {"labeled", m.labeled},
                                 {"accuracy", std::isfinite(m.accuracy) ? nlohmann::json(m.accuracy) : nlohmann::json(nullptr)},
                                 {"eval_ms", ms}};
@@ -774,17 +765,59 @@ static int32_t cmd_compare(int32_t argc, char** argv) {
             return j;
         };
         nlohmann::json out = {
-            {"title", title},
-            {"baseline_label", baseline_label},
-            {"target_label", target_label},
+            {"title", a.title},
+            {"primitive", primitive},
+            {"baseline_label", a.baseline_label},
+            {"target_label", a.target_label},
             {"baseline", side(bm, base_ms)},
             {"target", side(tm, tgt_ms)},
             {"margin_gain", gain.to_json()}};
-        std::ofstream f(output_path);
-        if (!f) { fprintf(stderr, "cannot open output: %s\n", output_path.c_str()); return 1; }
+        std::ofstream f(a.output_path);
+        if (!f) { fprintf(stderr, "cannot open output: %s\n", a.output_path.c_str()); return 1; }
         f << out.dump(2) << "\n";
     }
     return 0;
+}
+
+static int32_t cmd_compare(int32_t argc, char** argv) {
+    CompareArgs args;
+    std::string primitive = "noul";
+
+    for (int32_t i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&]() -> std::string {
+            if (i + 1 >= argc) { usage_compare("pjev"); exit(2); }
+            return argv[++i];
+        };
+        if      (a == "--baseline")       args.baseline_path = next();
+        else if (a == "--target")         args.target_path = next();
+        else if (a == "--primitive")      primitive = next();
+        else if (a == "--baseline-label") args.baseline_label = next();
+        else if (a == "--target-label")   args.target_label = next();
+        else if (a == "--title")          args.title = next();
+        else if (a == "--ece-bins")       args.ece_bins = std::stoi(next());
+        else if (a == "--output")         args.output_path = next();
+        else if (a == "-h" || a == "--help") { usage_compare("pjev"); return 0; }
+        else {
+            fprintf(stderr, "unknown option: %s\n", a.c_str());
+            usage_compare("pjev");
+            return 2;
+        }
+    }
+    if (args.baseline_path.empty() || args.target_path.empty() || args.ece_bins < 1 ||
+        (primitive != "noul" && primitive != "choice")) {
+        usage_compare("pjev");
+        return 2;
+    }
+    if (args.title.empty()) args.title = primitive;
+
+    if (primitive == "choice")
+        return run_compare<ChoiceSample>(args, primitive,
+            [](const std::vector<ChoiceSample>& s, int32_t bins) { return compute_choice_metrics(s, bins); },
+            format_choice_comparison);
+    return run_compare<NoulSample>(args, primitive,
+        [](const std::vector<NoulSample>& s, int32_t bins) { return compute_noul_metrics(s, bins); },
+        format_noul_comparison);
 }
 
 // ---------------------------------------------------------------------------
@@ -2097,7 +2130,7 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
     bool json_out = false;
     bool model_explicitly_set = false;
     bool direct_mode = false;
-    bool ensemble_binary = false;
+    bool ensemble_binary = true;
 
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
