@@ -29,8 +29,7 @@ install_manifest.txt
 *.tar.gz
 *.tgz
 
-# GGUF model files (large; obtain separately per README)
-*.gguf
+# bin model files (large; obtain separately per README)
 *.bin
 
 # Worker runtime artifacts
