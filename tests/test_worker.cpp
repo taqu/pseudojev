@@ -238,24 +238,24 @@ static void test_runtime_dir()
 // ---------------------------------------------------------------------------
 static void test_config_hash()
 {
-    std::string h1 = make_config_hash("models/bonsai.gguf", 8, 4096, "");
-    std::string h2 = make_config_hash("models/bonsai.gguf", 8, 4096, "");
+    std::string h1 = make_config_hash("models/bunsai1.7b.gguf", 8, 4096, "");
+    std::string h2 = make_config_hash("models/bunsai1.7b.gguf", 8, 4096, "");
     CHECK(h1 == h2, "config_hash: deterministic");
 
     std::string h3 = make_config_hash("models/other.gguf", 8, 4096, "");
     CHECK(h1 != h3, "config_hash: different model → different hash");
 
-    std::string h4 = make_config_hash("models/bonsai.gguf", 4, 4096, "");
+    std::string h4 = make_config_hash("models/bunsai1.7b.gguf", 4, 4096, "");
     CHECK(h1 != h4, "config_hash: different threads → different hash");
 
-    std::string h5 = make_config_hash("models/bonsai.gguf", 8, 2048, "");
+    std::string h5 = make_config_hash("models/bunsai1.7b.gguf", 8, 2048, "");
     CHECK(h1 != h5, "config_hash: different ctx_size → different hash");
 
-    std::string h6 = make_config_hash("models/bonsai.gguf", 8, 4096, "calib.json");
+    std::string h6 = make_config_hash("models/bunsai1.7b.gguf", 8, 4096, "calib.json");
     CHECK(h1 != h6, "config_hash: different calibration → different hash");
 
     // Contains expected fields
-    CHECK(h1.find("models/bonsai.gguf") != std::string::npos, "config_hash: contains model_path");
+    CHECK(h1.find("models/bunsai1.7b.gguf") != std::string::npos, "config_hash: contains model_path");
     CHECK(h1.find("|8|") != std::string::npos, "config_hash: contains threads");
     CHECK(h1.find("|4096|") != std::string::npos, "config_hash: contains ctx_size");
 }
@@ -270,7 +270,7 @@ static void test_worker_info_json()
     info.pjev_version     = "0.10.0";
     info.pid              = 12345;
     info.model_identity   = "bonsai-q4";
-    info.config_hash      = make_config_hash("models/bonsai.gguf", 8, 4096, "");
+    info.config_hash      = make_config_hash("models/bunsai1.7b.gguf", 8, 4096, "");
     info.start_time_us    = 1700000000000000LL;
 
     json j = ipc_worker_info_to_json(info);
