@@ -544,8 +544,8 @@ static int32_t cmd_server(int32_t argc, char** argv) {
         body   = v.dump();
     });
 
-    // POST /api/v1/systemone/
-    server.add_post("/api/v1/systemone/", [&](const std::string& req, int32_t& st, std::string& resp) {
+    // POST /v1/systemone/
+    server.add_post("/v1/systemone", [&](const std::string& req, int32_t& st, std::string& resp) {
         api_handler->handle(req, st, resp);
     });
 

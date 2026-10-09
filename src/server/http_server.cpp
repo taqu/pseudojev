@@ -47,7 +47,7 @@ void PjevHttpServer::configure(const ServerConfig& cfg) {
 }
 
 void PjevHttpServer::add_get(const std::string& path, GetHandler h) {
-    impl_->svr.Get(path.c_str(), [h](const httplib::Request&, httplib::Response& res) {
+    impl_->svr.Get(path, [h](const httplib::Request&, httplib::Response& res) {
         int32_t status = 500;
         std::string body;
         h(status, body);
@@ -57,7 +57,7 @@ void PjevHttpServer::add_get(const std::string& path, GetHandler h) {
 }
 
 void PjevHttpServer::add_post(const std::string& path, PostHandler h) {
-    impl_->svr.Post(path.c_str(), [h](const httplib::Request& req, httplib::Response& res) {
+    impl_->svr.Post(path, [h](const httplib::Request& req, httplib::Response& res) {
         int32_t status = 500;
         std::string body;
         h(req.body, status, body);
