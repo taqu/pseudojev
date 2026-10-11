@@ -10,6 +10,7 @@ set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(LLAMA_CURL           OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS    OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_COMMON   OFF CACHE BOOL "" FORCE)
+set(GGML_VULKAN ON CACHE BOOL "" FORCE)
 
 add_subdirectory(llama.cpp)
 
@@ -78,6 +79,9 @@ set(PJEV_HEADER
     src/worker/worker_server.h
     src/worker/worker_client.h
     src/murmur3/murmur3.h
+    src/sqlite/sqlite3.h
+    src/sqlite/sqlite3ext.h
+    src/sqlite/sqlite-vec.h
 )
 source_group(include FILES ${PJEV_HEADER})
 
@@ -109,6 +113,8 @@ set(PJEV_SOURCE
     src/worker/worker_server.cpp
     src/worker/worker_client.cpp
     src/murmur3/murmur3.c
+    src/sqlite/sqlite3.c
+    src/sqlite/sqlite-vec.c
 )
 source_group(src FILES ${PJEV_SOURCE})
 add_executable(pjev
@@ -185,5 +191,6 @@ set(CPACK_STRIP_FILES TRUE)
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${CMAKE_PROJECT_NAME};ALL;/")
 include(CPack)
 
+# add_subdirectory(tools)
 enable_testing()
 add_subdirectory(tests)
