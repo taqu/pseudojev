@@ -282,3 +282,74 @@ add_executable(test_score_s1 test_score_s1.cpp
     ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
 target_include_directories(test_score_s1 PRIVATE ${PJEV_TEST_INCS})
 add_test(NAME test_score_s1 COMMAND test_score_s1)
+
+set(PJEV_FILLDB_SRCS
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/exemplar_record.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/embedding_text.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/exemplar_database.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/vec_autoext.cpp
+    ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite3.c
+    ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite-vec.c
+)
+
+set(PJEV_FILLDB_INCS
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/llama.cpp/vendor
+    ${CMAKE_SOURCE_DIR}/spdlog/include
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb
+)
+
+# test_filldb: unit tests — JSON parsing, answer extraction, canonical text, DB, KNN (no model)
+add_executable(test_filldb test_filldb.cpp ${PJEV_FILLDB_SRCS})
+target_include_directories(test_filldb PRIVATE ${PJEV_FILLDB_INCS})
+add_test(NAME test_filldb COMMAND test_filldb)
+
+# test_filldb_integration: end-to-end with real embeddings (skips if model absent)
+set(PJEV_FILLDB_INTEG_SRCS
+    ${PJEV_FILLDB_SRCS}
+    ${CMAKE_SOURCE_DIR}/src/embedding/embedding.cpp
+    ${CMAKE_SOURCE_DIR}/src/inference/llama_instance.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/platform.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/model_identity.cpp
+)
+add_executable(test_filldb_integration test_filldb_integration.cpp ${PJEV_FILLDB_INTEG_SRCS})
+target_include_directories(test_filldb_integration PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/llama.cpp/include
+    ${CMAKE_SOURCE_DIR}/llama.cpp/ggml/include
+    ${CMAKE_SOURCE_DIR}/llama.cpp/vendor
+    ${CMAKE_SOURCE_DIR}/llama.cpp/vendor/cpp-httplib
+    ${CMAKE_SOURCE_DIR}/spdlog/include
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb
+)
+target_link_libraries(test_filldb_integration PRIVATE llama pjev-httplib)
+if(WIN32)
+    target_link_libraries(test_filldb_integration PRIVATE psapi)
+endif()
+target_compile_features(test_filldb_integration PRIVATE cxx_std_20)
+add_test(NAME test_filldb_integration COMMAND test_filldb_integration
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+set(PJEV_R0_SRCS
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/exemplar_record.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/embedding_text.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/vec_autoext.cpp
+    ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite3.c
+    ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite-vec.c
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r0/r0_retrieval.cpp
+)
+
+set(PJEV_R0_INCS
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/llama.cpp/vendor
+    ${CMAKE_SOURCE_DIR}/spdlog/include
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r0
+)
+
+# test_r0: unit tests — read-only DB open, compat check, kind/level filters, ordering (no model)
+add_executable(test_r0 test_r0.cpp ${PJEV_R0_SRCS})
+target_include_directories(test_r0 PRIVATE ${PJEV_R0_INCS})
+target_compile_features(test_r0 PRIVATE cxx_std_20)
+add_test(NAME test_r0 COMMAND test_r0
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

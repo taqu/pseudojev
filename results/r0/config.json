@@ -1,0 +1,21 @@
+{
+  "db_path": "models/exsamplar.db",
+  "input_path": "datasets/train.jsonl",
+  "split_filter": null,
+  "embedding_model": "models/nomic-embed-text-v1.5.Q8_0.gguf",
+  "db_embedding_model": "models/nomic-embed-text-v1.5.Q8_0.gguf",
+  "embedding_dim": 768,
+  "distance_metric": "cosine",
+  "normalization": "L2",
+  "query_prefix": "search_query: ",
+  "document_prefix": "search_document: ",
+  "top_k": 5,
+  "kind_filter": "all",
+  "score_level_filter": true,
+  "exclude_same_group": false,
+  "skip_db_records": true,
+  "db_example_count": 109600,
+  "query_count": 2075,
+  "run_timestamp": "2026-10-12T19:50:17",
+  "note": "No dedicated validation split found in input; all English records used as queries. Records in the exemplar DB were excluded (--skip-db-records)."
+}

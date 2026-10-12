@@ -65,13 +65,13 @@ static pjev::RunResult make_run(const std::vector<std::tuple<std::string,std::st
         ir.eval_ms    = std::get<4>(tup);
         ir.ok         = true;
         if (std::get<2>(tup)) {
-            rr.metrics.choice.correct += (ir.type == "choice");
-            rr.metrics.noul.correct   += (ir.type == "noul");
-            rr.metrics.score.correct  += (ir.type == "score");
+            rr.metrics.choice.correct += (ir.type == Type::Choice);
+            rr.metrics.noul.correct   += (ir.type == Type::Noul);
+            rr.metrics.score.correct  += (ir.type == Type::Score);
         }
-        if (ir.type == "choice") { rr.metrics.choice.n++; rr.metrics.choice.labeled++; }
-        if (ir.type == "noul")   { rr.metrics.noul.n++;   rr.metrics.noul.labeled++; }
-        if (ir.type == "score")  { rr.metrics.score.n++;  rr.metrics.score.labeled++; }
+        if (ir.type == Type::Choice) { rr.metrics.choice.n++; rr.metrics.choice.labeled++; }
+        if (ir.type == Type::Noul)   { rr.metrics.noul.n++;   rr.metrics.noul.labeled++; }
+        if (ir.type == Type::Score)  { rr.metrics.score.n++;  rr.metrics.score.labeled++; }
         rr.metrics.n_total++;
         rr.items.push_back(ir);
     }

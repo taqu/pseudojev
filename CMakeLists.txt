@@ -82,6 +82,12 @@ set(PJEV_HEADER
     src/sqlite/sqlite3.h
     src/sqlite/sqlite3ext.h
     src/sqlite/sqlite-vec.h
+    src/lz4/lz4.h
+    src/lz4/lz4file.h
+    src/lz4/lz4frame.h
+    src/lz4/lz4frame_static.h
+    src/lz4/lz4hc.h
+    src/lz4/xxhash.h
 )
 source_group(include FILES ${PJEV_HEADER})
 
@@ -115,6 +121,11 @@ set(PJEV_SOURCE
     src/murmur3/murmur3.c
     src/sqlite/sqlite3.c
     src/sqlite/sqlite-vec.c
+    src/lz4/lz4.c
+    src/lz4/lz4file.c
+    src/lz4/lz4frame.c
+    src/lz4/lz4hc.c
+    src/lz4/xxhash.c
 )
 source_group(src FILES ${PJEV_SOURCE})
 add_executable(pjev
@@ -191,6 +202,6 @@ set(CPACK_STRIP_FILES TRUE)
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${CMAKE_PROJECT_NAME};ALL;/")
 include(CPack)
 
-# add_subdirectory(tools)
+add_subdirectory(tools)
 enable_testing()
 add_subdirectory(tests)
