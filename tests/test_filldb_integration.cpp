@@ -22,7 +22,7 @@ using namespace pjev;
 using namespace pjev::filldb;
 using json = nlohmann::ordered_json;
 
-static const char* MODEL_PATH = "models/nomic-embed-text-v1.5.Q8_0.gguf";
+static const char* MODEL_PATH = "models/nomic-embed-text-v1.5.gguf";
 
 static json make_score_ex() {
     return json::parse(R"({

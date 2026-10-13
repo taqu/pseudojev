@@ -57,7 +57,7 @@ static void print_usage(const char* prog)
         "Required:\n"
         "  --db PATH          Exemplar database (default: models/exsamplar.db)\n"
         "  --input PATH       Input JSONL file   (default: datasets/train.jsonl)\n"
-        "  --model PATH       Embedding model    (default: models/nomic-embed-text-v1.5.Q8_0.gguf)\n"
+        "  --model PATH       Embedding model    (default: models/nomic-embed-text-v1.5.gguf)\n"
         "  --output DIR       Output directory   (default: results/r0)\n"
         "\n"
         "Optional:\n"
@@ -91,7 +91,7 @@ int main(int argc, char** argv)
     R0RunConfig cfg;
     cfg.db_path    = "models/exsamplar.db";
     cfg.input_path = "datasets/train.jsonl";
-    cfg.model_path = "models/nomic-embed-text-v1.5.Q8_0.gguf";
+    cfg.model_path = "models/nomic-embed-text-v1.5.gguf";
     cfg.output_dir = "results/r0";
     cfg.top_k      = 5;
     cfg.limit      = -1;

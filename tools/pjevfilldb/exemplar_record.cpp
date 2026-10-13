@@ -131,7 +131,8 @@ std::string parse_exemplar(const nlohmann::ordered_json& j, ExemplarRecord& rec)
 
 bool is_eligible(const ExemplarRecord& rec)
 {
-    return rec.split == "train" && rec.language == "en";
+    //return rec.split == "train" && rec.language == "en";
+    return rec.language == "en";
 }
 
 } // namespace filldb

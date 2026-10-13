@@ -18,6 +18,7 @@
 // 13. Query text does NOT include correct answer.
 // 14. Same-group / same-template / same-source-instance flags.
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -27,6 +28,7 @@
 
 #include "exemplar_record.h"
 #include "embedding_text.h"
+#include "lz4_utils.h"
 #include "r0_retrieval.h"
 
 #include "sqlite/sqlite3.h"
@@ -56,7 +58,7 @@ static void check(bool cond, const char* desc)
     }
 }
 
-// Build a minimal in-memory exemplar database for unit testing.
+// Build a minimal in-memory exemplar database for unit testing (v2 schema).
 static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
 {
     register_sqlite_vec_autoext();
@@ -74,7 +76,7 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
     char dim_val[32];
     snprintf(dim_val, sizeof(dim_val), "%d", emb_dim);
     sqlite3_exec(db,
-        "INSERT INTO db_info VALUES('schema_version','1')",
+        "INSERT INTO db_info VALUES('schema_version','2')",
         nullptr, nullptr, nullptr);
     {
         char sql[256];
@@ -83,7 +85,7 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
         sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
     }
     sqlite3_exec(db,
-        "INSERT INTO db_info VALUES('embedding_model','models/nomic-embed-text-v1.5.Q8_0.gguf')",
+        "INSERT INTO db_info VALUES('embedding_model','models/nomic-embed-text-v1.5.gguf')",
         nullptr, nullptr, nullptr);
     sqlite3_exec(db,
         "INSERT INTO db_info VALUES('embedding_fingerprint','aabbccdd11223344')",
@@ -97,44 +99,39 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
     sqlite3_exec(db,
         "INSERT INTO db_info VALUES('embedding_text_version','1')",
         nullptr, nullptr, nullptr);
+    sqlite3_exec(db,
+        "INSERT INTO db_info VALUES('compression_format','lz4-frame')",
+        nullptr, nullptr, nullptr);
 
     // groups
     sqlite3_exec(db,
         "CREATE TABLE groups (group_id TEXT PRIMARY KEY, source TEXT, scenario_family TEXT)",
         nullptr, nullptr, nullptr);
 
-    // examples
+    // examples — v2 schema with LZ4 compressed BLOB columns
     sqlite3_exec(db,
         "CREATE TABLE examples ("
-        "  rowid                    INTEGER PRIMARY KEY,"
-        "  id                       TEXT UNIQUE NOT NULL,"
-        "  group_id                 TEXT NOT NULL,"
-        "  kind                     TEXT NOT NULL,"
-        "  state_json               TEXT NOT NULL,"
-        "  question                 TEXT NOT NULL,"
-        "  options_json             TEXT NOT NULL,"
-        "  target_json              TEXT NOT NULL,"
-        "  answer_index             INTEGER,"
-        "  answer_text              TEXT,"
-        "  number_of_levels         INTEGER,"
-        "  score_values_json        TEXT,"
-        "  domain                   TEXT,"
-        "  family                   TEXT,"
-        "  language                 TEXT,"
-        "  scenario_family          TEXT,"
-        "  template_id              TEXT,"
-        "  source_instance_id       TEXT,"
-        "  semantic_context_sha256  TEXT,"
-        "  counterfactual_json      TEXT,"
-        "  metadata_json            TEXT,"
-        "  source                   TEXT,"
-        "  split                    TEXT NOT NULL,"
-        "  embedding_text           TEXT NOT NULL,"
-        "  embedding_format_version INTEGER NOT NULL"
+        "  rowid              INTEGER PRIMARY KEY,"
+        "  id                 TEXT UNIQUE NOT NULL,"
+        "  group_id           TEXT NOT NULL,"
+        "  kind               TEXT NOT NULL,"
+        "  question           TEXT NOT NULL,"
+        "  answer_index       INTEGER,"
+        "  number_of_levels   INTEGER,"
+        "  domain             TEXT,"
+        "  family             TEXT,"
+        "  scenario_family    TEXT,"
+        "  template_id        TEXT,"
+        "  source_instance_id TEXT,"
+        "  state_lz4          BLOB NOT NULL,"
+        "  options_lz4        BLOB NOT NULL,"
+        "  embedding_text_lz4 BLOB NOT NULL,"
+        "  target_lz4         BLOB"
         ")",
         nullptr, nullptr, nullptr);
 
-    // exemplar_vectors virtual table
+    // exemplar_vectors virtual table — use float[] so the test search code works
+    // (the production DB uses bit[], but float[] exercises the same query path)
     {
         char sql[256];
         snprintf(sql, sizeof(sql),
@@ -147,7 +144,8 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
     return db;
 }
 
-// Insert one example + vector into test DB.
+// Insert one example + vector into test DB (v2 schema with LZ4 BLOBs).
+// answer_text is placed at options[answer_index]; a filler "other" fills the rest.
 static int64_t insert_test_example(
     sqlite3* db,
     const std::string& id,
@@ -174,44 +172,49 @@ static int64_t insert_test_example(
         sqlite3_finalize(st);
     }
 
+    // Build options array: options[answer_index] == answer_text
+    nlohmann::json opts = nlohmann::json::array();
+    int opt_count = (answer_index >= 0) ? std::max(answer_index + 1, 2) : 2;
+    for (int i = 0; i < opt_count; ++i) {
+        if (i == answer_index) opts.push_back(answer_text);
+        else                   opts.push_back("other_" + std::to_string(i));
+    }
+
+    // Compress payloads
+    auto state_blob = pjev::lz4::compress("{}");
+    auto opts_blob  = pjev::lz4::compress(opts.dump());
+    auto embt_blob  = pjev::lz4::compress("test_emb_text");
+
     // Insert example
     int64_t rowid = -1;
     {
         sqlite3_stmt* st = nullptr;
         const char* sql =
             "INSERT INTO examples("
-            "  id, group_id, kind, state_json, question, options_json, target_json,"
-            "  answer_index, answer_text, number_of_levels, score_values_json,"
-            "  domain, family, language, scenario_family, template_id,"
-            "  source_instance_id, semantic_context_sha256, counterfactual_json,"
-            "  metadata_json, source, split, embedding_text, embedding_format_version"
-            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            "  id, group_id, kind, question, answer_index, number_of_levels,"
+            "  domain, family, scenario_family, template_id, source_instance_id,"
+            "  state_lz4, options_lz4, embedding_text_lz4, target_lz4"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
         sqlite3_bind_text(st,  1, id.c_str(), -1, SQLITE_STATIC);
         sqlite3_bind_text(st,  2, group_id.c_str(), -1, SQLITE_STATIC);
         sqlite3_bind_text(st,  3, kind.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(st,  4, "{}", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st,  5, "Test question", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st,  6, "[]", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st,  7, "[]", -1, SQLITE_STATIC);
-        if (answer_index >= 0) sqlite3_bind_int(st, 8, answer_index);
-        else                   sqlite3_bind_null(st, 8);
-        sqlite3_bind_text(st,  9, answer_text.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_int(st,  10, number_of_levels);
-        sqlite3_bind_null(st, 11);
-        sqlite3_bind_text(st, 12, "", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 13, "", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 14, "en", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 15, scenario_family.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 16, template_id.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 17, source_instance_id.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_null(st, 18);
-        sqlite3_bind_null(st, 19);
-        sqlite3_bind_null(st, 20);
-        sqlite3_bind_text(st, 21, "", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 22, "train", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 23, "test_emb_text", -1, SQLITE_STATIC);
-        sqlite3_bind_int(st,  24, 1);
+        sqlite3_bind_text(st,  4, "Test question", -1, SQLITE_STATIC);
+        if (answer_index >= 0) sqlite3_bind_int(st, 5, answer_index);
+        else                   sqlite3_bind_null(st, 5);
+        sqlite3_bind_int(st,   6, number_of_levels);
+        sqlite3_bind_text(st,  7, "", -1, SQLITE_STATIC);
+        sqlite3_bind_text(st,  8, "", -1, SQLITE_STATIC);
+        sqlite3_bind_text(st,  9, scenario_family.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(st, 10, template_id.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(st, 11, source_instance_id.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_blob(st, 12, state_blob.data(),
+                          static_cast<int>(state_blob.size()), SQLITE_TRANSIENT);
+        sqlite3_bind_blob(st, 13, opts_blob.data(),
+                          static_cast<int>(opts_blob.size()), SQLITE_TRANSIENT);
+        sqlite3_bind_blob(st, 14, embt_blob.data(),
+                          static_cast<int>(embt_blob.size()), SQLITE_TRANSIENT);
+        sqlite3_bind_null(st, 15);
         sqlite3_step(st);
         rowid = sqlite3_last_insert_rowid(db);
         sqlite3_finalize(st);

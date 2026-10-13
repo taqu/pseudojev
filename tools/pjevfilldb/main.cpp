@@ -25,7 +25,7 @@ using json = nlohmann::ordered_json;
 struct Options {
     std::string input;
     std::string output;
-    std::string model    = "models/nomic-embed-text-v1.5.Q8_0.gguf";
+    std::string model    = "models/nomic-embed-text-v1.5.gguf";
     bool        rebuild  = false;
     int         limit    = 0;  // 0 = no limit
     int         batch_sz = 100;
@@ -85,7 +85,7 @@ int main(int argc, char** argv)
     // Open input
     std::ifstream infile(opts.input);
     if(!infile.is_open()) {
-        fprintf(stderr, "error: cannot open input file: %s\n", opts.input.c_str());
+        spdlog::error("error: cannot open input file: {}", opts.input.c_str());
         return 1;
     }
 

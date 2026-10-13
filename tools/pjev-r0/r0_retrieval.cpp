@@ -6,7 +6,9 @@
 #include <algorithm>
 #include <sstream>
 
+#include "lz4_utils.h"
 #include "vec_autoext.h"
+#include "nlohmann/json.hpp"
 
 namespace pjev
 {
@@ -32,8 +34,9 @@ bool R0Reader::open()
         return false;
     }
 
+    // v2 schema: no answer_text column; options_lz4 is decompressed to get ground_truth
     const char* resolve_sql =
-        "SELECT id, group_id, kind, answer_index, answer_text, "
+        "SELECT id, group_id, kind, answer_index, options_lz4, "
         "       number_of_levels, template_id, source_instance_id, scenario_family "
         "FROM examples WHERE rowid=?";
     if (sqlite3_prepare_v2(db_, resolve_sql, -1, &stmt_resolve_, nullptr) != SQLITE_OK) {
@@ -63,11 +66,18 @@ std::string R0Reader::get_info(const char* key) const
 
 bool R0Reader::check_compatible(int emb_dim, const std::string& fingerprint, std::string& err) const
 {
+    // Require schema version 2
+    std::string db_schema_ver = get_info("schema_version");
+    if (db_schema_ver != "2") {
+        err = "schema version '" + db_schema_ver + "' is not supported "
+              "(expected '2'); rebuild the database with: pjev-filldb --rebuild";
+        return false;
+    }
+
     std::string db_dim_str = get_info("embedding_dim");
     std::string db_fp      = get_info("embedding_fingerprint");
     std::string db_metric  = get_info("distance_metric");
     std::string db_norm    = get_info("normalization");
-    std::string db_txt_ver = get_info("embedding_text_version");
 
     if (db_dim_str.empty()) {
         err = "database has no embedding_dim metadata — is this a valid exemplar database?";
@@ -130,12 +140,28 @@ bool R0Reader::resolve_rowid(int64_t rowid, RetrievedExample& ex) const
         return v ? v : "";
     };
 
-    ex.example_id         = col_text(0);
-    ex.group_id           = col_text(1);
-    ex.kind               = col_text(2);
-    ex.answer_index       = (sqlite3_column_type(stmt_resolve_, 3) == SQLITE_NULL)
-                            ? -1 : sqlite3_column_int(stmt_resolve_, 3);
-    ex.ground_truth       = col_text(4);
+    ex.example_id  = col_text(0);
+    ex.group_id    = col_text(1);
+    ex.kind        = col_text(2);
+    ex.answer_index = (sqlite3_column_type(stmt_resolve_, 3) == SQLITE_NULL)
+                       ? -1 : sqlite3_column_int(stmt_resolve_, 3);
+
+    // Decompress options_lz4 and reconstruct ground_truth from answer_index
+    const void* opts_blob  = sqlite3_column_blob(stmt_resolve_, 4);
+    int         opts_bytes = sqlite3_column_bytes(stmt_resolve_, 4);
+    std::string decomp_err;
+    std::string options_json = pjev::lz4::decompress(opts_blob, (size_t)opts_bytes, decomp_err);
+    if (decomp_err.empty() && !options_json.empty() && ex.answer_index >= 0) {
+        try {
+            auto opts = nlohmann::json::parse(options_json);
+            if (opts.is_array() &&
+                ex.answer_index < static_cast<int>(opts.size()) &&
+                opts[ex.answer_index].is_string()) {
+                ex.ground_truth = opts[ex.answer_index].get<std::string>();
+            }
+        } catch (...) {}
+    }
+
     ex.number_of_levels   = sqlite3_column_int(stmt_resolve_, 5);
     ex.template_id        = col_text(6);
     ex.source_instance_id = col_text(7);

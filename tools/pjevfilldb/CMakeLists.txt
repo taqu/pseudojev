@@ -24,6 +24,7 @@ add_executable(pjev-filldb
     exemplar_record.cpp
     embedding_text.cpp
     exemplar_database.cpp
+    lz4_utils.cpp
     vec_autoext.cpp
     ${CMAKE_SOURCE_DIR}/src/embedding/embedding.cpp
     ${CMAKE_SOURCE_DIR}/src/inference/llama_instance.cpp
@@ -31,6 +32,10 @@ add_executable(pjev-filldb
     ${CMAKE_SOURCE_DIR}/src/model/model_identity.cpp
     ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite3.c
     ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite-vec.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4hc.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4frame.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/xxhash.c
 )
 target_include_directories(pjev-filldb PRIVATE ${PJEV_FILLDB_INCS})
 target_link_libraries(pjev-filldb PRIVATE llama pjev-httplib)

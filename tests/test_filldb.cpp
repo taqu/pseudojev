@@ -11,6 +11,7 @@
 #include "exemplar_record.h"
 #include "embedding_text.h"
 #include "exemplar_database.h"
+#include "lz4_utils.h"
 #include "vec_autoext.h"
 #include "nlohmann/json.hpp"
 #include "sqlite/sqlite3.h"
@@ -128,11 +129,12 @@ static ExemplarRecord make_example_record(
     return r;
 }
 
-// unit-norm 4-float vectors used for KNN smoke tests
-static std::vector<float> vec_choice() { return {1.0f, 0.0f, 0.0f, 0.0f}; }
-static std::vector<float> vec_noul()   { return {0.0f, 1.0f, 0.0f, 0.0f}; }
-static std::vector<float> vec_score5() { return {0.0f, 0.0f, 1.0f, 0.0f}; }
-static std::vector<float> vec_score4() { return {0.0f, 0.0f, 0.0f, 1.0f}; }
+// Unit-norm 8-float vectors used for KNN smoke tests.
+// vec_quantize_binary requires length divisible by 8.
+static std::vector<float> vec_choice() { return {1.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f}; }
+static std::vector<float> vec_noul()   { return {0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f}; }
+static std::vector<float> vec_score5() { return {0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.0f}; }
+static std::vector<float> vec_score4() { return {0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f}; }
 
 // ---------------------------------------------------------------------------
 // ===== SECTION 1 – JSON parsing (parse_exemplar) =====
@@ -440,7 +442,7 @@ static void test_exemplar_database()
     {
         ExemplarDatabase db(db_path);
         db.open(false);
-        bool cs = db.create_schema(4, "test_model", "fp1234");
+        bool cs = db.create_schema(8, "test_model", "fp1234");
         check(cs, "32. create_schema succeeds");
         check(db.has_schema(), "33. has_schema true after create_schema");
     }
@@ -468,7 +470,7 @@ static void test_exemplar_database()
     {
         ExemplarDatabase db(db_path);
         db.open(false);
-        db.create_schema(4, "m", "fp");
+        db.create_schema(8, "m", "fp");
 
         ExemplarRecord rec = make_example_record("ex1","choice",0);
 
@@ -478,7 +480,7 @@ static void test_exemplar_database()
         check(db.insert_example(rec, rowid), "38. insert_example succeeds");
         check(rowid > 0,                     "38. insert_example returns rowid > 0");
 
-        std::vector<float> emb = {1.0f, 0.0f, 0.0f, 0.0f};
+        std::vector<float> emb = {1.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
         check(db.insert_vector(rowid, emb, "choice", 0), "39. insert_vector succeeds");
 
         check(db.example_count() == 1, "40. example_count == 1 after one insert");
@@ -489,7 +491,7 @@ static void test_exemplar_database()
     {
         ExemplarDatabase db(db_path);
         db.open(false);
-        db.create_schema(4, "m", "fp");
+        db.create_schema(8, "m", "fp");
 
         ExemplarRecord rec = make_example_record("ex_dup","choice",0);
         db.insert_group(rec);
@@ -532,14 +534,14 @@ static void test_exemplar_database()
     {
         ExemplarDatabase db(db_path);
         db.open(false);
-        db.create_schema(4, "m", "fp");
+        db.create_schema(8, "m", "fp");
 
         check(db.begin_transaction(), "45. begin_transaction ok");
         ExemplarRecord rec = make_example_record("txn1","choice",0);
         db.insert_group(rec);
         int64_t rowid = 0;
         db.insert_example(rec, rowid);
-        std::vector<float> emb = {1.0f,0.0f,0.0f,0.0f};
+        std::vector<float> emb = {1.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
         db.insert_vector(rowid, emb, "choice", 0);
         check(db.commit_transaction(), "45. commit_transaction ok");
         check(db.example_count() == 1, "45. record present after commit");
@@ -550,7 +552,7 @@ static void test_exemplar_database()
     {
         ExemplarDatabase db(db_path);
         db.open(false);
-        db.create_schema(4, "m", "fp");
+        db.create_schema(8, "m", "fp");
 
         db.begin_transaction();
         ExemplarRecord rec = make_example_record("rolled","choice",0);
@@ -576,7 +578,7 @@ static void test_exemplar_database()
         check(f != nullptr, "47. rebuild creates .tmp file");
         if(f) std::fclose(f);
 
-        db.create_schema(4, "m", "fp");
+        db.create_schema(8, "m", "fp");
         ExemplarRecord rec = make_example_record("rbex","choice",0);
         db.insert_group(rec);
         int64_t rowid = 0;
@@ -608,7 +610,7 @@ static void test_knn_smoke()
     {
         ExemplarDatabase db(knn_path);
         db.open(false); // open() calls register_sqlite_vec_autoext internally
-        db.create_schema(4, "knn_model", "knn_fp");
+        db.create_schema(8, "knn_model", "knn_fp");
 
         struct Row { std::string id; std::string kind; int nol; std::vector<float> emb; };
         std::vector<Row> rows = {
@@ -642,16 +644,15 @@ static void test_knn_smoke()
                          std::vector<float> query_vec,
                          int k) -> std::vector<int64_t>
     {
-        std::string blob_hex;
-        // Build parameterized query
+        // Stored vectors are bit[N] via vec_quantize_binary; query must be quantized too.
         std::string sql;
         if(filter_nol) {
             sql = "SELECT rowid, distance FROM exemplar_vectors "
-                  "WHERE embedding MATCH ? AND kind=? AND number_of_levels=? AND k=" + std::to_string(k) +
+                  "WHERE embedding MATCH vec_quantize_binary(?) AND kind=? AND number_of_levels=? AND k=" + std::to_string(k) +
                   " ORDER BY distance";
         } else {
             sql = "SELECT rowid, distance FROM exemplar_vectors "
-                  "WHERE embedding MATCH ? AND kind=? AND k=" + std::to_string(k) +
+                  "WHERE embedding MATCH vec_quantize_binary(?) AND kind=? AND k=" + std::to_string(k) +
                   " ORDER BY distance";
         }
 
@@ -702,11 +703,11 @@ static void test_knn_smoke()
         std::string sql;
         if(filter_nol) {
             sql = "SELECT rowid, distance FROM exemplar_vectors "
-                  "WHERE embedding MATCH ? AND kind=? AND number_of_levels=? AND k=" + std::to_string(k) +
+                  "WHERE embedding MATCH vec_quantize_binary(?) AND kind=? AND number_of_levels=? AND k=" + std::to_string(k) +
                   " ORDER BY distance";
         } else {
             sql = "SELECT rowid, distance FROM exemplar_vectors "
-                  "WHERE embedding MATCH ? AND kind=? AND k=" + std::to_string(k) +
+                  "WHERE embedding MATCH vec_quantize_binary(?) AND kind=? AND k=" + std::to_string(k) +
                   " ORDER BY distance";
         }
 
@@ -796,7 +797,7 @@ static void test_knn_smoke()
         int rc2 = sqlite3_prepare_v2(raw, sql, -1, &stmt, nullptr);
         if(rc2 == SQLITE_OK && sqlite3_step(stmt) == SQLITE_ROW) {
             int dim = sqlite3_column_int(stmt, 0);
-            check(dim == 4, "55. stored vector dimension == 4");
+            check(dim == 8, "55. stored vector dimension == 8");
         } else {
             check(false, "55. could not query vector dimension");
         }
@@ -805,6 +806,125 @@ static void test_knn_smoke()
 
     sqlite3_close(raw);
     remove_file(knn_path);
+}
+
+// ---------------------------------------------------------------------------
+// ===== SECTION 6 – LZ4 compress/decompress =====
+// ---------------------------------------------------------------------------
+static void test_lz4()
+{
+    using namespace pjev::lz4;
+
+    // 56. Round-trip small text
+    {
+        std::string input = "Hello, world!";
+        auto compressed = compress(input);
+        std::string err;
+        std::string result = decompress(compressed.data(), compressed.size(), err);
+        check(err.empty() && result == input, "56. lz4 round-trip small text");
+    }
+
+    // 57. Round-trip large text (256 KB of repeated pattern)
+    {
+        std::string input(256 * 1024, 'A');
+        for(size_t i = 0; i < input.size(); ++i) input[i] = (char)('A' + (i % 26));
+        auto compressed = compress(input);
+        std::string err;
+        std::string result = decompress(compressed.data(), compressed.size(), err);
+        check(err.empty() && result == input, "57. lz4 round-trip large text (256 KB)");
+    }
+
+    // 58. Round-trip empty string
+    {
+        std::string input;
+        auto compressed = compress(input);
+        std::string err;
+        std::string result = decompress(compressed.data(), compressed.size(), err);
+        check(err.empty() && result == input, "58. lz4 round-trip empty string");
+    }
+
+    // 59. Round-trip UTF-8 string
+    {
+        std::string input = u8"こんにちは世界 — naïve résumé 🎉";
+        auto compressed = compress(input);
+        std::string err;
+        std::string result = decompress(compressed.data(), compressed.size(), err);
+        check(err.empty() && result == input, "59. lz4 round-trip UTF-8 string");
+    }
+
+    // 60. Round-trip structured JSON
+    {
+        nlohmann::ordered_json j;
+        j["policy_name"] = "Test";
+        j["requirements"] = {"A", "B", "C"};
+        j["nested"] = {{"x", 1}, {"y", 2}};
+        std::string input = j.dump();
+        auto compressed = compress(input);
+        std::string err;
+        std::string result = decompress(compressed.data(), compressed.size(), err);
+        check(err.empty() && result == input, "60. lz4 round-trip JSON");
+    }
+
+    // 61. Truncated LZ4 data returns error
+    {
+        // Use a large enough input so truncating to 1/4 cuts into the payload.
+        std::string input(4096, 'X');
+        for(size_t i = 0; i < input.size(); ++i) input[i] = (char)('A' + (i % 26));
+        auto compressed = compress(input);
+        // Remove the last 32 bytes to truncate the frame
+        if(compressed.size() > 32) {
+            compressed.resize(compressed.size() - 32);
+            std::string err;
+            std::string result = decompress(compressed.data(), compressed.size(), err);
+            check(!err.empty(), "61. truncated frame returns error");
+        } else {
+            check(true, "61. (skipped: compressed too small to truncate meaningfully)");
+        }
+    }
+
+    // 62. Corrupted LZ4 data returns error
+    {
+        std::string input = "Corrupt test data for lz4";
+        auto compressed = compress(input);
+        if(compressed.size() > 12) {
+            // Flip bytes in the middle of the frame (past the header)
+            for(size_t i = 8; i < std::min(compressed.size(), (size_t)16); ++i)
+                compressed[i] ^= 0xFF;
+            std::string err;
+            std::string result = decompress(compressed.data(), compressed.size(), err);
+            check(!err.empty(), "62. corrupted frame returns error");
+        } else {
+            check(true, "62. (skipped: compressed too small to corrupt meaningfully)");
+        }
+    }
+
+    // 63. Zero-byte input to decompress returns empty string (not an error)
+    {
+        std::string err;
+        std::string result = decompress(nullptr, 0, err);
+        check(err.empty() && result.empty(), "63. zero-byte decompress returns empty, no error");
+    }
+
+    // 64. Compressed size < input size for compressible input
+    {
+        // Highly compressible: 10 KB of the same byte
+        std::string input(10 * 1024, 'Z');
+        auto compressed = compress(input);
+        check(compressed.size() < input.size(), "64. compressed size < input for compressible data");
+    }
+
+    // 65. Exact byte preservation
+    {
+        // All 256 byte values
+        std::string input(256, '\0');
+        for(int i = 0; i < 256; ++i) input[i] = (char)i;
+        auto compressed = compress(input);
+        std::string err;
+        std::string result = decompress(compressed.data(), compressed.size(), err);
+        check(err.empty() && result.size() == 256, "65. all byte values preserved");
+        bool exact = (err.empty() && result == input);
+        check(exact, "65. exact bytes match after round-trip");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -826,6 +946,9 @@ int main()
 
     printf("\n=== KNN smoke test (sqlite-vec) ===\n");
     test_knn_smoke();
+
+    printf("\n=== LZ4 compress/decompress ===\n");
+    test_lz4();
 
     printf("\n");
     if(g_fails == 0) {

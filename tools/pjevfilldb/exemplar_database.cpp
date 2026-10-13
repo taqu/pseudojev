@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <string>
 
+#include "lz4_utils.h"
 #include "vec_autoext.h"
 
 namespace pjev
@@ -75,32 +76,30 @@ bool ExemplarDatabase::create_schema(
         return false;
     }
 
+    // Schema v2: large text/JSON stored as LZ4-compressed BLOBs.
+    // Removed from v1: state_json, options_json, target_json, embedding_text,
+    //   answer_text, score_values_json, language, split, source,
+    //   semantic_context_sha256, counterfactual_json, metadata_json,
+    //   embedding_format_version.
+    // Added: state_lz4, options_lz4, embedding_text_lz4, target_lz4.
+    // target_lz4 is NULL for one-hot targets (reconstructible from answer_index).
     if(!exec("CREATE TABLE IF NOT EXISTS examples ("
-             "  rowid                    INTEGER PRIMARY KEY,"
-             "  id                       TEXT UNIQUE NOT NULL,"
-             "  group_id                 TEXT NOT NULL,"
-             "  kind                     TEXT NOT NULL,"
-             "  state_json               TEXT NOT NULL,"
-             "  question                 TEXT NOT NULL,"
-             "  options_json             TEXT NOT NULL,"
-             "  target_json              TEXT NOT NULL,"
-             "  answer_index             INTEGER,"
-             "  answer_text              TEXT,"
-             "  number_of_levels         INTEGER,"
-             "  score_values_json        TEXT,"
-             "  domain                   TEXT,"
-             "  family                   TEXT,"
-             "  language                 TEXT,"
-             "  scenario_family          TEXT,"
-             "  template_id              TEXT,"
-             "  source_instance_id       TEXT,"
-             "  semantic_context_sha256  TEXT,"
-             "  counterfactual_json      TEXT,"
-             "  metadata_json            TEXT,"
-             "  source                   TEXT,"
-             "  split                    TEXT NOT NULL,"
-             "  embedding_text           TEXT NOT NULL,"
-             "  embedding_format_version INTEGER NOT NULL,"
+             "  rowid              INTEGER PRIMARY KEY,"
+             "  id                 TEXT UNIQUE NOT NULL,"
+             "  group_id           TEXT NOT NULL,"
+             "  kind               TEXT NOT NULL,"
+             "  question           TEXT NOT NULL,"
+             "  answer_index       INTEGER,"
+             "  number_of_levels   INTEGER,"
+             "  domain             TEXT,"
+             "  family             TEXT,"
+             "  scenario_family    TEXT,"
+             "  template_id        TEXT,"
+             "  source_instance_id TEXT,"
+             "  state_lz4          BLOB NOT NULL,"
+             "  options_lz4        BLOB NOT NULL,"
+             "  embedding_text_lz4 BLOB NOT NULL,"
+             "  target_lz4         BLOB,"
              "  FOREIGN KEY (group_id) REFERENCES groups(group_id)"
              ")")) {
         return false;
@@ -118,19 +117,21 @@ bool ExemplarDatabase::create_schema(
         return false;
     }
 
-    // Store db_info
+    // Store db_info (INSERT OR REPLACE is idempotent for resume mode)
     auto insert_info = [&](const char* key, const std::string& val) {
         std::string sql = "INSERT OR REPLACE INTO db_info(key,value) VALUES('" +
                           std::string(key) + "','" + val + "')";
         return exec(sql.c_str());
     };
-    insert_info("schema_version",        "1");
-    insert_info("embedding_model",       model_path);
-    insert_info("embedding_fingerprint", model_fingerprint);
-    insert_info("embedding_dim",         std::to_string(emb_dim));
-    insert_info("embedding_text_version",std::to_string(ExemplarRecord::kEmbeddingFormatVersion));
-    insert_info("distance_metric",       "cosine");
-    insert_info("normalization",         "L2");
+    insert_info("schema_version",         "2");
+    insert_info("embedding_model",        model_path);
+    insert_info("embedding_fingerprint",  model_fingerprint);
+    insert_info("embedding_dim",          std::to_string(emb_dim));
+    insert_info("embedding_text_version", std::to_string(ExemplarRecord::kEmbeddingFormatVersion));
+    insert_info("distance_metric",        "cosine");
+    insert_info("normalization",          "L2");
+    insert_info("compression_format",     "lz4-frame");
+    insert_info("payload_serial_version", "1");
 
     // Prepare reusable statements
     if(sqlite3_prepare_v2(db_,
@@ -139,20 +140,19 @@ bool ExemplarDatabase::create_schema(
 
     if(sqlite3_prepare_v2(db_,
         "INSERT INTO examples("
-        "  id,group_id,kind,state_json,question,options_json,target_json,"
-        "  answer_index,answer_text,number_of_levels,score_values_json,"
-        "  domain,family,language,scenario_family,template_id,"
-        "  source_instance_id,semantic_context_sha256,counterfactual_json,"
-        "  metadata_json,source,split,embedding_text,embedding_format_version"
-        ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "  id,group_id,kind,question,answer_index,number_of_levels,"
+        "  domain,family,scenario_family,template_id,source_instance_id,"
+        "  state_lz4,options_lz4,embedding_text_lz4,target_lz4"
+        ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         -1, &stmt_insert_example_, nullptr) != SQLITE_OK) return false;
 
     if(sqlite3_prepare_v2(db_,
         "INSERT INTO exemplar_vectors(rowid,embedding,kind,number_of_levels) VALUES(?,vec_quantize_binary(?),?,?)",
         -1, &stmt_insert_vector_, nullptr) != SQLITE_OK) return false;
 
+    // id_exists reads question + compressed blobs for conflict detection
     if(sqlite3_prepare_v2(db_,
-        "SELECT state_json,options_json,target_json,question FROM examples WHERE id=?",
+        "SELECT question,state_lz4,options_lz4 FROM examples WHERE id=?",
         -1, &stmt_id_exists_, nullptr) != SQLITE_OK) return false;
 
     return true;
@@ -198,24 +198,32 @@ bool ExemplarDatabase::id_exists(
     if(rc != SQLITE_ROW) return false;
 
     // Row exists — check for conflict by comparing key fields
-    const char* state_json   = (const char*)sqlite3_column_text(stmt_id_exists_, 0);
-    const char* options_json = (const char*)sqlite3_column_text(stmt_id_exists_, 1);
-    const char* target_json  = (const char*)sqlite3_column_text(stmt_id_exists_, 2);
-    const char* question_txt = (const char*)sqlite3_column_text(stmt_id_exists_, 3);
-
-    std::string stored_state    = state_json   ? state_json   : "";
-    std::string stored_options  = options_json ? options_json : "";
-    std::string stored_target   = target_json  ? target_json  : "";
+    const char* question_txt = (const char*)sqlite3_column_text(stmt_id_exists_, 0);
     std::string stored_question = question_txt ? question_txt : "";
+
+    if(stored_question != rec.question) {
+        is_conflict = true;
+        return true;
+    }
+
+    // Compare compressed state
+    const void* state_blob  = sqlite3_column_blob(stmt_id_exists_, 1);
+    int         state_bytes = sqlite3_column_bytes(stmt_id_exists_, 1);
+    std::string state_err;
+    std::string stored_state = pjev::lz4::decompress(state_blob, (size_t)state_bytes, state_err);
+
+    // Compare compressed options
+    const void* opts_blob  = sqlite3_column_blob(stmt_id_exists_, 2);
+    int         opts_bytes = sqlite3_column_bytes(stmt_id_exists_, 2);
+    std::string opts_err;
+    std::string stored_options = pjev::lz4::decompress(opts_blob, (size_t)opts_bytes, opts_err);
 
     std::string cur_state   = rec.state.dump();
     std::string cur_options = nlohmann::ordered_json(rec.options).dump();
-    std::string cur_target  = nlohmann::ordered_json(rec.target).dump();
 
-    is_conflict = (stored_state    != cur_state    ||
-                   stored_options  != cur_options  ||
-                   stored_target   != cur_target   ||
-                   stored_question != rec.question);
+    is_conflict = (!state_err.empty() || !opts_err.empty() ||
+                   stored_state   != cur_state   ||
+                   stored_options != cur_options);
     return true;
 }
 
@@ -249,60 +257,50 @@ bool ExemplarDatabase::insert_example(const ExemplarRecord& rec, int64_t& out_ro
     if(!stmt_insert_example_) return false;
     sqlite3_reset(stmt_insert_example_);
 
-    std::string state_json   = rec.state.dump();
-    std::string options_json = nlohmann::ordered_json(rec.options).dump();
-    std::string target_json  = nlohmann::ordered_json(rec.target).dump();
-    std::string sv_json      = rec.score_values.empty()
-                                   ? ""
-                                   : nlohmann::ordered_json(rec.score_values).dump();
-    std::string cf_json      = rec.counterfactual.is_null() ? "" : rec.counterfactual.dump();
-    std::string meta_json    = rec.metadata.is_null() ? "{}" : rec.metadata.dump();
+    // Compress payloads
+    std::vector<uint8_t> state_blob   = pjev::lz4::compress(rec.state.dump());
+    std::vector<uint8_t> options_blob = pjev::lz4::compress(
+        nlohmann::ordered_json(rec.options).dump());
+    std::vector<uint8_t> emb_blob     = pjev::lz4::compress(rec.embedding_text);
+
+    // target_lz4 is NULL for one-hot targets; stored only for non-one-hot.
+    std::vector<uint8_t> target_blob;
+    bool store_target = (rec.answer_index < 0 && !rec.target.empty());
+    if(store_target)
+        target_blob = pjev::lz4::compress(nlohmann::ordered_json(rec.target).dump());
 
     int col = 1;
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.id.c_str(),         -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.group_id.c_str(),   -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.kind.c_str(),       -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, state_json.c_str(),     -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.question.c_str(),   -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, options_json.c_str(),   -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt_insert_example_, col++, target_json.c_str(),    -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt_insert_example_, col++, rec.id.c_str(),       -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt_insert_example_, col++, rec.group_id.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt_insert_example_, col++, rec.kind.c_str(),     -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt_insert_example_, col++, rec.question.c_str(), -1, SQLITE_STATIC);
 
     if(rec.answer_index >= 0) sqlite3_bind_int(stmt_insert_example_, col++, rec.answer_index);
     else                      sqlite3_bind_null(stmt_insert_example_, col++);
-
-    if(!rec.answer_text.empty())
-        sqlite3_bind_text(stmt_insert_example_, col++, rec.answer_text.c_str(), -1, SQLITE_STATIC);
-    else
-        sqlite3_bind_null(stmt_insert_example_, col++);
 
     if(rec.number_of_levels > 0)
         sqlite3_bind_int(stmt_insert_example_, col++, rec.number_of_levels);
     else
         sqlite3_bind_null(stmt_insert_example_, col++);
 
-    if(!sv_json.empty())
-        sqlite3_bind_text(stmt_insert_example_, col++, sv_json.c_str(), -1, SQLITE_TRANSIENT);
-    else
-        sqlite3_bind_null(stmt_insert_example_, col++);
-
     sqlite3_bind_text(stmt_insert_example_, col++, rec.domain.c_str(),           -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt_insert_example_, col++, rec.family.c_str(),           -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.language.c_str(),         -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt_insert_example_, col++, rec.scenario_family.c_str(),  -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt_insert_example_, col++, rec.template_id.c_str(),      -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt_insert_example_, col++, rec.source_instance_id.c_str(),-1,SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.semantic_context_sha256.c_str(),-1,SQLITE_STATIC);
 
-    if(!cf_json.empty())
-        sqlite3_bind_text(stmt_insert_example_, col++, cf_json.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_blob(stmt_insert_example_, col++,
+                      state_blob.data(), (int)state_blob.size(), SQLITE_TRANSIENT);
+    sqlite3_bind_blob(stmt_insert_example_, col++,
+                      options_blob.data(), (int)options_blob.size(), SQLITE_TRANSIENT);
+    sqlite3_bind_blob(stmt_insert_example_, col++,
+                      emb_blob.data(), (int)emb_blob.size(), SQLITE_TRANSIENT);
+
+    if(store_target)
+        sqlite3_bind_blob(stmt_insert_example_, col++,
+                          target_blob.data(), (int)target_blob.size(), SQLITE_TRANSIENT);
     else
         sqlite3_bind_null(stmt_insert_example_, col++);
-
-    sqlite3_bind_text(stmt_insert_example_, col++, meta_json.c_str(),         -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.source.c_str(),        -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.split.c_str(),         -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.embedding_text.c_str(),-1, SQLITE_STATIC);
-    sqlite3_bind_int (stmt_insert_example_, col++, ExemplarRecord::kEmbeddingFormatVersion);
 
     if(sqlite3_step(stmt_insert_example_) != SQLITE_DONE) return false;
     out_rowid = sqlite3_last_insert_rowid(db_);

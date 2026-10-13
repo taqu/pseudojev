@@ -287,9 +287,14 @@ set(PJEV_FILLDB_SRCS
     ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/exemplar_record.cpp
     ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/embedding_text.cpp
     ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/exemplar_database.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/lz4_utils.cpp
     ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/vec_autoext.cpp
     ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite3.c
     ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite-vec.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4hc.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4frame.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/xxhash.c
 )
 
 set(PJEV_FILLDB_INCS
@@ -333,9 +338,14 @@ add_test(NAME test_filldb_integration COMMAND test_filldb_integration
 set(PJEV_R0_SRCS
     ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/exemplar_record.cpp
     ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/embedding_text.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/lz4_utils.cpp
     ${CMAKE_SOURCE_DIR}/tools/pjevfilldb/vec_autoext.cpp
     ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite3.c
     ${CMAKE_SOURCE_DIR}/src/sqlite/sqlite-vec.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4hc.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/lz4frame.c
+    ${CMAKE_SOURCE_DIR}/src/lz4/xxhash.c
     ${CMAKE_SOURCE_DIR}/tools/pjev-r0/r0_retrieval.cpp
 )
 
