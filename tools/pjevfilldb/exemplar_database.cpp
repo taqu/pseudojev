@@ -110,7 +110,7 @@ bool ExemplarDatabase::create_schema(
     // that participate in KNN filtering
     std::string vec_sql =
         "CREATE VIRTUAL TABLE IF NOT EXISTS exemplar_vectors USING vec0("
-        "  embedding float[" + std::to_string(emb_dim) + "],"
+        "  embedding bit[" + std::to_string(emb_dim) + "],"
         "  kind text,"
         "  number_of_levels integer"
         ")";
@@ -148,7 +148,7 @@ bool ExemplarDatabase::create_schema(
         -1, &stmt_insert_example_, nullptr) != SQLITE_OK) return false;
 
     if(sqlite3_prepare_v2(db_,
-        "INSERT INTO exemplar_vectors(rowid,embedding,kind,number_of_levels) VALUES(?,?,?,?)",
+        "INSERT INTO exemplar_vectors(rowid,embedding,kind,number_of_levels) VALUES(?,vec_quantize_binary(?),?,?)",
         -1, &stmt_insert_vector_, nullptr) != SQLITE_OK) return false;
 
     if(sqlite3_prepare_v2(db_,
