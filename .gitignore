@@ -25,7 +25,6 @@ _CPack_Packages/
 install_manifest.txt
 
 # Release packages (produced by cpack / scripts)
-*.zip
 *.tar.gz
 *.tgz
 
@@ -59,3 +58,4 @@ phase0/phase0
 # Benchmark / research outputs
 benchmark_results/
 experiment_results/
+*.jsonl

@@ -18,12 +18,12 @@ enum class ScoreEnsembleMode { NONE, LABEL_ROTATION };
 
 struct EnsembleConfig
 {
-    NoulEnsembleMode noul_mode = NoulEnsembleMode::NONE;
-    ChoiceEnsembleMode choice_mode = ChoiceEnsembleMode::NONE;
+    NoulEnsembleMode noul_mode = NoulEnsembleMode::BINARY_ORDER;
+    ChoiceEnsembleMode choice_mode = ChoiceEnsembleMode::CYCLIC_ROTATION;
     ScoreEnsembleMode score_mode = ScoreEnsembleMode::NONE;
     // E2 optimized path: reuse the KV prefix shared with the previous rotation.
     // false = sequential reference path (every rotation evaluated from scratch).
-    bool choice_prefix_reuse = false;
+    bool choice_prefix_reuse = true;
     // S2 optimized path: reuse the KV prefix shared between score label rotations.
     bool score_prefix_reuse = false;
 };

@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include <decision/prompt_strategy.h>
+
 namespace pjev
 {
 namespace filldb
@@ -42,6 +44,9 @@ std::string parse_exemplar(const nlohmann::ordered_json& j, ExemplarRecord& rec)
         for(const auto& v : *it) {
             if(!v.is_string()) return "options contains non-string element";
             rec.options.push_back(v.get<std::string>());
+        }
+        if(static_cast<size_t>(PromptStrategy::MAX_CANDIDATES)<rec.options.size()){
+            return "options length is too long";
         }
     }
 

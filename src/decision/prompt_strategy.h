@@ -41,7 +41,7 @@ struct PromptSegment {
 
 class PromptStrategy {
 public:
-    static constexpr int32_t MAX_CANDIDATES = 10;
+    static constexpr int32_t MAX_CANDIDATES = 20;
 
     explicit PromptStrategy(const PromptConfig& cfg = {});
 

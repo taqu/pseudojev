@@ -172,7 +172,7 @@ int main(int argc, char** argv)
     std::string line;
     int64_t batch_pending = 0;
     db.begin_transaction();
-
+    std::vector<float> emb_vec;
     while(std::getline(infile, line)) {
         if(line.empty()) continue;
         ++n_read;
@@ -222,7 +222,7 @@ int main(int argc, char** argv)
             rec.question, rec.state, rec.options);
 
         // Generate embedding
-        std::vector<float> emb_vec;
+        emb_vec.clear();
         if(!embedding->encode(emb_vec, rec.embedding_text)) {
             if(opts.verbose)
                 printf("[line %lld] WARN: embedding failed for id=%s\n",
