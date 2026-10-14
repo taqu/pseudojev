@@ -1,6 +1,8 @@
 #include <cassert>
 #include <chrono>
+#include <cinttypes>
 #include <csignal>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -197,12 +199,8 @@ int main(int argc, char** argv)
     printf("Model compatibility: OK\n");
 
     // --- Optionally collect DB IDs to skip ---
-    std::unordered_set<std::string> db_ids;
+    std::unordered_set<int64_t> db_ids;
     if (skip_db_records) {
-        // We can't directly enumerate all IDs without opening in RW mode.
-        // Re-open via a second connection to enumerate IDs.
-        // Actually R0Reader exposes get_info; we need to add an ID enumeration method.
-        // For now, use a separate sqlite3 connection to collect IDs.
         {
             // register_sqlite_vec_autoext() already called by R0Reader::open()
             sqlite3* tmp_db = nullptr;
@@ -212,8 +210,7 @@ int main(int argc, char** argv)
                 sqlite3_prepare_v2(tmp_db,
                     "SELECT id FROM examples", -1, &stmt, nullptr);
                 while (sqlite3_step(stmt) == SQLITE_ROW) {
-                    const char* id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-                    if (id) db_ids.insert(id);
+                    db_ids.insert(sqlite3_column_int64(stmt, 0));
                 }
                 sqlite3_finalize(stmt);
                 sqlite3_close(tmp_db);
@@ -290,7 +287,7 @@ int main(int argc, char** argv)
         std::vector<float> emb_vec;
         auto t_emb_start = std::chrono::steady_clock::now();
         if (!embedding.encode(emb_vec, query_text)) {
-            if (verbose) fprintf(stderr, "  embedding failed for: %s\n", rec.id.c_str());
+            if (verbose) fprintf(stderr, "  embedding failed for: %" PRIx64 "\n", rec.id);
             continue;
         }
         double embed_ms = ms_since(t_emb_start);
@@ -309,9 +306,9 @@ int main(int argc, char** argv)
         g_n_processed = n_processed;
 
         if (verbose || (n_processed % 100 == 0)) {
-            printf("  [%d] %s  embed=%.0fms search=%.0fms retrieved=%d\n",
+            printf("  [%d] %" PRIx64 "  embed=%.0fms search=%.0fms retrieved=%d\n",
                    n_processed,
-                   results.back().query_id.c_str(),
+                   results.back().query_id,
                    embed_ms, search_ms,
                    results.back().retrieved_count);
         }

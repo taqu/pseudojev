@@ -66,11 +66,11 @@ std::string R0Reader::get_info(const char* key) const
 
 bool R0Reader::check_compatible(int emb_dim, const std::string& fingerprint, std::string& err) const
 {
-    // Require schema version 2
+    // Require schema version 3
     std::string db_schema_ver = get_info("schema_version");
-    if (db_schema_ver != "2") {
+    if (db_schema_ver != "3") {
         err = "schema version '" + db_schema_ver + "' is not supported "
-              "(expected '2'); rebuild the database with: pjev-filldb --rebuild";
+              "(expected '3'); rebuild the database with: pjev-filldb --rebuild";
         return false;
     }
 
@@ -140,8 +140,8 @@ bool R0Reader::resolve_rowid(int64_t rowid, RetrievedExample& ex) const
         return v ? v : "";
     };
 
-    ex.example_id  = col_text(0);
-    ex.group_id    = col_text(1);
+    ex.example_id  = sqlite3_column_int64(stmt_resolve_, 0);
+    ex.group_id    = sqlite3_column_int64(stmt_resolve_, 1);
     ex.kind        = col_text(2);
     ex.answer_index = (sqlite3_column_type(stmt_resolve_, 3) == SQLITE_NULL)
                        ? -1 : sqlite3_column_int(stmt_resolve_, 3);

@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include <decision/prompt_strategy.h>
+#include "id_hash.h"
 
 namespace pjev
 {
@@ -24,8 +25,11 @@ std::string parse_exemplar(const nlohmann::ordered_json& j, ExemplarRecord& rec)
 {
     std::string err;
 
-    if((err = require_string(j, "id", rec.id)) != "") return err;
-    if((err = require_string(j, "group_id", rec.group_id)) != "") return err;
+    std::string id_str, group_id_str;
+    if((err = require_string(j, "id",       id_str))       != "") return err;
+    if((err = require_string(j, "group_id", group_id_str)) != "") return err;
+    rec.id       = hash_exemplar_id(id_str);
+    rec.group_id = hash_exemplar_id(group_id_str);
     if((err = require_string(j, "kind", rec.kind)) != "") return err;
     if((err = require_string(j, "question", rec.question)) != "") return err;
     if((err = require_string(j, "source", rec.source)) != "") return err;

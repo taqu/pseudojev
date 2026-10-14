@@ -12,9 +12,9 @@ namespace filldb
 {
 
 struct ExemplarRecord {
-    // Core identity
-    std::string id;
-    std::string group_id;
+    // Core identity (stored as xxHash64 integers in the database)
+    int64_t     id       = 0;
+    int64_t     group_id = 0;
     std::string kind;       // "choice" | "noul" | "score"
     std::string source;
     std::string split;

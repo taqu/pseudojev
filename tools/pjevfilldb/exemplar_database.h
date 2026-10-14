@@ -40,7 +40,7 @@ public:
 
     // True if an example with this id already exists.
     // Sets is_conflict=true when the id exists but content differs.
-    bool id_exists(const std::string& id,
+    bool id_exists(int64_t id,
                    const ExemplarRecord& rec,
                    bool& is_conflict) const;
 

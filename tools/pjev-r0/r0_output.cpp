@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cinttypes>
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -188,8 +189,8 @@ struct KindStats {
     int same_si_topk       = 0;
     int short_results      = 0;     // retrieved_count < top_k
 
-    std::unordered_map<std::string, int> retrieved_id_freq;
-    std::unordered_map<std::string, int> template_freq;
+    std::unordered_map<int64_t, int>      retrieved_id_freq;
+    std::unordered_map<std::string, int>  template_freq;
     std::unordered_map<std::string, int> query_gt_dist;
     std::unordered_map<std::string, int> top1_gt_dist;
     int gt_match_top1 = 0;
@@ -280,7 +281,7 @@ static void write_kind_section(FILE* f, const KindStats& ks, int top_k)
     fprintf(f, "| Queries with < %d results | %d |\n\n", top_k, ks.short_results);
 
     // Top-5 most retrieved examples
-    std::vector<std::pair<int,std::string>> freq;
+    std::vector<std::pair<int,int64_t>> freq;
     freq.reserve(ks.retrieved_id_freq.size());
     for (const auto& p : ks.retrieved_id_freq) freq.push_back({p.second, p.first});
     std::sort(freq.begin(), freq.end(),
@@ -291,10 +292,7 @@ static void write_kind_section(FILE* f, const KindStats& ks, int top_k)
     int shown = 0;
     for (const auto& p : freq) {
         if (shown++ >= 5) break;
-        // Truncate long IDs for readability
-        std::string id = p.second;
-        if (id.size() > 60) id = id.substr(0, 57) + "...";
-        fprintf(f, "| %s | %d |\n", id.c_str(), p.first);
+        fprintf(f, "| %" PRIx64 " | %d |\n", p.second, p.first);
     }
     fprintf(f, "\n");
 
@@ -438,11 +436,11 @@ bool write_summary_md(const std::string& out_dir,
 
 static void render_query_block(FILE* f, const QueryResult& r)
 {
-    fprintf(f, "**ID:** `%s`  \n", r.query_id.c_str());
+    fprintf(f, "**ID:** `%" PRIx64 "`  \n", r.query_id);
     fprintf(f, "**Kind:** %s", r.kind.c_str());
     if (r.kind == "score") fprintf(f, " (levels=%d)", r.number_of_levels);
     fprintf(f, "  \n");
-    fprintf(f, "**Group:** `%s`  \n", r.query_group_id.c_str());
+    fprintf(f, "**Group:** `%" PRIx64 "`  \n", r.query_group_id);
     fprintf(f, "**Template:** `%s`  \n", r.query_template_id.c_str());
     fprintf(f, "**Answer:** `%s`  \n", r.query_ground_truth.c_str());
     fprintf(f, "**Retrieved:** %d results  \n\n", r.retrieved_count);
@@ -454,7 +452,7 @@ static void render_query_block(FILE* f, const QueryResult& r)
         if (ex.same_template) fprintf(f, " [SAME-TEMPLATE]");
         if (ex.same_source_instance) fprintf(f, " [SAME-SOURCE-INSTANCE]");
         fprintf(f, "  \n");
-        fprintf(f, "  ID: `%s`  \n", ex.example_id.c_str());
+        fprintf(f, "  ID: `%" PRIx64 "`  \n", ex.example_id);
         fprintf(f, "  Answer: `%s` (index=%d)  \n", ex.ground_truth.c_str(), ex.answer_index);
         std::string family = ex.scenario_family.empty() ? ex.template_id : ex.scenario_family;
         if (family.size() > 70) family = family.substr(0, 67) + "...";
@@ -470,7 +468,7 @@ static std::vector<size_t> select_examples(
     std::function<bool(const QueryResult&)> predicate,
     int max_count)
 {
-    std::vector<std::pair<std::string, size_t>> candidates;
+    std::vector<std::pair<int64_t, size_t>> candidates;
     for (size_t i = 0; i < results.size(); ++i) {
         if (results[i].kind == kind && predicate(results[i])) {
             candidates.push_back({results[i].query_id, i});

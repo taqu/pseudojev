@@ -7,10 +7,12 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include "lz4/xxhash.h"
 
 #include "exemplar_record.h"
 #include "embedding_text.h"
 #include "exemplar_database.h"
+#include "id_hash.h"
 #include "lz4_utils.h"
 #include "vec_autoext.h"
 #include "nlohmann/json.hpp"
@@ -110,8 +112,8 @@ static ExemplarRecord make_example_record(
     int                nol  = 0)
 {
     ExemplarRecord r;
-    r.id           = id;
-    r.group_id     = "grp1";
+    r.id           = hash_exemplar_id(id);
+    r.group_id     = hash_exemplar_id("grp1");
     r.kind         = kind;
     r.source       = "unit";
     r.split        = "train";
@@ -147,8 +149,8 @@ static void test_parse_exemplar()
         json j = make_choice_json();
         std::string err = parse_exemplar(j, r);
         check(err.empty(),         "1. valid choice: no error");
-        check(r.id == "c1",        "1. valid choice: id");
-        check(r.group_id == "g1",  "1. valid choice: group_id");
+        check(r.id == hash_exemplar_id("c1"),       "1. valid choice: id");
+        check(r.group_id == hash_exemplar_id("g1"), "1. valid choice: group_id");
         check(r.kind == "choice",  "1. valid choice: kind");
         check(r.question == "Which option?", "1. valid choice: question");
         check(r.options.size() == 3, "1. valid choice: options size");
@@ -678,16 +680,15 @@ static void test_knn_smoke()
         return rowids;
     };
 
-    // Helper: get id from examples table by rowid
-    auto get_id = [&](int64_t rowid) -> std::string {
+    // Helper: get id (INTEGER) from examples table by rowid
+    auto get_id = [&](int64_t rowid) -> int64_t {
         std::string sql = "SELECT id FROM examples WHERE rowid=?";
         sqlite3_stmt* stmt = nullptr;
-        if(sqlite3_prepare_v2(raw, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) return "";
+        if(sqlite3_prepare_v2(raw, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) return 0;
         sqlite3_bind_int64(stmt, 1, rowid);
-        std::string id;
+        int64_t id = 0;
         if(sqlite3_step(stmt) == SQLITE_ROW) {
-            const char* t = (const char*)sqlite3_column_text(stmt, 0);
-            if(t) id = t;
+            id = sqlite3_column_int64(stmt, 0);
         }
         sqlite3_finalize(stmt);
         return id;
@@ -731,8 +732,8 @@ static void test_knn_smoke()
         auto rows = query_knn("choice", 0, false, vec_choice(), 1);
         check(rows.size() == 1, "48. KNN choice: 1 result");
         if(!rows.empty()) {
-            std::string id = get_id(rows[0]);
-            check(id == "knn_choice", "48. KNN choice: correct record");
+            int64_t id = get_id(rows[0]);
+            check(id == hash_exemplar_id("knn_choice"), "48. KNN choice: correct record");
         }
     }
 
@@ -741,8 +742,8 @@ static void test_knn_smoke()
         auto rows = query_knn("noul", 0, false, vec_noul(), 1);
         check(rows.size() == 1, "49. KNN noul: 1 result");
         if(!rows.empty()) {
-            std::string id = get_id(rows[0]);
-            check(id == "knn_noul", "49. KNN noul: correct record");
+            int64_t id = get_id(rows[0]);
+            check(id == hash_exemplar_id("knn_noul"), "49. KNN noul: correct record");
         }
     }
 
@@ -751,8 +752,8 @@ static void test_knn_smoke()
         auto rows = query_knn("score", 5, true, vec_score5(), 1);
         check(rows.size() == 1, "50. KNN score nol=5: 1 result");
         if(!rows.empty()) {
-            std::string id = get_id(rows[0]);
-            check(id == "knn_score5", "50. KNN score nol=5: returns score-5 record");
+            int64_t id = get_id(rows[0]);
+            check(id == hash_exemplar_id("knn_score5"), "50. KNN score nol=5: returns score-5 record");
         }
     }
 
@@ -761,8 +762,8 @@ static void test_knn_smoke()
         auto rows = query_knn("score", 4, true, vec_score4(), 1);
         check(rows.size() == 1, "51. KNN score nol=4: 1 result");
         if(!rows.empty()) {
-            std::string id = get_id(rows[0]);
-            check(id == "knn_score4", "51. KNN score nol=4: returns score-4 record");
+            int64_t id = get_id(rows[0]);
+            check(id == hash_exemplar_id("knn_score4"), "51. KNN score nol=4: returns score-4 record");
         }
     }
 
@@ -771,7 +772,7 @@ static void test_knn_smoke()
         auto rows = query_knn("score", 5, true, vec_score5(), 10);
         bool found_score4 = false;
         for(auto rid : rows) {
-            if(get_id(rid) == "knn_score4") { found_score4 = true; break; }
+            if(get_id(rid) == hash_exemplar_id("knn_score4")) { found_score4 = true; break; }
         }
         check(!found_score4, "52. KNN score nol=5 does not return score-4");
     }
@@ -779,7 +780,7 @@ static void test_knn_smoke()
     // 53. Returned rowid resolves to correct row in examples table
     {
         auto rows = query_knn("choice", 0, false, vec_choice(), 1);
-        check(!rows.empty() && get_id(rows[0]) == "knn_choice",
+        check(!rows.empty() && get_id(rows[0]) == hash_exemplar_id("knn_choice"),
               "53. rowid resolves to correct examples row");
     }
 
@@ -928,6 +929,116 @@ static void test_lz4()
 }
 
 // ---------------------------------------------------------------------------
+// ===== SECTION 7 – hash_exemplar_id =====
+// ---------------------------------------------------------------------------
+static void test_id_hash()
+{
+    // 66. Known xxHash64 test vector: XXH64("", 0, seed=0) = 0xEF46DB3751D8E999
+    {
+        constexpr XXH64_hash_t expected_u = 0xEF46DB3751D8E999ULL;
+        int64_t expected_s;
+        static_assert(sizeof(expected_u) == sizeof(expected_s));
+        std::memcpy(&expected_s, &expected_u, sizeof(expected_s));
+        check(hash_exemplar_id("") == expected_s,
+              "66. empty string: known xxHash64 vector");
+    }
+
+    // 67. Short identifier: deterministic
+    {
+        int64_t h1 = hash_exemplar_id("c1");
+        int64_t h2 = hash_exemplar_id("c1");
+        check(h1 == h2, "67. short id: deterministic");
+    }
+
+    // 68. Long Open Jev identifier: deterministic
+    {
+        const char* long_id = "community-diversity-v2/20260921/support/refund_window/0/1/score";
+        int64_t h1 = hash_exemplar_id(long_id);
+        int64_t h2 = hash_exemplar_id(long_id);
+        check(h1 == h2, "68. long Open Jev id: deterministic");
+    }
+
+    // 69. Different strings produce different hashes
+    {
+        int64_t ha = hash_exemplar_id("id_a");
+        int64_t hb = hash_exemplar_id("id_b");
+        check(ha != hb, "69. different strings: different hashes");
+        check(hash_exemplar_id("grpA") != hash_exemplar_id("grpB"),
+              "69b. different group ids: different hashes");
+    }
+
+    // 70. Same group_id string always produces the same numeric group ID
+    {
+        int64_t g1 = hash_exemplar_id("grp_shared");
+        int64_t g2 = hash_exemplar_id("grp_shared");
+        int64_t g3 = hash_exemplar_id("grp_shared");
+        check(g1 == g2 && g2 == g3, "70. same group_id: always same hash");
+    }
+
+    // 71. UTF-8 input hashed by raw bytes (no normalization)
+    {
+        std::string utf8_a = u8"こんにちは";
+        std::string utf8_b = u8"こんにちは";
+        check(hash_exemplar_id(utf8_a) == hash_exemplar_id(utf8_b),
+              "71. UTF-8 input: same bytes same hash");
+        check(hash_exemplar_id(utf8_a) != hash_exemplar_id("konnichiha"),
+              "71b. UTF-8 bytes != ASCII bytes");
+    }
+
+    // 72. Result type is signed int64_t (negative values are valid)
+    {
+        // The empty string hash 0xEF46DB3751D8E999 has high bit set → negative
+        int64_t h = hash_exemplar_id("");
+        check(h < 0, "72. high bit set hash is negative (valid SQLite INTEGER)");
+    }
+
+    // 73. Signed 64-bit SQLite round-trip
+    {
+        const std::string db_path = tmp_db_path("_hash");
+        remove_file(db_path);
+
+        ExemplarDatabase db(db_path);
+        db.open(false);
+        db.create_schema(8, "m", "fp");
+
+        ExemplarRecord rec = make_example_record("hash_rt_test", "choice", 0);
+        db.insert_group(rec);
+        int64_t rowid = 0;
+        db.insert_example(rec, rowid);
+
+        // Read back id via raw sqlite3
+        sqlite3* raw = nullptr;
+        sqlite3_open(db_path.c_str(), &raw);
+        sqlite3_stmt* stmt = nullptr;
+        sqlite3_prepare_v2(raw, "SELECT id FROM examples WHERE rowid=?", -1, &stmt, nullptr);
+        sqlite3_bind_int64(stmt, 1, rowid);
+        bool got_row = (sqlite3_step(stmt) == SQLITE_ROW);
+        int64_t stored_id = got_row ? sqlite3_column_int64(stmt, 0) : 0;
+        sqlite3_finalize(stmt);
+        sqlite3_close(raw);
+
+        check(got_row, "73. id round-trip: row found");
+        check(stored_id == rec.id, "73. id round-trip: stored value matches hash");
+        remove_file(db_path);
+    }
+
+    // 74. Zero seed: call multiple times → always same result
+    {
+        const char* s = "test_seed_stability";
+        int64_t v0 = hash_exemplar_id(s);
+        int64_t v1 = hash_exemplar_id(s);
+        int64_t v2 = hash_exemplar_id(s);
+        check(v0 == v1 && v1 == v2, "74. zero-seed: multiple calls same result");
+    }
+
+    // 75. Empty string differs from single-space string
+    {
+        check(hash_exemplar_id("") != hash_exemplar_id(" "),
+              "75. empty string hash differs from single space");
+    }
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 int main()
@@ -949,6 +1060,9 @@ int main()
 
     printf("\n=== LZ4 compress/decompress ===\n");
     test_lz4();
+
+    printf("\n=== hash_exemplar_id ===\n");
+    test_id_hash();
 
     printf("\n");
     if(g_fails == 0) {

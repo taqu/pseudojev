@@ -28,6 +28,7 @@
 
 #include "exemplar_record.h"
 #include "embedding_text.h"
+#include "id_hash.h"
 #include "lz4_utils.h"
 #include "r0_retrieval.h"
 
@@ -76,7 +77,7 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
     char dim_val[32];
     snprintf(dim_val, sizeof(dim_val), "%d", emb_dim);
     sqlite3_exec(db,
-        "INSERT INTO db_info VALUES('schema_version','2')",
+        "INSERT INTO db_info VALUES('schema_version','3')",
         nullptr, nullptr, nullptr);
     {
         char sql[256];
@@ -103,17 +104,17 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
         "INSERT INTO db_info VALUES('compression_format','lz4-frame')",
         nullptr, nullptr, nullptr);
 
-    // groups
+    // groups — v3: group_id is INTEGER (xxHash64)
     sqlite3_exec(db,
-        "CREATE TABLE groups (group_id TEXT PRIMARY KEY, source TEXT, scenario_family TEXT)",
+        "CREATE TABLE groups (group_id INTEGER PRIMARY KEY, source TEXT, scenario_family TEXT)",
         nullptr, nullptr, nullptr);
 
-    // examples — v2 schema with LZ4 compressed BLOB columns
+    // examples — v3 schema: id/group_id are INTEGER (xxHash64), LZ4 compressed BLOBs
     sqlite3_exec(db,
         "CREATE TABLE examples ("
         "  rowid              INTEGER PRIMARY KEY,"
-        "  id                 TEXT UNIQUE NOT NULL,"
-        "  group_id           TEXT NOT NULL,"
+        "  id                 INTEGER UNIQUE NOT NULL,"
+        "  group_id           INTEGER NOT NULL,"
         "  kind               TEXT NOT NULL,"
         "  question           TEXT NOT NULL,"
         "  answer_index       INTEGER,"
@@ -130,13 +131,13 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
         ")",
         nullptr, nullptr, nullptr);
 
-    // exemplar_vectors virtual table — use float[] so the test search code works
-    // (the production DB uses bit[], but float[] exercises the same query path)
+    // exemplar_vectors virtual table — use bit[] matching production schema.
+    // Vectors are inserted via vec_quantize_binary() and queried the same way.
     {
         char sql[256];
         snprintf(sql, sizeof(sql),
             "CREATE VIRTUAL TABLE exemplar_vectors USING vec0("
-            "  embedding float[%d], kind text, number_of_levels integer"
+            "  embedding bit[%d], kind text, number_of_levels integer"
             ")", emb_dim);
         sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
     }
@@ -159,15 +160,18 @@ static int64_t insert_test_example(
     const std::string& scenario_family,
     const std::vector<float>& emb)
 {
+    int64_t hashed_id       = pjev::filldb::hash_exemplar_id(id);
+    int64_t hashed_group_id = pjev::filldb::hash_exemplar_id(group_id);
+
     // Insert group (idempotent)
     {
         sqlite3_stmt* st = nullptr;
         sqlite3_prepare_v2(db,
             "INSERT OR IGNORE INTO groups(group_id, source, scenario_family) VALUES(?,?,?)",
             -1, &st, nullptr);
-        sqlite3_bind_text(st, 1, group_id.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 2, "", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 3, scenario_family.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_int64(st, 1, hashed_group_id);
+        sqlite3_bind_text (st, 2, "", -1, SQLITE_STATIC);
+        sqlite3_bind_text (st, 3, scenario_family.c_str(), -1, SQLITE_STATIC);
         sqlite3_step(st);
         sqlite3_finalize(st);
     }
@@ -196,8 +200,8 @@ static int64_t insert_test_example(
             "  state_lz4, options_lz4, embedding_text_lz4, target_lz4"
             ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-        sqlite3_bind_text(st,  1, id.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(st,  2, group_id.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_int64(st, 1, hashed_id);
+        sqlite3_bind_int64(st, 2, hashed_group_id);
         sqlite3_bind_text(st,  3, kind.c_str(), -1, SQLITE_STATIC);
         sqlite3_bind_text(st,  4, "Test question", -1, SQLITE_STATIC);
         if (answer_index >= 0) sqlite3_bind_int(st, 5, answer_index);
@@ -225,7 +229,7 @@ static int64_t insert_test_example(
         sqlite3_stmt* st = nullptr;
         sqlite3_prepare_v2(db,
             "INSERT INTO exemplar_vectors(rowid, embedding, kind, number_of_levels) "
-            "VALUES(?,?,?,?)",
+            "VALUES(?,vec_quantize_binary(?),?,?)",
             -1, &st, nullptr);
         sqlite3_bind_int64(st, 1, rowid);
         sqlite3_bind_blob(st,  2, emb.data(),
@@ -377,8 +381,8 @@ static void test_05_kind_filtering()
     q[0] = 1.0f;  // matches v_choice
 
     ExemplarRecord choice_query;
-    choice_query.id          = "q1";
-    choice_query.group_id    = "qgrp";
+    choice_query.id          = filldb::hash_exemplar_id("q1");
+    choice_query.group_id    = filldb::hash_exemplar_id("qgrp");
     choice_query.kind        = "choice";
     choice_query.number_of_levels = 0;
     choice_query.template_id = "qtmpl";
@@ -408,8 +412,8 @@ static void test_05_kind_filtering()
     qs[1] = 1.0f;  // matches v_score
 
     ExemplarRecord score_query;
-    score_query.id          = "q_score";
-    score_query.group_id    = "qgrp";
+    score_query.id          = filldb::hash_exemplar_id("q_score");
+    score_query.group_id    = filldb::hash_exemplar_id("qgrp");
     score_query.kind        = "score";
     score_query.number_of_levels = 3;
     score_query.template_id = "qtmpl";
@@ -450,8 +454,8 @@ static void test_07_ordering()
     q[0] = 1.0f;
 
     ExemplarRecord choice_query;
-    choice_query.id    = "qd";
-    choice_query.group_id = "qgrp";
+    choice_query.id    = filldb::hash_exemplar_id("qd");
+    choice_query.group_id = filldb::hash_exemplar_id("qgrp");
     choice_query.kind  = "choice";
     choice_query.number_of_levels = 0;
     choice_query.template_id = "qtmpl";
@@ -497,8 +501,8 @@ static void test_08_fewer_than_k()
 
     // Only 1 score example with 3 levels in the DB
     ExemplarRecord score_query;
-    score_query.id    = "qs";
-    score_query.group_id = "qgrp";
+    score_query.id    = filldb::hash_exemplar_id("qs");
+    score_query.group_id = filldb::hash_exemplar_id("qgrp");
     score_query.kind  = "score";
     score_query.number_of_levels = 3;
     score_query.template_id = "qtmpl";
@@ -626,8 +630,8 @@ static void test_11_empty_dataset()
 
     std::vector<float> q(8, 0.0f); q[0] = 1.0f;
     ExemplarRecord choice_query;
-    choice_query.id   = "qe";
-    choice_query.group_id = "qgrp";
+    choice_query.id   = filldb::hash_exemplar_id("qe");
+    choice_query.group_id = filldb::hash_exemplar_id("qgrp");
     choice_query.kind = "choice";
     choice_query.number_of_levels = 0;
     choice_query.template_id = "qtmpl";
@@ -705,8 +709,8 @@ static void test_14_relationship_flags()
 
     // Query shares group_id=grpA, template=tmpl1, source_instance=si1 with ex1
     ExemplarRecord query;
-    query.id               = "qflag";
-    query.group_id         = "grpA";
+    query.id               = filldb::hash_exemplar_id("qflag");
+    query.group_id         = filldb::hash_exemplar_id("grpA");
     query.kind             = "choice";
     query.number_of_levels = 0;
     query.template_id      = "tmpl1";

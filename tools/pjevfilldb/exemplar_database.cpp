@@ -69,7 +69,7 @@ bool ExemplarDatabase::create_schema(
     }
 
     if(!exec("CREATE TABLE IF NOT EXISTS groups ("
-             "  group_id        TEXT PRIMARY KEY,"
+             "  group_id        INTEGER PRIMARY KEY,"
              "  source          TEXT,"
              "  scenario_family TEXT"
              ")")) {
@@ -85,8 +85,8 @@ bool ExemplarDatabase::create_schema(
     // target_lz4 is NULL for one-hot targets (reconstructible from answer_index).
     if(!exec("CREATE TABLE IF NOT EXISTS examples ("
              "  rowid              INTEGER PRIMARY KEY,"
-             "  id                 TEXT UNIQUE NOT NULL,"
-             "  group_id           TEXT NOT NULL,"
+             "  id                 INTEGER UNIQUE NOT NULL,"
+             "  group_id           INTEGER NOT NULL,"
              "  kind               TEXT NOT NULL,"
              "  question           TEXT NOT NULL,"
              "  answer_index       INTEGER,"
@@ -123,7 +123,7 @@ bool ExemplarDatabase::create_schema(
                           std::string(key) + "','" + val + "')";
         return exec(sql.c_str());
     };
-    insert_info("schema_version",         "2");
+    insert_info("schema_version",         "3");
     insert_info("embedding_model",        model_path);
     insert_info("embedding_fingerprint",  model_fingerprint);
     insert_info("embedding_dim",          std::to_string(emb_dim));
@@ -170,6 +170,14 @@ bool ExemplarDatabase::has_schema() const
 bool ExemplarDatabase::check_compatible(
     int emb_dim, const std::string& model_fingerprint, std::string& err) const
 {
+    std::string schema_ver = query_text(
+        "SELECT value FROM db_info WHERE key='schema_version'");
+    if(schema_ver != "3") {
+        err = "schema version '" + schema_ver + "' is not supported "
+              "(expected '3'); rebuild the database with: pjev-filldb --rebuild";
+        return false;
+    }
+
     int64_t stored_dim = query_int64(
         "SELECT value FROM db_info WHERE key='embedding_dim'");
     if(stored_dim != emb_dim) {
@@ -187,13 +195,13 @@ bool ExemplarDatabase::check_compatible(
 }
 
 bool ExemplarDatabase::id_exists(
-    const std::string& id, const ExemplarRecord& rec, bool& is_conflict) const
+    int64_t id, const ExemplarRecord& rec, bool& is_conflict) const
 {
     is_conflict = false;
     if(!stmt_id_exists_) return false;
 
     sqlite3_reset(stmt_id_exists_);
-    sqlite3_bind_text(stmt_id_exists_, 1, id.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt_id_exists_, 1, id);
     int rc = sqlite3_step(stmt_id_exists_);
     if(rc != SQLITE_ROW) return false;
 
@@ -246,9 +254,9 @@ bool ExemplarDatabase::insert_group(const ExemplarRecord& rec)
 {
     if(!stmt_insert_group_) return false;
     sqlite3_reset(stmt_insert_group_);
-    sqlite3_bind_text(stmt_insert_group_, 1, rec.group_id.c_str(),       -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_group_, 2, rec.source.c_str(),         -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_group_, 3, rec.scenario_family.c_str(),-1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt_insert_group_, 1, rec.group_id);
+    sqlite3_bind_text (stmt_insert_group_, 2, rec.source.c_str(),         -1, SQLITE_STATIC);
+    sqlite3_bind_text (stmt_insert_group_, 3, rec.scenario_family.c_str(),-1, SQLITE_STATIC);
     return sqlite3_step(stmt_insert_group_) == SQLITE_DONE;
 }
 
@@ -270,8 +278,8 @@ bool ExemplarDatabase::insert_example(const ExemplarRecord& rec, int64_t& out_ro
         target_blob = pjev::lz4::compress(nlohmann::ordered_json(rec.target).dump());
 
     int col = 1;
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.id.c_str(),       -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.group_id.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt_insert_example_, col++, rec.id);
+    sqlite3_bind_int64(stmt_insert_example_, col++, rec.group_id);
     sqlite3_bind_text(stmt_insert_example_, col++, rec.kind.c_str(),     -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt_insert_example_, col++, rec.question.c_str(), -1, SQLITE_STATIC);
 

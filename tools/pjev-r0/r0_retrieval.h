@@ -17,14 +17,14 @@ static constexpr const char* kQueryPrefix = "search_query: ";
 
 struct RetrievedExample {
     int         rank             = 0;
-    std::string example_id;
+    int64_t     example_id       = 0;
     double      distance         = 0.0;
     double      similarity       = 0.0;  // 1.0 - distance (cosine)
     std::string kind;
     int         number_of_levels = 0;
     int         answer_index     = -1;
-    std::string ground_truth;            // answer_text from examples table
-    std::string group_id;
+    std::string ground_truth;            // reconstructed from options[answer_index]
+    int64_t     group_id         = 0;
     std::string template_id;
     std::string source_instance_id;
     std::string scenario_family;
@@ -34,17 +34,17 @@ struct RetrievedExample {
 };
 
 struct QueryResult {
-    std::string query_id;
+    int64_t     query_id               = 0;
     std::string kind;
-    int         number_of_levels         = 0;
-    std::string query_group_id;
+    int         number_of_levels       = 0;
+    int64_t     query_group_id         = 0;
     std::string query_template_id;
     std::string query_source_instance_id;
     std::string query_ground_truth;
-    int         query_answer_index       = -1;
-    double      embed_ms                 = 0.0;
-    double      search_ms                = 0.0;
-    int         retrieved_count          = 0;
+    int         query_answer_index     = -1;
+    double      embed_ms               = 0.0;
+    double      search_ms              = 0.0;
+    int         retrieved_count        = 0;
     std::vector<RetrievedExample> retrieved;
 };
 

@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -207,8 +208,8 @@ int main(int argc, char** argv)
         bool is_conflict = false;
         if(db.id_exists(rec.id, rec, is_conflict)) {
             if(is_conflict) {
-                printf("[line %lld] CONFLICT: id=%s already exists with different content\n",
-                       (long long)n_read, rec.id.c_str());
+                printf("[line %lld] CONFLICT: id=%" PRIx64 " already exists with different content\n",
+                       (long long)n_read, rec.id);
                 ++n_conflict;
             } else {
                 ++n_duplicate;
@@ -225,8 +226,8 @@ int main(int argc, char** argv)
         emb_vec.clear();
         if(!embedding->encode(emb_vec, rec.embedding_text)) {
             if(opts.verbose)
-                printf("[line %lld] WARN: embedding failed for id=%s\n",
-                       (long long)n_read, rec.id.c_str());
+                printf("[line %lld] WARN: embedding failed for id=%" PRIx64 "\n",
+                       (long long)n_read, rec.id);
             ++n_emb_err;
             continue;
         }
@@ -242,8 +243,8 @@ int main(int argc, char** argv)
                   db.insert_vector(rowid, emb_vec, rec.kind, rec.number_of_levels);
         if(!ok) {
             if(opts.verbose)
-                printf("[line %lld] WARN: db insert failed for id=%s\n",
-                       (long long)n_read, rec.id.c_str());
+                printf("[line %lld] WARN: db insert failed for id=%" PRIx64 "\n",
+                       (long long)n_read, rec.id);
             db.rollback_transaction();
             db.begin_transaction();
             batch_pending = 0;
