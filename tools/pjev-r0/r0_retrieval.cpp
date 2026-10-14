@@ -198,11 +198,11 @@ bool R0Reader::search(
     std::string sql;
     if (query.kind == "score") {
         sql = "SELECT rowid, distance FROM exemplar_vectors "
-              "WHERE embedding MATCH ? AND kind='score' AND number_of_levels=? AND k="
+              "WHERE embedding MATCH vec_quantize_binary(?) AND kind='score' AND number_of_levels=? AND k="
               + std::to_string(fetch_k) + " ORDER BY distance";
     } else {
         sql = "SELECT rowid, distance FROM exemplar_vectors "
-              "WHERE embedding MATCH ? AND kind=? AND k="
+              "WHERE embedding MATCH vec_quantize_binary(?) AND kind=? AND k="
               + std::to_string(fetch_k) + " ORDER BY distance";
     }
 
