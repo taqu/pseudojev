@@ -42,8 +42,7 @@ static json make_score_ex() {
         "metadata": {
             "language": "en",
             "domain": "support",
-            "family": "policy",
-            "scenario_family": "support/test"
+            "family": "policy"
         }
     })");
 }

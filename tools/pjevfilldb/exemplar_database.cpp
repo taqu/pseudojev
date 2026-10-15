@@ -70,8 +70,7 @@ bool ExemplarDatabase::create_schema(
 
     if(!exec("CREATE TABLE IF NOT EXISTS groups ("
              "  group_id        INTEGER PRIMARY KEY,"
-             "  source          TEXT,"
-             "  scenario_family TEXT"
+             "  source          TEXT"
              ")")) {
         return false;
     }
@@ -93,9 +92,6 @@ bool ExemplarDatabase::create_schema(
              "  number_of_levels   INTEGER,"
              "  domain             TEXT,"
              "  family             TEXT,"
-             "  scenario_family    TEXT,"
-             "  template_id        TEXT,"
-             "  source_instance_id TEXT,"
              "  state_lz4          BLOB NOT NULL,"
              "  options_lz4        BLOB NOT NULL,"
              "  embedding_text_lz4 BLOB NOT NULL,"
@@ -123,7 +119,7 @@ bool ExemplarDatabase::create_schema(
                           std::string(key) + "','" + val + "')";
         return exec(sql.c_str());
     };
-    insert_info("schema_version",         "3");
+    insert_info("schema_version",         "4");
     insert_info("embedding_model",        model_path);
     insert_info("embedding_fingerprint",  model_fingerprint);
     insert_info("embedding_dim",          std::to_string(emb_dim));
@@ -135,15 +131,15 @@ bool ExemplarDatabase::create_schema(
 
     // Prepare reusable statements
     if(sqlite3_prepare_v2(db_,
-        "INSERT OR IGNORE INTO groups(group_id,source,scenario_family) VALUES(?,?,?)",
+        "INSERT OR IGNORE INTO groups(group_id,source) VALUES(?,?)",
         -1, &stmt_insert_group_, nullptr) != SQLITE_OK) return false;
 
     if(sqlite3_prepare_v2(db_,
         "INSERT INTO examples("
         "  id,group_id,kind,question,answer_index,number_of_levels,"
-        "  domain,family,scenario_family,template_id,source_instance_id,"
+        "  domain,family,"
         "  state_lz4,options_lz4,embedding_text_lz4,target_lz4"
-        ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
         -1, &stmt_insert_example_, nullptr) != SQLITE_OK) return false;
 
     if(sqlite3_prepare_v2(db_,
@@ -172,9 +168,9 @@ bool ExemplarDatabase::check_compatible(
 {
     std::string schema_ver = query_text(
         "SELECT value FROM db_info WHERE key='schema_version'");
-    if(schema_ver != "3") {
+    if(schema_ver != "4") {
         err = "schema version '" + schema_ver + "' is not supported "
-              "(expected '3'); rebuild the database with: pjev-filldb --rebuild";
+              "(expected '4'); rebuild the database with: pjev-filldb --rebuild";
         return false;
     }
 
@@ -255,8 +251,7 @@ bool ExemplarDatabase::insert_group(const ExemplarRecord& rec)
     if(!stmt_insert_group_) return false;
     sqlite3_reset(stmt_insert_group_);
     sqlite3_bind_int64(stmt_insert_group_, 1, rec.group_id);
-    sqlite3_bind_text (stmt_insert_group_, 2, rec.source.c_str(),         -1, SQLITE_STATIC);
-    sqlite3_bind_text (stmt_insert_group_, 3, rec.scenario_family.c_str(),-1, SQLITE_STATIC);
+    sqlite3_bind_text (stmt_insert_group_, 2, rec.source.c_str(), -1, SQLITE_STATIC);
     return sqlite3_step(stmt_insert_group_) == SQLITE_DONE;
 }
 
@@ -291,11 +286,8 @@ bool ExemplarDatabase::insert_example(const ExemplarRecord& rec, int64_t& out_ro
     else
         sqlite3_bind_null(stmt_insert_example_, col++);
 
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.domain.c_str(),           -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.family.c_str(),           -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.scenario_family.c_str(),  -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.template_id.c_str(),      -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt_insert_example_, col++, rec.source_instance_id.c_str(),-1,SQLITE_STATIC);
+    sqlite3_bind_text(stmt_insert_example_, col++, rec.domain.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt_insert_example_, col++, rec.family.c_str(), -1, SQLITE_STATIC);
 
     sqlite3_bind_blob(stmt_insert_example_, col++,
                       state_blob.data(), (int)state_blob.size(), SQLITE_TRANSIENT);

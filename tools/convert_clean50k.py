@@ -352,7 +352,7 @@ def convert_record(
         metadata["original_source"] = raw["source"]
     # Preserve extra source-level provenance fields when present
     for k in ("trajectory_id", "episode_id", "task_id",
-              "scenario_family", "template_id", "domain", "family"):
+              "domain", "family"):
         if k in raw and isinstance(raw[k], str):
             metadata[k] = raw[k]
 

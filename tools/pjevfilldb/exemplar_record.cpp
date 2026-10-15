@@ -110,9 +110,6 @@ std::string parse_exemplar(const nlohmann::ordered_json& j, ExemplarRecord& rec)
             get_str("language",               rec.language);
             get_str("domain",                 rec.domain);
             get_str("family",                 rec.family);
-            get_str("scenario_family",        rec.scenario_family);
-            get_str("template_id",            rec.template_id);
-            get_str("source_instance_id",     rec.source_instance_id);
             get_str("semantic_context_sha256",rec.semantic_context_sha256);
 
             auto sv = it->find("score_values");

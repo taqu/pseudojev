@@ -25,12 +25,7 @@ struct RetrievedExample {
     int         answer_index     = -1;
     std::string ground_truth;            // reconstructed from options[answer_index]
     int64_t     group_id         = 0;
-    std::string template_id;
-    std::string source_instance_id;
-    std::string scenario_family;
-    bool        same_group           = false;
-    bool        same_template        = false;
-    bool        same_source_instance = false;
+    bool        same_group       = false;
 };
 
 struct QueryResult {
@@ -38,8 +33,6 @@ struct QueryResult {
     std::string kind;
     int         number_of_levels       = 0;
     int64_t     query_group_id         = 0;
-    std::string query_template_id;
-    std::string query_source_instance_id;
     std::string query_ground_truth;
     int         query_answer_index     = -1;
     double      embed_ms               = 0.0;

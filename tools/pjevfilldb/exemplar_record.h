@@ -37,9 +37,6 @@ struct ExemplarRecord {
     std::string            language;
     std::string            domain;
     std::string            family;
-    std::string            scenario_family;
-    std::string            template_id;
-    std::string            source_instance_id;
     std::string            semantic_context_sha256;
     nlohmann::ordered_json counterfactual;
     nlohmann::ordered_json metadata;

@@ -131,8 +131,6 @@ bool write_retrieval_jsonl(const std::string& out_dir,
         if (r.kind == "score")
             j["number_of_levels"]        = r.number_of_levels;
         j["query_group_id"]              = r.query_group_id;
-        j["query_template_id"]           = r.query_template_id;
-        j["query_source_instance_id"]    = r.query_source_instance_id;
         j["query_ground_truth"]          = r.query_ground_truth;
         j["embed_ms"]                    = r.embed_ms;
         j["search_ms"]                   = r.search_ms;
@@ -151,12 +149,7 @@ bool write_retrieval_jsonl(const std::string& out_dir,
             e["ground_truth"]       = ex.ground_truth;
             e["answer_index"]       = ex.answer_index;
             e["group_id"]           = ex.group_id;
-            e["template_id"]        = ex.template_id;
-            e["source_instance_id"] = ex.source_instance_id;
-            e["scenario_family"]    = ex.scenario_family;
             e["same_group"]         = ex.same_group;
-            e["same_template"]      = ex.same_template;
-            e["same_source_instance"] = ex.same_source_instance;
             retrieved.push_back(e);
         }
         j["retrieved"] = retrieved;
@@ -183,14 +176,9 @@ struct KindStats {
 
     int same_group_top1    = 0;
     int same_group_topk    = 0;     // any match in top-k
-    int same_template_top1 = 0;
-    int same_template_topk = 0;
-    int same_si_top1       = 0;
-    int same_si_topk       = 0;
     int short_results      = 0;     // retrieved_count < top_k
 
-    std::unordered_map<int64_t, int>      retrieved_id_freq;
-    std::unordered_map<std::string, int>  template_freq;
+    std::unordered_map<int64_t, int>     retrieved_id_freq;
     std::unordered_map<std::string, int> query_gt_dist;
     std::unordered_map<std::string, int> top1_gt_dist;
     int gt_match_top1 = 0;
@@ -217,21 +205,15 @@ static void accumulate_stats(KindStats& ks,
     ks.top1_gt_dist[t1.ground_truth]++;
     if (t1.ground_truth == r.query_ground_truth) ks.gt_match_top1++;
     if (t1.same_group)    ks.same_group_top1++;
-    if (t1.same_template) ks.same_template_top1++;
-    if (t1.same_source_instance) ks.same_si_top1++;
 
     ks.retrieved_id_freq[t1.example_id]++;
-    ks.template_freq[t1.template_id]++;
 
     double sum_sim = 0.0;
     for (const auto& ex : r.retrieved) {
         sum_sim += ex.similarity;
         ks.all_sim.push_back(ex.similarity);
         if (ex.same_group)    ks.same_group_topk++;
-        if (ex.same_template) ks.same_template_topk++;
-        if (ex.same_source_instance) ks.same_si_topk++;
         ks.retrieved_id_freq[ex.example_id]++;
-        ks.template_freq[ex.template_id]++;
     }
     ks.topk_mean_sim.push_back(sum_sim / static_cast<double>(r.retrieved.size()));
 
@@ -272,12 +254,6 @@ static void write_kind_section(FILE* f, const KindStats& ks, int top_k)
             ks.all_sim.empty() ? 0.0 :
             static_cast<double>(ks.same_group_topk) /
             static_cast<double>(ks.n_queries * top_k));
-    fprintf(f, "| Same-template @ Top-1 | %.3f |\n",
-            static_cast<double>(ks.same_template_top1) / ks.n_queries);
-    fprintf(f, "| Same-template (any in Top-%d) | %.3f |\n", top_k,
-            static_cast<double>(ks.same_template_topk > 0) / ks.n_queries);
-    fprintf(f, "| Same-source-instance @ Top-1 | %.3f |\n",
-            static_cast<double>(ks.same_si_top1) / ks.n_queries);
     fprintf(f, "| Queries with < %d results | %d |\n\n", top_k, ks.short_results);
 
     // Top-5 most retrieved examples
@@ -355,29 +331,27 @@ bool write_summary_md(const std::string& out_dir,
 
     // Overall stats table
     fprintf(f, "## Overall Statistics\n\n");
-    fprintf(f, "| Kind | Queries | Mean Top-1 Sim | Median Top-1 Sim | Same-Group@1 | Same-Template@1 |\n");
-    fprintf(f, "|------|---------|----------------|-----------------|--------------|----------------|\n");
+    fprintf(f, "| Kind | Queries | Mean Top-1 Sim | Median Top-1 Sim | Same-Group@1 |\n");
+    fprintf(f, "|------|---------|----------------|-----------------||--------------|\n");
 
     for (const auto& kv : by_kind) {
         const KindStats& ks = kv.second;
         if (ks.n_queries == 0) continue;
-        fprintf(f, "| %s | %d | %.4f | %.4f | %.3f | %.3f |\n",
+        fprintf(f, "| %s | %d | %.4f | %.4f | %.3f |\n",
                 ks.kind.c_str(), ks.n_queries,
                 mean(ks.top1_sim),
                 percentile(ks.top1_sim, 50),
-                static_cast<double>(ks.same_group_top1) / ks.n_queries,
-                static_cast<double>(ks.same_template_top1) / ks.n_queries);
+                static_cast<double>(ks.same_group_top1) / ks.n_queries);
     }
 
     {
         const KindStats& ks = overall;
         if (ks.n_queries > 0) {
-            fprintf(f, "| **all** | **%d** | **%.4f** | **%.4f** | **%.3f** | **%.3f** |\n",
+            fprintf(f, "| **all** | **%d** | **%.4f** | **%.4f** | **%.3f** |\n",
                     ks.n_queries,
                     mean(ks.top1_sim),
                     percentile(ks.top1_sim, 50),
-                    static_cast<double>(ks.same_group_top1) / ks.n_queries,
-                    static_cast<double>(ks.same_template_top1) / ks.n_queries);
+                    static_cast<double>(ks.same_group_top1) / ks.n_queries);
         }
     }
     fprintf(f, "\n");
@@ -441,23 +415,15 @@ static void render_query_block(FILE* f, const QueryResult& r)
     if (r.kind == "score") fprintf(f, " (levels=%d)", r.number_of_levels);
     fprintf(f, "  \n");
     fprintf(f, "**Group:** `%" PRIx64 "`  \n", r.query_group_id);
-    fprintf(f, "**Template:** `%s`  \n", r.query_template_id.c_str());
     fprintf(f, "**Answer:** `%s`  \n", r.query_ground_truth.c_str());
     fprintf(f, "**Retrieved:** %d results  \n\n", r.retrieved_count);
 
-    int i = 1;
     for (const auto& ex : r.retrieved) {
         fprintf(f, "  **Rank %d** — sim=%.4f dist=%.4f", ex.rank, ex.similarity, ex.distance);
-        if (ex.same_group)    fprintf(f, " [SAME-GROUP]");
-        if (ex.same_template) fprintf(f, " [SAME-TEMPLATE]");
-        if (ex.same_source_instance) fprintf(f, " [SAME-SOURCE-INSTANCE]");
+        if (ex.same_group) fprintf(f, " [SAME-GROUP]");
         fprintf(f, "  \n");
         fprintf(f, "  ID: `%" PRIx64 "`  \n", ex.example_id);
         fprintf(f, "  Answer: `%s` (index=%d)  \n", ex.ground_truth.c_str(), ex.answer_index);
-        std::string family = ex.scenario_family.empty() ? ex.template_id : ex.scenario_family;
-        if (family.size() > 70) family = family.substr(0, 67) + "...";
-        fprintf(f, "  Scenario: %s  \n\n", family.c_str());
-        i++;
     }
 }
 

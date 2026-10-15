@@ -36,8 +36,7 @@ bool R0Reader::open()
 
     // v2 schema: no answer_text column; options_lz4 is decompressed to get ground_truth
     const char* resolve_sql =
-        "SELECT id, group_id, kind, answer_index, options_lz4, "
-        "       number_of_levels, template_id, source_instance_id, scenario_family "
+        "SELECT id, group_id, kind, answer_index, options_lz4, number_of_levels "
         "FROM examples WHERE rowid=?";
     if (sqlite3_prepare_v2(db_, resolve_sql, -1, &stmt_resolve_, nullptr) != SQLITE_OK) {
         return false;
@@ -66,11 +65,11 @@ std::string R0Reader::get_info(const char* key) const
 
 bool R0Reader::check_compatible(int emb_dim, const std::string& fingerprint, std::string& err) const
 {
-    // Require schema version 3
+    // Require schema version 4
     std::string db_schema_ver = get_info("schema_version");
-    if (db_schema_ver != "3") {
+    if (db_schema_ver != "4") {
         err = "schema version '" + db_schema_ver + "' is not supported "
-              "(expected '3'); rebuild the database with: pjev-filldb --rebuild";
+              "(expected '4'); rebuild the database with: pjev-filldb --rebuild";
         return false;
     }
 
@@ -163,9 +162,6 @@ bool R0Reader::resolve_rowid(int64_t rowid, RetrievedExample& ex) const
     }
 
     ex.number_of_levels   = sqlite3_column_int(stmt_resolve_, 5);
-    ex.template_id        = col_text(6);
-    ex.source_instance_id = col_text(7);
-    ex.scenario_family    = col_text(8);
     return true;
 }
 
@@ -183,8 +179,6 @@ bool R0Reader::search(
     out.kind                      = query.kind;
     out.number_of_levels          = query.number_of_levels;
     out.query_group_id            = query.group_id;
-    out.query_template_id         = query.template_id;
-    out.query_source_instance_id  = query.source_instance_id;
     out.query_answer_index        = query.answer_index;
     out.query_ground_truth        = query.answer_text;
     out.retrieved.clear();
@@ -248,12 +242,8 @@ bool R0Reader::search(
 
         if (exclude_same_group && ex.group_id == query.group_id) continue;
 
-        ex.rank                 = rank++;
-        ex.same_group           = (ex.group_id == query.group_id);
-        ex.same_template        = (!query.template_id.empty() &&
-                                   ex.template_id == query.template_id);
-        ex.same_source_instance = (!query.source_instance_id.empty() &&
-                                   ex.source_instance_id == query.source_instance_id);
+        ex.rank       = rank++;
+        ex.same_group = (ex.group_id == query.group_id);
 
         out.retrieved.push_back(std::move(ex));
         out.retrieved_count++;

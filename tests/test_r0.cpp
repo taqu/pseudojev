@@ -77,7 +77,7 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
     char dim_val[32];
     snprintf(dim_val, sizeof(dim_val), "%d", emb_dim);
     sqlite3_exec(db,
-        "INSERT INTO db_info VALUES('schema_version','3')",
+        "INSERT INTO db_info VALUES('schema_version','4')",
         nullptr, nullptr, nullptr);
     {
         char sql[256];
@@ -106,7 +106,7 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
 
     // groups — v3: group_id is INTEGER (xxHash64)
     sqlite3_exec(db,
-        "CREATE TABLE groups (group_id INTEGER PRIMARY KEY, source TEXT, scenario_family TEXT)",
+        "CREATE TABLE groups (group_id INTEGER PRIMARY KEY, source TEXT)",
         nullptr, nullptr, nullptr);
 
     // examples — v3 schema: id/group_id are INTEGER (xxHash64), LZ4 compressed BLOBs
@@ -121,9 +121,6 @@ static sqlite3* make_test_db(int emb_dim, const char* path = ":memory:")
         "  number_of_levels   INTEGER,"
         "  domain             TEXT,"
         "  family             TEXT,"
-        "  scenario_family    TEXT,"
-        "  template_id        TEXT,"
-        "  source_instance_id TEXT,"
         "  state_lz4          BLOB NOT NULL,"
         "  options_lz4        BLOB NOT NULL,"
         "  embedding_text_lz4 BLOB NOT NULL,"
@@ -155,9 +152,6 @@ static int64_t insert_test_example(
     int number_of_levels,
     const std::string& answer_text,
     int answer_index,
-    const std::string& template_id,
-    const std::string& source_instance_id,
-    const std::string& scenario_family,
     const std::vector<float>& emb)
 {
     int64_t hashed_id       = pjev::filldb::hash_exemplar_id(id);
@@ -167,11 +161,10 @@ static int64_t insert_test_example(
     {
         sqlite3_stmt* st = nullptr;
         sqlite3_prepare_v2(db,
-            "INSERT OR IGNORE INTO groups(group_id, source, scenario_family) VALUES(?,?,?)",
+            "INSERT OR IGNORE INTO groups(group_id, source) VALUES(?,?)",
             -1, &st, nullptr);
         sqlite3_bind_int64(st, 1, hashed_group_id);
         sqlite3_bind_text (st, 2, "", -1, SQLITE_STATIC);
-        sqlite3_bind_text (st, 3, scenario_family.c_str(), -1, SQLITE_STATIC);
         sqlite3_step(st);
         sqlite3_finalize(st);
     }
@@ -196,9 +189,9 @@ static int64_t insert_test_example(
         const char* sql =
             "INSERT INTO examples("
             "  id, group_id, kind, question, answer_index, number_of_levels,"
-            "  domain, family, scenario_family, template_id, source_instance_id,"
+            "  domain, family,"
             "  state_lz4, options_lz4, embedding_text_lz4, target_lz4"
-            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
         sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
         sqlite3_bind_int64(st, 1, hashed_id);
         sqlite3_bind_int64(st, 2, hashed_group_id);
@@ -209,16 +202,13 @@ static int64_t insert_test_example(
         sqlite3_bind_int(st,   6, number_of_levels);
         sqlite3_bind_text(st,  7, "", -1, SQLITE_STATIC);
         sqlite3_bind_text(st,  8, "", -1, SQLITE_STATIC);
-        sqlite3_bind_text(st,  9, scenario_family.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 10, template_id.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(st, 11, source_instance_id.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_blob(st, 12, state_blob.data(),
+        sqlite3_bind_blob(st,  9, state_blob.data(),
                           static_cast<int>(state_blob.size()), SQLITE_TRANSIENT);
-        sqlite3_bind_blob(st, 13, opts_blob.data(),
+        sqlite3_bind_blob(st, 10, opts_blob.data(),
                           static_cast<int>(opts_blob.size()), SQLITE_TRANSIENT);
-        sqlite3_bind_blob(st, 14, embt_blob.data(),
+        sqlite3_bind_blob(st, 11, embt_blob.data(),
                           static_cast<int>(embt_blob.size()), SQLITE_TRANSIENT);
-        sqlite3_bind_null(st, 15);
+        sqlite3_bind_null(st, 12);
         sqlite3_step(st);
         rowid = sqlite3_last_insert_rowid(db);
         sqlite3_finalize(st);
@@ -258,14 +248,10 @@ static std::string write_test_db_file(int emb_dim)
     std::vector<float> v_score(dim, 0.0f);
     v_score[1] = 1.0f;
 
-    insert_test_example(db, "ex1", "grpA", "choice", 0, "A", 0,
-                        "tmpl1", "si1", "fam1", v_choice);
-    insert_test_example(db, "ex2", "grpA", "choice", 0, "B", 1,
-                        "tmpl1", "si2", "fam1", v_choice);
-    insert_test_example(db, "ex3", "grpB", "score",  3, "2", 2,
-                        "tmpl2", "si3", "fam2", v_score);
-    insert_test_example(db, "ex4", "grpB", "noul",   0, "yes", 0,
-                        "tmpl3", "si4", "fam2", v_choice);
+    insert_test_example(db, "ex1", "grpA", "choice", 0, "A",   0, v_choice);
+    insert_test_example(db, "ex2", "grpA", "choice", 0, "B",   1, v_choice);
+    insert_test_example(db, "ex3", "grpB", "score",  3, "2",   2, v_score);
+    insert_test_example(db, "ex4", "grpB", "noul",   0, "yes", 0, v_choice);
 
     sqlite3_close(db);
     return path;
@@ -385,8 +371,6 @@ static void test_05_kind_filtering()
     choice_query.group_id    = filldb::hash_exemplar_id("qgrp");
     choice_query.kind        = "choice";
     choice_query.number_of_levels = 0;
-    choice_query.template_id = "qtmpl";
-    choice_query.source_instance_id = "qsi";
     choice_query.answer_index = 0;
     choice_query.answer_text  = "A";
 
@@ -416,8 +400,6 @@ static void test_05_kind_filtering()
     score_query.group_id    = filldb::hash_exemplar_id("qgrp");
     score_query.kind        = "score";
     score_query.number_of_levels = 3;
-    score_query.template_id = "qtmpl";
-    score_query.source_instance_id = "qsi";
 
     QueryResult r_score;
     reader.search(score_query, qs, 5, false, r_score);
@@ -458,8 +440,6 @@ static void test_07_ordering()
     choice_query.group_id = filldb::hash_exemplar_id("qgrp");
     choice_query.kind  = "choice";
     choice_query.number_of_levels = 0;
-    choice_query.template_id = "qtmpl";
-    choice_query.source_instance_id = "qsi";
 
     QueryResult r1, r2;
     reader.search(choice_query, q, 5, false, r1);
@@ -505,8 +485,6 @@ static void test_08_fewer_than_k()
     score_query.group_id = filldb::hash_exemplar_id("qgrp");
     score_query.kind  = "score";
     score_query.number_of_levels = 3;
-    score_query.template_id = "qtmpl";
-    score_query.source_instance_id = "qsi";
 
     QueryResult r;
     reader.search(score_query, q, 5, false, r);
@@ -634,8 +612,6 @@ static void test_11_empty_dataset()
     choice_query.group_id = filldb::hash_exemplar_id("qgrp");
     choice_query.kind = "choice";
     choice_query.number_of_levels = 0;
-    choice_query.template_id = "qtmpl";
-    choice_query.source_instance_id = "qsi";
 
     QueryResult r;
     reader.search(choice_query, q, 5, false, r);
@@ -713,31 +689,17 @@ static void test_14_relationship_flags()
     query.group_id         = filldb::hash_exemplar_id("grpA");
     query.kind             = "choice";
     query.number_of_levels = 0;
-    query.template_id      = "tmpl1";
-    query.source_instance_id = "si1";
 
     QueryResult r;
     reader.search(query, q, 5, false, r);
 
-    bool found_same_group    = false;
-    bool found_same_template = false;
-    bool found_same_si       = false;
-    bool found_diff_group    = false;
+    bool found_same_group = false;
 
     for (const auto& ex : r.retrieved) {
-        if (ex.same_group)           found_same_group    = true;
-        if (ex.same_template)        found_same_template = true;
-        if (ex.same_source_instance) found_same_si       = true;
-        if (!ex.same_group)          found_diff_group    = true;
+        if (ex.same_group) found_same_group = true;
     }
 
-    check(found_same_group,    "T14a: same_group flag set for group=grpA");
-    check(found_same_template, "T14b: same_template flag set for template=tmpl1");
-    check(found_same_si,       "T14c: same_source_instance flag set for si=si1");
-    // ex2 has group_id=grpA but different source_instance; ex4 has group_id=grpB
-    // (ex4 is noul so won't appear in choice results)
-    // choice results: ex1, ex2 (both grpA) — no different group in choice set
-    // That's OK; we just verify the flags are correctly computed.
+    check(found_same_group, "T14a: same_group flag set for group=grpA");
 
     // Exclude same group: ex1 and ex2 both have grpA, so result should be 0
     QueryResult r_excl;
