@@ -14,6 +14,8 @@ LlamaConfig::LlamaConfig()
     , n_batch(4096)
     , n_threads(8)
     , n_threads_batch(-1)
+    , n_gpu_layers(0)
+    , main_gpu(0)
     , verbose(false)
 {
     n_threads = get_physical_core_count();
@@ -35,7 +37,8 @@ LlamaBackend::LlamaBackend(const LlamaConfig& cfg) : impl_(new Impl) {
     llama_backend_init();
 
     auto mp = llama_model_default_params();
-    mp.n_gpu_layers = 0;
+    mp.n_gpu_layers = cfg.n_gpu_layers;
+    mp.main_gpu     = cfg.main_gpu;
     impl_->model = llama_model_load_from_file(cfg.model_path.c_str(), mp);
     if (!impl_->model) {
         llama_backend_free();

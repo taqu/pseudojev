@@ -24,7 +24,7 @@ Embedding::Embedding(const EmbeddingConfig& config)
     // for correct llama.cpp operation; custom callbacks can corrupt internal state.
 
     llama_model_params model_params = llama_model_default_params();
-    model_params.n_gpu_layers       = 0;
+    model_params.n_gpu_layers       = 99;
     model_ = llama_model_load_from_file(config.model_path.c_str(), model_params);
     if(!model_) {
         throw std::runtime_error("failed to load model: " + config.model_path);

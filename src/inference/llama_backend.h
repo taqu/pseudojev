@@ -12,6 +12,8 @@ struct LlamaConfig {
     int32_t n_batch;
     int32_t n_threads;
     int32_t n_threads_batch;
+    int32_t n_gpu_layers;
+    int32_t main_gpu;
     bool verbose;
 };
 

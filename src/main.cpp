@@ -69,6 +69,8 @@ static void usage_server(const char* prog) {
         "  --threads N            CPU threads (default: 8)\n"
         "  --threads-batch N      batch CPU threads (default: same as --threads)\n"
         "  --ctx-size N           context size (default: 4096)\n"
+        "  --n-gpu-layers N       number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N           GPU device index to use as main GPU (default: 0)\n"
         "  --verbose              enable llama.cpp verbose logging\n"
         "  --model-name NAME      model name in responses (default: pseudojev)\n"
         "  --request-limit BYTES  max request body size in bytes (default: 1048576)\n"
@@ -99,6 +101,8 @@ static void usage_run(const char* prog) {
         "  --filler-text TEXT         F1: fixed filler inserted before Answer: anchor (empty = disabled)\n"
         "  --threads N                CPU threads (default: 8)\n"
         "  --ctx-size N               context size (default: 4096)\n"
+        "  --n-gpu-layers N           number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N               GPU device index to use as main GPU (default: 0)\n"
         "  --verbose                  enable llama.cpp verbose logging\n",
         prog);
 }
@@ -133,6 +137,8 @@ static void usage_calibration(const char* prog) {
         "    --seed N            split seed for reproducibility (default: 42)\n"
         "    --threads N         CPU threads (default: 8)\n"
         "    --ctx-size N        context size (default: 4096)\n"
+        "    --n-gpu-layers N    number of layers to offload to GPU (default: 0)\n"
+        "    --main-gpu N        GPU device index to use as main GPU (default: 0)\n"
         "    --verbose           enable llama.cpp verbose logging\n"
         "\n"
         "  fit     fit per-primitive alpha+temperature from a calibration dataset\n"
@@ -146,6 +152,8 @@ static void usage_calibration(const char* prog) {
         "    --prior-correction  enable prior correction (also searched via alpha)\n"
         "    --threads N         CPU threads (default: 8)\n"
         "    --ctx-size N        context size (default: 4096)\n"
+        "    --n-gpu-layers N    number of layers to offload to GPU (default: 0)\n"
+        "    --main-gpu N        GPU device index to use as main GPU (default: 0)\n"
         "    --verbose           enable llama.cpp verbose logging\n"
         "\n"
         "  evaluate  compare raw/prior/temperature/combined metrics on a dataset\n"
@@ -159,6 +167,8 @@ static void usage_calibration(const char* prog) {
         "    --prior-correction  enable prior correction\n"
         "    --threads N         CPU threads (default: 8)\n"
         "    --ctx-size N        context size (default: 4096)\n"
+        "    --n-gpu-layers N    number of layers to offload to GPU (default: 0)\n"
+        "    --main-gpu N        GPU device index to use as main GPU (default: 0)\n"
         "    --verbose           enable llama.cpp verbose logging\n",
         prog);
 }
@@ -181,6 +191,8 @@ static void usage_experiment(const char* prog) {
         "  --prior-correction        enable prior correction\n"
         "  --threads N               CPU threads (default: 8)\n"
         "  --ctx-size N              context size (default: 4096)\n"
+        "  --n-gpu-layers N          number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N              GPU device index to use as main GPU (default: 0)\n"
         "  --verbose                 enable llama.cpp verbose logging\n",
         prog);
 }
@@ -193,6 +205,8 @@ static void usage_model(const char* prog) {
         "    --model PATH         path to .gguf model file (required)\n"
         "    --threads N          CPU threads (default: 8)\n"
         "    --ctx-size N         context size (default: 4096)\n"
+        "    --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
+        "    --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
         "    --output FILE        write JSON report here (default: stdout)\n"
         "    --verbose            enable llama.cpp verbose logging\n"
         "\n"
@@ -208,6 +222,8 @@ static void usage_model(const char* prog) {
         "    --prior-correction   enable prior correction\n"
         "    --threads N          CPU threads (default: 8)\n"
         "    --ctx-size N         context size (default: 4096)\n"
+        "    --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
+        "    --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
         "    --verbose            enable llama.cpp verbose logging\n",
         prog);
 }
@@ -223,6 +239,8 @@ static void usage_benchmark(const char* prog) {
         "  --output FILE      JSON output file (optional)\n"
         "  --threads N        CPU threads (default: 8)\n"
         "  --ctx-size N       context size (default: 4096)\n"
+        "  --n-gpu-layers N   number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N       GPU device index to use as main GPU (default: 0)\n"
         "  --no-kv-reuse      disable KV prefix reuse\n"
         "  --no-batch-questions disable question batching\n",
         prog);
@@ -234,6 +252,8 @@ static void usage_diagnostics(const char* prog) {
         "  --model PATH       path to .gguf model file (optional; uses default if omitted)\n"
         "  --threads N        CPU threads (default: 8)\n"
         "  --ctx-size N       context size (default: 4096)\n"
+        "  --n-gpu-layers N   number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N       GPU device index to use as main GPU (default: 0)\n"
         "  --json             output JSON to stdout\n"
         "\n"
         "Shows pjev version, build, platform, CPU, model path, worker status, and config.\n"
@@ -251,6 +271,8 @@ static void usage_noul(const char* prog) {
         "  --calibration FILE   calibration artifact (optional)\n"
         "  --threads N          CPU threads (default: 8)\n"
         "  --ctx-size N         context size (default: 4096)\n"
+        "  --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
         "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
         "  --verbose            enable verbose logging to stderr\n"
         "  --json               output JSON instead of plain text\n"
@@ -275,6 +297,8 @@ static void usage_choice(const char* prog) {
         "  --calibration FILE   calibration artifact (optional)\n"
         "  --threads N          CPU threads (default: 8)\n"
         "  --ctx-size N         context size (default: 4096)\n"
+        "  --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
         "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
         "  --verbose            enable verbose logging to stderr\n"
         "  --json               output JSON instead of plain text\n"
@@ -299,6 +323,8 @@ static void usage_score(const char* prog) {
         "  --calibration FILE   calibration artifact (optional)\n"
         "  --threads N          CPU threads (default: 8)\n"
         "  --ctx-size N         context size (default: 4096)\n"
+        "  --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
         "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
         "  --verbose            enable verbose logging to stderr\n"
         "  --json               output JSON instead of plain text\n"
@@ -424,6 +450,8 @@ static int32_t cmd_server(int32_t argc, char** argv) {
         else if (a == "--threads")      llama_cfg.n_threads = std::stoi(next());
         else if (a == "--threads-batch") llama_cfg.n_threads_batch = std::stoi(next());
         else if (a == "--ctx-size")     llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers") llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")     llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--verbose")      llama_cfg.verbose = true;
         else if (a == "--model-name")   model_name = next();
         else if (a == "--layout")       prompt_cfg.layout = parse_layout(next());
@@ -625,6 +653,8 @@ static int32_t cmd_run(int32_t argc, char** argv) {
         else if (a == "--calibration")     calibration_path = next();
         else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")    llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")        llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--verbose")         llama_cfg.verbose = true;
         else if (a == "--layout")          exp_cfg.layout = parse_layout(next());
         else if (a == "--scheme")          exp_cfg.scheme = parse_scheme(next());
@@ -893,6 +923,8 @@ static int32_t cmd_experiment(int32_t argc, char** argv) {
         else if (a == "--prior-correction") exp_cfg.prior_correction = true;
         else if (a == "--threads")          llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")         llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")     llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")         llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--verbose")          llama_cfg.verbose = true;
         else if (a == "-h" || a == "--help") { usage_experiment("pjev"); return 0; }
         else {
@@ -1152,6 +1184,8 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
         else if (a == "--seed")             split_seed = (uint32_t)std::stoul(next());
         else if (a == "--threads")          llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")         llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")     llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")         llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--verbose")          llama_cfg.verbose = true;
         else if (a == "--layout")           exp_cfg.layout = parse_layout(next());
         else if (a == "--scheme")           exp_cfg.scheme = parse_scheme(next());
@@ -1477,6 +1511,8 @@ static int32_t cmd_model_inspect(int32_t argc, char** argv) {
         if      (a == "--model")           llama_cfg.model_path = next();
         else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")    llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")        llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--verbose")         llama_cfg.verbose = true;
         else if (a == "--output")          output_path = next();
         else if (a == "-h" || a == "--help") { usage_model("pjev"); return 0; }
@@ -1498,7 +1534,7 @@ static int32_t cmd_model_inspect(int32_t argc, char** argv) {
 
     // File-level identity (no backend yet)
     ModelIdentity id = ModelIdentity::from_path(llama_cfg.model_path);
-    spdlog::info("sha256: {}", id.sha256.c_str());
+    spdlog::info("hash: {}", id.hash.c_str());
 
     // Load model (timed)
     int64_t rss_before = get_rss_bytes();
@@ -1605,6 +1641,8 @@ static int32_t cmd_model_evaluate(int32_t argc, char** argv) {
         else if (a == "--prior-correction") exp_cfg.prior_correction = true;
         else if (a == "--threads")          llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")         llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")     llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")         llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--verbose")          llama_cfg.verbose = true;
         else if (a == "-h" || a == "--help") { usage_model("pjev"); return 0; }
         else {
@@ -1843,6 +1881,8 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
         else if (a == "--output")          output_path = next();
         else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")    llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")        llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--no-kv-reuse")     srv_cfg.kv_reuse = false;
         else if (a == "--no-batch-questions") srv_cfg.batch_questions = false;
         else if (a == "-h" || a == "--help") { usage_benchmark("pjev"); return 0; }
@@ -1990,9 +2030,11 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
             return argv[++i];
         };
         if      (a == "--model")   { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--threads")  llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size") llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--json")     json_out = true;
+        else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
+        else if (a == "--ctx-size")     llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers") llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")     llama_cfg.main_gpu = std::stoi(next());
+        else if (a == "--json")         json_out = true;
         else if (a == "-h" || a == "--help") { usage_diagnostics("pjev"); return 0; }
         else {
             spdlog::error("unknown option: {}", a);
@@ -2177,6 +2219,8 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
         else if (a == "--calibration")   calibration_path = next();
         else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")  llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")      llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
         else if (a == "--verbose")       llama_cfg.verbose = true;
         else if (a == "--json")          json_out = true;
@@ -2216,6 +2260,8 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
         cli_cfg.calibration_path  = calibration_path;
         cli_cfg.threads           = llama_cfg.n_threads;
         cli_cfg.ctx_size          = llama_cfg.n_ctx;
+        cli_cfg.n_gpu_layers      = llama_cfg.n_gpu_layers;
+        cli_cfg.main_gpu          = llama_cfg.main_gpu;
         cli_cfg.idle_timeout_secs = idle_timeout_secs;
         try {
             WorkerClient client(cli_cfg);
@@ -2280,6 +2326,8 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
         else if (a == "--calibration")   calibration_path = next();
         else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")  llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")      llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
         else if (a == "--verbose")       llama_cfg.verbose = true;
         else if (a == "--json")          json_out = true;
@@ -2332,6 +2380,8 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
         cli_cfg.calibration_path  = calibration_path;
         cli_cfg.threads           = llama_cfg.n_threads;
         cli_cfg.ctx_size          = llama_cfg.n_ctx;
+        cli_cfg.n_gpu_layers      = llama_cfg.n_gpu_layers;
+        cli_cfg.main_gpu          = llama_cfg.main_gpu;
         cli_cfg.idle_timeout_secs = idle_timeout_secs;
         try {
             WorkerClient client(cli_cfg);
@@ -2394,6 +2444,8 @@ static int32_t cmd_score(int32_t argc, char** argv) {
         else if (a == "--calibration")   calibration_path = next();
         else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
         else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
+        else if (a == "--n-gpu-layers")  llama_cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")      llama_cfg.main_gpu = std::stoi(next());
         else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
         else if (a == "--verbose")       llama_cfg.verbose = true;
         else if (a == "--json")          json_out = true;
@@ -2441,6 +2493,8 @@ static int32_t cmd_score(int32_t argc, char** argv) {
         cli_cfg.calibration_path  = calibration_path;
         cli_cfg.threads           = llama_cfg.n_threads;
         cli_cfg.ctx_size          = llama_cfg.n_ctx;
+        cli_cfg.n_gpu_layers      = llama_cfg.n_gpu_layers;
+        cli_cfg.main_gpu          = llama_cfg.main_gpu;
         cli_cfg.idle_timeout_secs = idle_timeout_secs;
         try {
             WorkerClient client(cli_cfg);
@@ -2555,6 +2609,8 @@ static int32_t cmd_internal_worker(int32_t argc, char** argv) {
         if      (a == "--model")        cfg.model_path = next();
         else if (a == "--threads")      cfg.threads = std::stoi(next());
         else if (a == "--ctx-size")     cfg.ctx_size = std::stoi(next());
+        else if (a == "--n-gpu-layers") cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")     cfg.main_gpu = std::stoi(next());
         else if (a == "--calibration")  cfg.calibration_path = next();
         else if (a == "--idle-timeout") cfg.idle_timeout_secs = std::stoi(next());
         else if (a == "--max-queued")   cfg.max_queued = std::stoi(next());

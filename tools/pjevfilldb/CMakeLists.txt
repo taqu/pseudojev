@@ -26,6 +26,7 @@ add_executable(pjev-filldb
     exemplar_database.cpp
     lz4_utils.cpp
     vec_autoext.cpp
+    ${CMAKE_SOURCE_DIR}/src/murmur3/murmur3.c
     ${CMAKE_SOURCE_DIR}/src/embedding/embedding.cpp
     ${CMAKE_SOURCE_DIR}/src/inference/llama_instance.cpp
     ${CMAKE_SOURCE_DIR}/src/util/platform.cpp
