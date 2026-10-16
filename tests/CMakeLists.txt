@@ -363,3 +363,20 @@ target_include_directories(test_r0 PRIVATE ${PJEV_R0_INCS})
 target_compile_features(test_r0 PRIVATE cxx_std_20)
 add_test(NAME test_r0 COMMAND test_r0
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# test_r1: unit tests — R1 retrieval filter, LZ4 payloads, 1-shot prompts, S1 parity, metrics (no model)
+add_executable(test_r1 test_r1.cpp
+    ${PJEV_R0_SRCS}
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_task.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_output.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
+target_include_directories(test_r1 PRIVATE ${PJEV_R0_INCS} ${CMAKE_SOURCE_DIR}/tools/pjev-r1)
+target_compile_features(test_r1 PRIVATE cxx_std_20)
+add_test(NAME test_r1 COMMAND test_r1
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

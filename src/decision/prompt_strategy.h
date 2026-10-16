@@ -68,6 +68,31 @@ public:
         const std::string& question,
         const std::vector<Candidate>& candidates) const;
 
+    // Closes the demonstration's assistant turn and opens the query's user turn.
+    static constexpr const char* DEMO_TURN_SEPARATOR = "<|im_end|>\n<|im_start|>user\n";
+
+    // R1 retrieved 1-shot: one solved demonstration rendered as a complete earlier turn,
+    // followed by the query prompt exactly as build_prompt_segments() renders it.
+    //
+    // Segments are:
+    //   [0] trusted   = "<|im_start|>user\n"
+    //   [1] untrusted = demonstration user content (same renderer as the query)
+    //   [2] trusted   = ANSWER_ANCHOR
+    //   [3] untrusted = demo_candidates[demo_answer].internal (the demonstration's answer label)
+    //   [4] trusted   = DEMO_TURN_SEPARATOR
+    //   [5] untrusted = query user content
+    //   [6] trusted   = ANSWER_ANCHOR
+    // Segments [4..6] concatenate to the same text as build_prompt_segments() for the query.
+    std::vector<PromptSegment> build_demonstration_prompt_segments(
+        Type type,
+        const std::string& demo_state,
+        const std::string& demo_question,
+        const std::vector<Candidate>& demo_candidates,
+        size_t demo_answer,
+        const std::string& state,
+        const std::string& question,
+        const std::vector<Candidate>& candidates) const;
+
     // Info for shared-prefix KV reuse across same-state questions.
     struct PrefixInfo {
         bool        valid = false;

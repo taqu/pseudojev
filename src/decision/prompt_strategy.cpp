@@ -117,5 +117,28 @@ std::vector<PromptSegment> PromptStrategy::build_prompt_segments(
     segs.push_back(seg2);
     return segs;
 }
+
+std::vector<PromptSegment> PromptStrategy::build_demonstration_prompt_segments(
+    Type type,
+    const std::string& demo_state,
+    const std::string& demo_question,
+    const std::vector<Candidate>& demo_candidates,
+    size_t demo_answer,
+    const std::string& state,
+    const std::string& question,
+    const std::vector<Candidate>& candidates) const
+{
+    assert(demo_answer < demo_candidates.size());
+    std::vector<PromptSegment> segs;
+    segs.push_back({"<|im_start|>user\n", true});
+    // Demonstration content and its answer label are data, never parsed for special tokens
+    segs.push_back({build_user_content(type, demo_state, demo_question, demo_candidates), false});
+    segs.push_back({ANSWER_ANCHOR, true});
+    segs.push_back({demo_candidates[demo_answer].internal, false});
+    segs.push_back({DEMO_TURN_SEPARATOR, true});
+    segs.push_back({build_user_content(type, state, question, candidates), false});
+    segs.push_back({ANSWER_ANCHOR, true});
+    return segs;
+}
 }
 

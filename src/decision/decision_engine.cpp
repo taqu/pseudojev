@@ -102,7 +102,11 @@ std::vector<int32_t> DecisionEngine::make_prompt_tokens(
 {
     std::vector<PromptSegment> segments = strategy_.build_prompt_segments(
         input.type, input.state, input.question, candidates);
+    return tokenize_segments(segments);
+}
 
+std::vector<int32_t> DecisionEngine::tokenize_segments(const std::vector<PromptSegment>& segments)
+{
     std::vector<int32_t> prompt_tokens;
     bool first = true;
     for(const auto& seg: segments) {
@@ -196,7 +200,8 @@ DecisionOutput DecisionEngine::decide_single(const DecisionInput& input)
 DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
                                                   const std::vector<int32_t>* prev_tokens,
                                                   std::vector<int32_t>* tokens_out,
-                                                  int32_t* reused_out)
+                                                  int32_t* reused_out,
+                                                  const Demonstration* demo)
 {
     if(reused_out)
         *reused_out = 0;
@@ -243,8 +248,40 @@ DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
         cand_ids.push_back(it->second);
     }
 
+    std::vector<Candidate> demo_candidates;
+    if(demo) {
+        if(demo->type != input.type) {
+            out.error = "demonstration type does not match the query type";
+            return out;
+        }
+        if(demo->options.size() < 2 || (int32_t)demo->options.size() > PromptStrategy::MAX_CANDIDATES) {
+            out.error = "demonstration has an unsupported number of candidates";
+            return out;
+        }
+        if(demo->answer_index < 0 || (size_t)demo->answer_index >= demo->options.size()) {
+            out.error = "demonstration answer index out of range";
+            return out;
+        }
+        for(const auto& kv: demo->options) {
+            Candidate c;
+            c.key = kv.first;
+            c.description = kv.second;
+            demo_candidates.push_back(c);
+        }
+        strategy_.assign_labels(input.type, demo_candidates);
+        // The demonstration answer must be the same single token the query is scored on.
+        if(cand_token_map_.find(demo_candidates[(size_t)demo->answer_index].internal) == cand_token_map_.end()) {
+            out.error = "demonstration answer label is not a verified single token";
+            return out;
+        }
+    }
+
     auto t0 = now_us();
-    auto prompt_tokens = make_prompt_tokens(input, candidates);
+    auto prompt_tokens = demo
+        ? tokenize_segments(strategy_.build_demonstration_prompt_segments(
+              input.type, demo->state, demo->question, demo_candidates, (size_t)demo->answer_index,
+              input.state, input.question, candidates))
+        : make_prompt_tokens(input, candidates);
     auto t1 = now_us();
     out.prompt_token_count = (int32_t)prompt_tokens.size();
     out.tokenize_us = t1 - t0;
@@ -278,6 +315,12 @@ DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
 
     return finish_from_logits(input, out.keys, candidates, cand_ids, logits,
                               out.prompt_token_count, out.tokenize_us, out.eval_us);
+}
+
+DecisionOutput DecisionEngine::decide_with_demonstration(const DecisionInput& input,
+                                                         const Demonstration& demo)
+{
+    return decide_single_impl(input, nullptr, nullptr, nullptr, &demo);
 }
 
 DecisionOutput DecisionEngine::decide(const DecisionInput& input)

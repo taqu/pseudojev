@@ -110,6 +110,17 @@ struct DecisionOutput
     std::optional<ScoreEnsembleDiag> score_ensemble_diag;
 };
 
+// R1 retrieved 1-shot: one solved example of the same type, shown as an earlier turn.
+struct Demonstration
+{
+    Type type = Type::Unknown;
+    std::string state;
+    std::string question;
+    // ordered list of (key, description); labelled with the same scheme as the query
+    std::vector<std::pair<std::string, std::string>> options;
+    int32_t answer_index = -1; // index into options
+};
+
 struct BatchConfig {
     bool use_kv_reuse = true;
 };
@@ -131,6 +142,11 @@ public:
     // Not thread-safe. Callers must serialize access.
     std::vector<DecisionOutput> decide_batch(const std::vector<DecisionInput>& inputs,
                                               const BatchConfig& cfg = {});
+
+    // R1: single-order decision with one demonstration turn prepended. Never dispatches to an
+    // ensemble; the query candidates are labelled and scored exactly as in the single-order path.
+    // Not thread-safe. Callers must serialize access.
+    DecisionOutput decide_with_demonstration(const DecisionInput& input, const Demonstration& demo);
 
     // Compute candidate logits for a blank (empty state/question) prompt of the given type and n_options.
     // Returns per-candidate raw logits (size = n_options), or empty vector on failure.
@@ -157,6 +173,8 @@ private:
     // Build full prompt tokens for one question.
     std::vector<int32_t> make_prompt_tokens(const DecisionInput& input,
                                              const std::vector<Candidate>& candidates);
+    // Tokenize prompt segments (first trusted segment gets BOS).
+    std::vector<int32_t> tokenize_segments(const std::vector<PromptSegment>& segments);
     // Complete a DecisionOutput from already-computed logits pointer.
     DecisionOutput finish_from_logits(const DecisionInput& input,
                                        const std::vector<std::string>& keys,
@@ -172,10 +190,12 @@ private:
     // decide_single with optional KV prefix reuse: when prev_tokens is non-null, the token prefix
     // shared with prev_tokens (the most recently evaluated sequence) is reused. The evaluated
     // prompt tokens are written to tokens_out and the reused length to reused_out when non-null.
+    // When demo is non-null, the demonstration turn is prepended to the prompt (R1).
     DecisionOutput decide_single_impl(const DecisionInput& input,
                                       const std::vector<int32_t>* prev_tokens,
                                       std::vector<int32_t>* tokens_out,
-                                      int32_t* reused_out);
+                                      int32_t* reused_out,
+                                      const Demonstration* demo = nullptr);
 
     // Cyclic option-rotation ensemble for choice (E2): evaluates N rotations, remaps candidate
     // logits to semantic option order, averages them, then applies temperature and softmax.

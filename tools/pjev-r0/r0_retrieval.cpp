@@ -1,6 +1,7 @@
 #include "r0_retrieval.h"
 
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <algorithm>
@@ -22,6 +23,8 @@ R0Reader::R0Reader(std::string db_path)
 R0Reader::~R0Reader()
 {
     if (stmt_resolve_) { sqlite3_finalize(stmt_resolve_); stmt_resolve_ = nullptr; }
+    if (stmt_id_)      { sqlite3_finalize(stmt_id_);      stmt_id_      = nullptr; }
+    if (stmt_payload_) { sqlite3_finalize(stmt_payload_); stmt_payload_ = nullptr; }
     if (db_)           { sqlite3_close(db_);               db_           = nullptr; }
 }
 
@@ -39,6 +42,17 @@ bool R0Reader::open()
         "SELECT id, group_id, kind, answer_index, options_lz4, number_of_levels "
         "FROM examples WHERE rowid=?";
     if (sqlite3_prepare_v2(db_, resolve_sql, -1, &stmt_resolve_, nullptr) != SQLITE_OK) {
+        return false;
+    }
+    if (sqlite3_prepare_v2(db_, "SELECT id FROM examples WHERE rowid=?",
+                           -1, &stmt_id_, nullptr) != SQLITE_OK) {
+        return false;
+    }
+    const char* payload_sql =
+        "SELECT id, group_id, kind, question, answer_index, number_of_levels, "
+        "       domain, family, state_lz4, options_lz4 "
+        "FROM examples WHERE id=?";
+    if (sqlite3_prepare_v2(db_, payload_sql, -1, &stmt_payload_, nullptr) != SQLITE_OK) {
         return false;
     }
 
@@ -165,16 +179,16 @@ bool R0Reader::resolve_rowid(int64_t rowid, RetrievedExample& ex) const
     return true;
 }
 
-bool R0Reader::search(
-    const filldb::ExemplarRecord& query,
-    const std::vector<float>&     embedding,
-    int                           top_k,
-    bool                          exclude_same_group,
-    QueryResult&                  out) const
+int64_t R0Reader::rowid_to_id(int64_t rowid) const
 {
-    assert(db_ != nullptr);
-    assert(!embedding.empty());
+    sqlite3_reset(stmt_id_);
+    sqlite3_bind_int64(stmt_id_, 1, rowid);
+    if (sqlite3_step(stmt_id_) != SQLITE_ROW) return 0;
+    return sqlite3_column_int64(stmt_id_, 0);
+}
 
+void R0Reader::begin_result(const filldb::ExemplarRecord& query, QueryResult& out) const
+{
     out.query_id                  = query.id;
     out.kind                      = query.kind;
     out.number_of_levels          = query.number_of_levels;
@@ -183,12 +197,20 @@ bool R0Reader::search(
     out.query_ground_truth        = query.answer_text;
     out.retrieved.clear();
     out.retrieved_count = 0;
+}
 
-    // Overfetch when excluding same group so we can still return true top-k.
-    int fetch_k = exclude_same_group
-                  ? std::max(top_k * 4, top_k + 20)
-                  : top_k;
+void R0Reader::set_relation_flags(const filldb::ExemplarRecord& query, RetrievedExample& ex) const
+{
+    ex.same_group = (ex.group_id == query.group_id);
+}
 
+bool R0Reader::knn(
+    const filldb::ExemplarRecord& query,
+    const std::vector<float>&     embedding,
+    int                           fetch_k,
+    std::vector<Candidate>&       candidates) const
+{
+    candidates.clear();
     std::string sql;
     if (query.kind == "score") {
         sql = "SELECT rowid, distance FROM exemplar_vectors "
@@ -213,8 +235,6 @@ bool R0Reader::search(
         sqlite3_bind_text(stmt, 2, query.kind.c_str(), -1, SQLITE_STATIC);
     }
 
-    struct Candidate { int64_t rowid; double distance; };
-    std::vector<Candidate> candidates;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         Candidate c;
         c.rowid    = sqlite3_column_int64(stmt, 0);
@@ -229,6 +249,28 @@ bool R0Reader::search(
             if (a.distance != b.distance) return a.distance < b.distance;
             return a.rowid < b.rowid;
         });
+    return true;
+}
+
+bool R0Reader::search(
+    const filldb::ExemplarRecord& query,
+    const std::vector<float>&     embedding,
+    int                           top_k,
+    bool                          exclude_same_group,
+    QueryResult&                  out) const
+{
+    assert(db_ != nullptr);
+    assert(!embedding.empty());
+
+    begin_result(query, out);
+
+    // Overfetch when excluding same group so we can still return true top-k.
+    int fetch_k = exclude_same_group
+                  ? std::max(top_k * 4, top_k + 20)
+                  : top_k;
+
+    std::vector<Candidate> candidates;
+    if (!knn(query, embedding, fetch_k, candidates)) return false;
 
     int rank = 1;
     for (const auto& c : candidates) {
@@ -242,13 +284,120 @@ bool R0Reader::search(
 
         if (exclude_same_group && ex.group_id == query.group_id) continue;
 
-        ex.rank       = rank++;
-        ex.same_group = (ex.group_id == query.group_id);
+        ex.rank = rank++;
+        set_relation_flags(query, ex);
 
         out.retrieved.push_back(std::move(ex));
         out.retrieved_count++;
     }
 
+    return true;
+}
+
+bool R0Reader::search_filtered(
+    const filldb::ExemplarRecord&         query,
+    const std::vector<float>&             embedding,
+    int                                   top_k,
+    const std::function<bool(int64_t)>&   eligible,
+    int                                   max_fetch_k,
+    QueryResult&                          out,
+    int*                                  fetched_k_out) const
+{
+    assert(db_ != nullptr);
+    assert(!embedding.empty());
+
+    max_fetch_k = std::min(max_fetch_k, kMaxFetchK);
+    int fetch_k = std::min(std::max(top_k, 1), max_fetch_k);
+    std::vector<Candidate> candidates;
+    for (;;) {
+        begin_result(query, out);
+        if (!knn(query, embedding, fetch_k, candidates)) return false;
+
+        int rank = 1;
+        for (const auto& c : candidates) {
+            if (out.retrieved_count >= top_k) break;
+            // Cheap id lookup first; payload columns are only read for accepted rows.
+            if (!eligible(rowid_to_id(c.rowid))) continue;
+
+            RetrievedExample ex;
+            ex.distance   = c.distance;
+            ex.similarity = std::max(0.0, 1.0 - c.distance);
+            if (!resolve_rowid(c.rowid, ex)) continue;
+
+            ex.rank = rank++;
+            set_relation_flags(query, ex);
+            out.retrieved.push_back(std::move(ex));
+            out.retrieved_count++;
+        }
+
+        // Done when filled, when the index has no more candidates, or at the cap.
+        if (out.retrieved_count >= top_k ||
+            static_cast<int>(candidates.size()) < fetch_k ||
+            fetch_k >= max_fetch_k) {
+            break;
+        }
+        fetch_k = std::min(fetch_k * 4, max_fetch_k);
+    }
+    if (fetched_k_out) *fetched_k_out = fetch_k;
+    return true;
+}
+
+bool R0Reader::load_payload(int64_t example_id, ExemplarPayload& out, std::string& err) const
+{
+    assert(db_ != nullptr);
+    err.clear();
+    sqlite3_reset(stmt_payload_);
+    sqlite3_bind_int64(stmt_payload_, 1, example_id);
+    if (sqlite3_step(stmt_payload_) != SQLITE_ROW) {
+        err = "exemplar not found";
+        return false;
+    }
+
+    auto col_text = [&](int c) -> std::string {
+        const char* v = reinterpret_cast<const char*>(sqlite3_column_text(stmt_payload_, c));
+        return v ? v : "";
+    };
+
+    out.example_id         = sqlite3_column_int64(stmt_payload_, 0);
+    out.group_id           = sqlite3_column_int64(stmt_payload_, 1);
+    out.kind               = col_text(2);
+    out.question           = col_text(3);
+    out.answer_index       = (sqlite3_column_type(stmt_payload_, 4) == SQLITE_NULL)
+                             ? -1 : sqlite3_column_int(stmt_payload_, 4);
+    out.number_of_levels   = sqlite3_column_int(stmt_payload_, 5);
+    out.domain             = col_text(6);
+    out.family             = col_text(7);
+
+    auto t0 = std::chrono::steady_clock::now();
+    std::string state_json = pjev::lz4::decompress(
+        sqlite3_column_blob(stmt_payload_, 8),
+        static_cast<size_t>(sqlite3_column_bytes(stmt_payload_, 8)), err);
+    if (!err.empty()) { err = "state_lz4: " + err; return false; }
+    std::string options_json = pjev::lz4::decompress(
+        sqlite3_column_blob(stmt_payload_, 9),
+        static_cast<size_t>(sqlite3_column_bytes(stmt_payload_, 9)), err);
+    if (!err.empty()) { err = "options_lz4: " + err; return false; }
+
+    try {
+        out.state = nlohmann::ordered_json::parse(state_json);
+        auto opts = nlohmann::ordered_json::parse(options_json);
+        if (!opts.is_array()) { err = "options payload is not an array"; return false; }
+        out.options.clear();
+        for (const auto& o : opts) {
+            if (!o.is_string()) { err = "options payload contains a non-string"; return false; }
+            out.options.push_back(o.get<std::string>());
+        }
+    } catch (const std::exception& e) {
+        err = std::string("payload JSON: ") + e.what();
+        return false;
+    }
+    out.decompress_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - t0).count();
+
+    if (out.answer_index >= static_cast<int>(out.options.size())) {
+        err = "answer_index out of range for stored options";
+        return false;
+    }
     return true;
 }
 

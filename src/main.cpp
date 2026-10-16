@@ -60,7 +60,7 @@ using namespace pjev;
 static void usage_server(const char* prog) {
     fprintf(stderr,
         "usage: %s server|serve --model PATH [options]\n"
-        "  --model PATH           path to .gguf model file (default: models/bunsai1.7b.gguf)\n"
+        "  --model PATH           path to .gguf model file (default: models/bonsai2_2b.gguf)\n"
         "  --port N               HTTP port (default: 8080)\n"
         "  --host ADDR            bind address (default: 127.0.0.1)\n"
         "  --calibration FILE     load calibration artifact (optional)\n"
@@ -84,7 +84,7 @@ static void usage_server(const char* prog) {
 static void usage_run(const char* prog) {
     fprintf(stderr,
         "usage: %s run --model PATH --input FILE [options]\n"
-        "  --model PATH               path to .gguf model file (default: models/bunsai1.7b.gguf)\n"
+        "  --model PATH               path to .gguf model file (default: models/bonsai2_2b.gguf)\n"
         "  --input FILE               JSONL/JSON dataset file (required, or - for stdin)\n"
         "  --output FILE              write JSON result here (default: stdout)\n"
         "  --calibration FILE         calibration artifact (default: models/calibration.json;\n"
@@ -431,7 +431,7 @@ enum class ServerState { INITIALIZING, READY, SHUTTING_DOWN };
 static int32_t cmd_server(int32_t argc, char** argv) {
     LlamaConfig  llama_cfg;
     PromptConfig prompt_cfg;
-    llama_cfg.model_path = "models/bunsai1.7b.gguf";
+    llama_cfg.model_path = "models/bonsai2_2b.gguf";
     ServerConfig srv_cfg;
     std::string  model_name      = "pseudojev";
     std::string  calibration_path = "models/calibration.json";
@@ -477,7 +477,7 @@ static int32_t cmd_server(int32_t argc, char** argv) {
         if (!resolved.empty()) {
             llama_cfg.model_path = resolved;
         }
-        // else: keep the default "models/bunsai1.7b.gguf" for dev use
+        // else: keep the default "models/bonsai2_2b.gguf" for dev use
     }
 
     SpdLogShutdown spdlog_shutdown;
@@ -631,7 +631,7 @@ static bool load_calibration_artifact(const std::string& path,
 
 static int32_t cmd_run(int32_t argc, char** argv) {
     LlamaConfig    llama_cfg;
-    llama_cfg.model_path = "models/bunsai1.7b.gguf";
+    llama_cfg.model_path = "models/bonsai2_2b.gguf";
     ExperimentConfig exp_cfg;
     exp_cfg.name = "run";
     exp_cfg.record_score_candidates = true;
@@ -1159,7 +1159,7 @@ static int32_t cmd_calibration(int32_t argc, char** argv) {
     argc--; argv++;
 
     LlamaConfig llama_cfg;
-    llama_cfg.model_path = "models/bunsai1.7b.gguf";
+    llama_cfg.model_path = "models/bonsai2_2b.gguf";
     ExperimentConfig exp_cfg;
     exp_cfg.collect_corrected_logits = true;
     std::string input_path;
@@ -2048,7 +2048,7 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         std::string exe_dir = get_executable_dir();
         std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
         if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/bunsai1.7b.gguf";
+        else llama_cfg.model_path = "models/bonsai2_2b.gguf";
     }
 
     // CPU detection
@@ -2243,7 +2243,7 @@ static int32_t cmd_noul(int32_t argc, char** argv) {
         std::string exe_dir = get_executable_dir();
         std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
         if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/bunsai1.7b.gguf";
+        else llama_cfg.model_path = "models/bonsai2_2b.gguf";
     }
 
     DecisionInput input;
@@ -2363,7 +2363,7 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
         std::string exe_dir = get_executable_dir();
         std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
         if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/bunsai1.7b.gguf";
+        else llama_cfg.model_path = "models/bonsai2_2b.gguf";
     }
 
     DecisionInput input;
@@ -2476,7 +2476,7 @@ static int32_t cmd_score(int32_t argc, char** argv) {
         std::string exe_dir = get_executable_dir();
         std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
         if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/bunsai1.7b.gguf";
+        else llama_cfg.model_path = "models/bonsai2_2b.gguf";
     }
 
     DecisionInput input;
@@ -2595,7 +2595,7 @@ static int32_t cmd_stop(int32_t argc, char** argv) {
 
 static int32_t cmd_internal_worker(int32_t argc, char** argv) {
     WorkerConfig cfg;
-    cfg.model_path = "models/bunsai1.7b.gguf";
+    cfg.model_path = "models/bonsai2_2b.gguf";
     cfg.calibration_path = "models/calibration.json";
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];

@@ -1,0 +1,14 @@
+condition,stage,n,mean_ms,median_ms,p95_ms,total_ms
+s1,prompt_construction,12,1.899,1.789,2.410,22.8
+s1,prompt_evaluation,12,317.344,309.279,360.951,3808.1
+s1,answer_scoring,12,0.005,0.006,0.006,0.1
+s1,total,12,319.257,311.300,362.671,3831.1
+r1,query_embedding,12,6.657,5.570,12.729,79.9
+r1,vector_search,12,115.459,116.617,153.515,1385.5
+r1,exemplar_retrieval,12,0.007,0.005,0.015,0.1
+r1,lz4_decompression,12,0.055,0.057,0.071,0.7
+r1,prompt_construction,12,2.868,2.728,3.427,34.4
+r1,prompt_evaluation,12,508.006,508.120,527.681,6096.1
+r1,answer_scoring,12,0.004,0.005,0.006,0.1
+r1,decision_total,12,510.889,510.880,530.678,6130.7
+r1,total,12,633.067,640.048,683.485,7596.8
