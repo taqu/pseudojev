@@ -204,6 +204,11 @@ nlohmann::ordered_json item_to_json(const R1Item& it)
     rj["decompress_ms"] = r.decompress_ms;
     j["retrieval"] = rj;
 
+    if (it.gate.enabled) {
+        j["gate"] = {{"threshold", it.gate.threshold},
+                     {"similarity", it.gate.similarity},
+                     {"decision", it.gate.decision}};
+    }
     j["paired"] = it.paired;
     // Ternary on const char* and nullptr would yield a null char pointer, not JSON null.
     if (it.paired) j["transition"] = to_string(it.transition);

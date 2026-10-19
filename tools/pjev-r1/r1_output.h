@@ -70,6 +70,14 @@ struct RetrievalInfo {
     bool ok() const { return status == "ok"; }
 };
 
+// R2 similarity gate outcome; only populated when the harness runs with a gate.
+struct GateInfo {
+    bool        enabled    = false;
+    double      threshold  = 0.0;
+    double      similarity = 0.0;  // estimated cosine of the Top-1 exemplar
+    std::string decision;          // activated | rejected | no_exemplar | invalid_similarity
+};
+
 struct R1Item {
     std::string              query_id;
     int64_t                  query_hash       = 0;
@@ -84,6 +92,7 @@ struct R1Item {
     ConditionResult          s1;
     ConditionResult          r1;
     RetrievalInfo            retrieval;
+    GateInfo                 gate;
     bool                     paired           = false;
     Transition               transition       = Transition::BothIncorrect;
 

@@ -28,9 +28,11 @@
 #include "exemplar_record.h"
 #include "id_hash.h"
 #include "r0_retrieval.h"
+#include "r1_harness.h"
 #include "r1_metrics.h"
 #include "r1_output.h"
 #include "r1_task.h"
+#include "r2_gate.h"
 
 #include "sqlite/sqlite3.h"
 
@@ -90,14 +92,14 @@ struct Query {
     int            ground_truth = -1;  // candidate index
 };
 
-int main(int argc, char** argv)
+int pjev::r1::run_harness(int argc, char** argv, const HarnessHooks& hooks)
 {
     std::string input_path      = "datasets/validation.jsonl";
     std::string db_path         = "models/examplar.db";
     std::string train_path      = "datasets/train.jsonl";
     std::string emb_model_path  = "models/nomic-embed-text-v1.5.gguf";
     std::string model_path      = "models/bonsai2_2b.gguf";
-    std::string output_dir      = "results/r1";
+    std::string output_dir      = hooks.default_output;
     std::string corpus;
     std::string kind_filter;
     int         top_k           = 1;
@@ -351,6 +353,7 @@ int main(int argc, char** argv)
     items.reserve(queries.size());
     int parity_checked = 0, parity_mismatch = 0;
     double s1_seconds = 0.0, r1_seconds = 0.0;
+    int gate_activated = 0, gate_rejected = 0, gate_unavailable = 0, second_passes = 0;
 
     for (size_t qi = 0; qi < queries.size(); ++qi) {
         const Query& q = queries[qi];
@@ -402,8 +405,23 @@ int main(int argc, char** argv)
                     r.status = "search_error";
                 } else if (qr.retrieved.empty()) {
                     r.status = "no_eligible_exemplar";
+                } else if (const auto& top = qr.retrieved.front();
+                           hooks.gate_enabled &&
+                           r2::gate_decide(true, estimated_cosine(top.distance, emb_dim),
+                                           hooks.gate_threshold) != r2::GateDecision::Activated) {
+                    // R2 gate rejected (or invalid similarity): keep the retrieval diagnostics, skip
+                    // the exemplar load and the 1-shot pass entirely.
+                    r.status             = "ok";
+                    r.example_id         = top.example_id;
+                    r.kind               = q.rec.kind;
+                    r.number_of_levels   = q.rec.number_of_levels;
+                    r.hamming_distance   = top.distance;
+                    r.hamming_similarity = hamming_similarity(top.distance, emb_dim);
+                    r.estimated_cosine   = estimated_cosine(top.distance, emb_dim);
+                    r.estimated_cosine_distance = 1.0 - r.estimated_cosine;
+                    r.same_group         = top.same_group;
+                    it.r1.status         = "gate_rejected";
                 } else {
-                    const auto& top = qr.retrieved.front();
                     r0::ExemplarPayload p;
                     std::string err;
                     auto tf = Clock::now();
@@ -457,6 +475,16 @@ int main(int argc, char** argv)
             DecisionOutput r1_out = engine->decide_with_demonstration(input, demo);
             double r1_ms = ms_since(t1);
             fill_condition(r1_out, it.option_labels, it.option_texts, q.ground_truth, r1_ms, it.r1);
+            second_passes++;
+        }
+        if (hooks.gate_enabled) {
+            it.gate.enabled    = true;
+            it.gate.threshold  = hooks.gate_threshold;
+            it.gate.similarity = r.ok() ? r.estimated_cosine : 0.0;
+            it.gate.decision   = r2::to_string(r2::gate_decide(r.ok(), it.gate.similarity, hooks.gate_threshold));
+            if (it.gate.decision == std::string("activated")) gate_activated++;
+            else if (r.ok())                                  gate_rejected++;
+            else                                              gate_unavailable++;
         }
         r1_seconds += (r.embed_ms + r.search_ms + r.fetch_ms + r.decompress_ms + it.r1.total_ms) / 1000.0;
 
@@ -513,12 +541,19 @@ int main(int argc, char** argv)
     info.notes.push_back(std::to_string(db_train_no_one_hot) +
                          " training records have no one-hot answer (soft target) and are not eligible exemplars.");
 
+    if (hooks.gate_enabled) {
+        info.notes.push_back("R2 gate at estimated cosine >= " + std::to_string(hooks.gate_threshold) +
+                             ": " + std::to_string(gate_rejected) + " queries kept S1 without a 1-shot pass, "
+                             "so the R1 columns of this report cover activated queries only.");
+    }
+
     auto& c = info.config;
-    c["experiment"]            = "R1 retrieved 1-shot";
+    c["experiment"]            = hooks.experiment;
     c["run_timestamp"]         = run_timestamp;
     c["corpus"]                = corpus;
     c["preliminary"]           = preliminary;
     c["input_path"]            = input_path;
+    c["input_sha256"]          = sha256_file(input_path);
     c["db_path"]               = db_path;
     c["train_path"]            = train_path;
     c["inference_model"]       = model_path;
@@ -561,6 +596,16 @@ int main(int argc, char** argv)
         {"task_mapping_errors", n_task_err}, {"eligible", n_eligible_queries},
         {"evaluated", queries.size()}};
     c["parity_check"] = {{"checked", parity_checked}, {"mismatches", parity_mismatch}};
+    if (hooks.gate_enabled) {
+        c["gate"] = {
+            {"metric", "estimated_cosine = cos(pi * hamming / embedding_dim)"},
+            {"rule", "similarity >= threshold activates the 1-shot pass"},
+            {"threshold", hooks.gate_threshold},
+            {"activated", gate_activated},
+            {"rejected", gate_rejected},
+            {"no_exemplar_or_retrieval_error", gate_unavailable},
+            {"second_pass_calls", second_passes}};
+    }
 
     printf("\nWriting outputs to %s\n", output_dir.c_str());
     bool ok = true;
@@ -590,5 +635,16 @@ int main(int argc, char** argv)
     printf("Paired %d: S1 %.2f%%  R1 %.2f%%  diff %+.2f pp  rescue %d  harm %d  (parity mismatches %d)\n",
            all.n(), all.s1_accuracy() * 100, all.r1_accuracy() * 100, all.accuracy_diff() * 100,
            all.rescue, all.harm, parity_mismatch);
+    if (hooks.gate_enabled) {
+        printf("Gate: activated %d  rejected %d  unavailable %d  second passes %d\n",
+               gate_activated, gate_rejected, gate_unavailable, second_passes);
+    }
     return parity_mismatch == 0 ? 0 : 2;
 }
+
+#ifndef PJEV_R1_NO_MAIN
+int main(int argc, char** argv)
+{
+    return pjev::r1::run_harness(argc, argv, pjev::r1::HarnessHooks{});
+}
+#endif

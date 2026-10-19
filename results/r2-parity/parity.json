@@ -1,0 +1,30 @@
+{
+  "online": "results/r2-online/predictions.jsonl",
+  "reference": "results/r1-2b/predictions.jsonl",
+  "threshold": 0.9039892931234433,
+  "identity_differences": [],
+  "records": 5811,
+  "matched": 5811,
+  "activated": 5467,
+  "rejected": 344,
+  "second_pass_calls": 5467,
+  "rejected_with_second_pass": 0,
+  "activated_without_second_pass": 0,
+  "hamming_mismatch": 0,
+  "gate_decision_mismatch": 0,
+  "s1_prediction_mismatch": 0,
+  "r2_prediction_mismatch": 0,
+  "r1_logit_vectors_differing": 0,
+  "r1_max_abs_logit_diff": 0.0,
+  "mismatch_examples": [],
+  "measured_ms_per_query": {
+    "s1": 205.07082901393915,
+    "retrieval": 117.58012655308877,
+    "one_shot_pass_amortised": 279.5394662880746,
+    "r2_total": 602.1904218551025,
+    "r2_over_s1": 2.9364996706292645,
+    "reference_deployed_r1": 440.0045692135598,
+    "r2_over_reference_deployed_r1": 1.3686003827901716
+  },
+  "passed": true
+}

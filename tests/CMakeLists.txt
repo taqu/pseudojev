@@ -380,3 +380,14 @@ target_include_directories(test_r1 PRIVATE ${PJEV_R0_INCS} ${CMAKE_SOURCE_DIR}/t
 target_compile_features(test_r1 PRIVATE cxx_std_20)
 add_test(NAME test_r1 COMMAND test_r1
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# test_r2: unit tests — R2 similarity gate, offline replay, threshold selection, partition (no model)
+add_executable(test_r2 test_r2.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r2/r2_offline.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/lz4/xxhash.c)
+target_include_directories(test_r2 PRIVATE ${PJEV_R0_INCS} ${CMAKE_SOURCE_DIR}/tools/pjev-r1
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r2)
+target_compile_features(test_r2 PRIVATE cxx_std_20)
+add_test(NAME test_r2 COMMAND test_r2
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

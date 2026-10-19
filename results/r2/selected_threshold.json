@@ -1,0 +1,71 @@
+{
+  "policy": "global_threshold",
+  "threshold": 0.9039892931234433,
+  "threshold_hamming_equivalent": 108.0,
+  "metric": "estimated_cosine = cos(pi * hamming / 768)",
+  "rule": "similarity >= threshold",
+  "selection_policy": "Candidates: never activate (all S1) plus every distinct Top-1 similarity observed on the tuning partition (gate: similarity >= threshold). Objective: maximise paired R2 accuracy on tuning. Ties: lower activation count wins (never-activate counts as zero). Fixed before any held-out result was computed; held-out data never enters selection.",
+  "candidates": 84,
+  "tuning": {
+    "n": 5863,
+    "activated": 5827,
+    "activation_rate": 0.9938597987378475,
+    "s1_accuracy": 0.3905850247313662,
+    "r1_accuracy": 0.5041787480811871,
+    "r2_accuracy": 0.5050315538120416,
+    "rescue": 1317,
+    "harm": 646,
+    "rescue_lost": 3,
+    "harm_prevented": 8
+  },
+  "per_kind_diagnostic": {
+    "choice": {
+      "policy": "threshold",
+      "threshold": 0.9174944964474913,
+      "tuning": {
+        "n": 3855,
+        "activated": 3770,
+        "activation_rate": 0.9779507133592736,
+        "s1_accuracy": 0.39040207522697795,
+        "r1_accuracy": 0.40700389105058365,
+        "r2_accuracy": 0.4088197146562905,
+        "rescue": 510,
+        "harm": 439,
+        "rescue_lost": 2,
+        "harm_prevented": 9
+      }
+    },
+    "noul": {
+      "policy": "threshold",
+      "threshold": 0.9039892931234433,
+      "tuning": {
+        "n": 1322,
+        "activated": 1314,
+        "activation_rate": 0.9939485627836612,
+        "s1_accuracy": 0.527231467473525,
+        "r1_accuracy": 0.8691376701966718,
+        "r2_accuracy": 0.8721633888048411,
+        "rescue": 601,
+        "harm": 145,
+        "rescue_lost": 2,
+        "harm_prevented": 6
+      }
+    },
+    "score": {
+      "policy": "threshold",
+      "threshold": 0.9108638249211758,
+      "tuning": {
+        "n": 686,
+        "activated": 686,
+        "activation_rate": 1.0,
+        "s1_accuracy": 0.1282798833819242,
+        "r1_accuracy": 0.3469387755102041,
+        "r2_accuracy": 0.3469387755102041,
+        "rescue": 205,
+        "harm": 55,
+        "rescue_lost": 0,
+        "harm_prevented": 0
+      }
+    }
+  }
+}

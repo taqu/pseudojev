@@ -18,6 +18,7 @@ set(PJEV_R1_INCS
     ${CMAKE_SOURCE_DIR}/spdlog/include
     ${CMAKE_SOURCE_DIR}/tools/pjevfilldb
     ${CMAKE_SOURCE_DIR}/tools/pjev-r0
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r2
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

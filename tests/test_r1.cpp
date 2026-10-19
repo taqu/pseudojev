@@ -61,7 +61,7 @@ static size_t count_of(const std::string& s, const std::string& needle)
 }
 
 // ---------------------------------------------------------------------------
-// Test database: production schema v3, 16-bit binary vectors
+// Test database: production schema v4, 16-bit binary vectors
 // ---------------------------------------------------------------------------
 
 static constexpr int kDim = 16;
