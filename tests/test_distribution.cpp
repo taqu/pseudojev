@@ -1,8 +1,9 @@
-// Tests for Phase 8 distribution: ReleaseConfig, path resolution, get_executable_dir
+// Tests for distribution: ReleaseConfig (pjev.json), runtime resource path resolution, get_executable_dir
 #include "distribution/release_config.h"
 #include "util/platform.h"
 #include <cassert>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -40,6 +41,9 @@ static void test_release_config_parse() {
         "default_model": "model.gguf",
         "threads": 4,
         "context_size": 2048,
+        "embedding_model": "emb.gguf",
+        "exemplar_db": "data/ex.db",
+        "exemplar_allowlist": "allow.txt",
         "kv_reuse": false,
         "batch_questions": true
     })");
@@ -55,8 +59,51 @@ static void test_release_config_parse() {
     CHECK(rc.default_model == "model.gguf", "default_model");
     CHECK(rc.threads == 4, "threads");
     CHECK(rc.context_size == 2048, "context_size");
-    CHECK(!rc.kv_reuse, "kv_reuse=false");
-    CHECK(rc.batch_questions, "batch_questions=true");
+    CHECK(rc.embedding_model == "emb.gguf", "embedding_model");
+    CHECK(rc.exemplar_db == "data/ex.db", "exemplar_db");
+    CHECK(rc.exemplar_allowlist == "allow.txt", "exemplar_allowlist");
+    // Keys of earlier releases (kv_reuse, batch_questions, calibration) are ignored, not errors.
+}
+
+static void test_release_config_bad_type() {
+    using namespace pjev;
+    std::string path = write_temp("test_pjev_bad.json", R"({"threads": "eight"})");
+    ReleaseConfig rc;
+    std::string err;
+    CHECK(!ReleaseConfig::from_file(path, rc, err) && !err.empty(), "from_file: wrong value type is an error");
+    remove_temp(path);
+}
+
+static void test_resolve_runtime_paths() {
+    using namespace pjev;
+    namespace fs = std::filesystem;
+    // No executable directory: explicit values win, the rest falls back to models/<default>.
+    RuntimePaths flags;
+    flags.exemplar_db = "/explicit/ex.db";
+    RuntimePaths p = ReleaseConfig::resolve_runtime_paths(flags, "");
+    CHECK(p.exemplar_db == "/explicit/ex.db", "runtime paths: explicit flag wins");
+    CHECK(p.model == "models/bonsai2_2b.gguf", "runtime paths: development model fallback");
+    CHECK(p.embedding_model == "models/nomic-embed-text-v1.5.gguf", "runtime paths: development embedding fallback");
+    CHECK(p.exemplar_allowlist == "models/examplar-allowlist.txt", "runtime paths: development allowlist fallback");
+
+    // Files next to the executable.
+    const fs::path dir = fs::absolute("test_dist_exe_dir");
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    std::ofstream((dir / "nomic-embed-text-v1.5.gguf").string()) << "x";
+    std::ofstream((dir / "examplar.db").string()) << "x";
+    p = ReleaseConfig::resolve_runtime_paths(RuntimePaths{}, dir.string());
+    CHECK(p.embedding_model == (dir / "nomic-embed-text-v1.5.gguf").string(), "runtime paths: adjacent embedding model");
+    CHECK(p.exemplar_db == (dir / "examplar.db").string(), "runtime paths: adjacent database");
+    CHECK(p.exemplar_allowlist == "models/examplar-allowlist.txt", "runtime paths: missing adjacent file falls back");
+
+    // pjev.json next to the executable: bare names are relative to it, paths are kept.
+    std::ofstream((dir / "pjev.json").string()) << R"({"embedding_model": "e.gguf", "exemplar_allowlist": "sub/a.txt"})";
+    p = ReleaseConfig::resolve_runtime_paths(RuntimePaths{}, dir.string());
+    CHECK(p.embedding_model == (dir / "e.gguf").string(), "runtime paths: pjev.json bare name relative to exe dir");
+    CHECK(p.exemplar_allowlist == "sub/a.txt", "runtime paths: pjev.json path kept");
+    CHECK(p.exemplar_db == (dir / "examplar.db").string(), "runtime paths: unset key falls through to adjacent file");
+    fs::remove_all(dir);
 }
 
 static void test_release_config_missing() {
@@ -97,6 +144,8 @@ int main() {
     test_exe_dir();
     test_release_config_parse();
     test_release_config_missing();
+    test_release_config_bad_type();
+    test_resolve_runtime_paths();
     test_resolve_model_explicit();
     test_resolve_model_no_exe_dir();
     test_to_json();

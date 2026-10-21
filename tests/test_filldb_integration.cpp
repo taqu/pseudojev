@@ -1,5 +1,6 @@
 #include "exemplar_record.h"
-#include "embedding_text.h"
+#include "retrieval/embedding_text.h"
+#include "retrieval/exemplar_allowlist.h"
 #include "exemplar_database.h"
 #include "embedding/embedding.h"
 #include "inference/llama_instance.h"
@@ -20,6 +21,7 @@ static void check(bool cond, const char* what) {
 
 using namespace pjev;
 using namespace pjev::filldb;
+using namespace pjev::retrieval;
 using json = nlohmann::ordered_json;
 
 static const char* MODEL_PATH = "models/nomic-embed-text-v1.5.gguf";
@@ -103,11 +105,11 @@ int main()
 
             std::vector<float> emb_vec;
             if(!embedding.encode(emb_vec, rec.embedding_text)) {
-                printf("FAIL: embedding failed for %s\n", rec.id.c_str());
+                printf("FAIL: embedding failed for %s\n", format_exemplar_id(rec.id).c_str());
                 return false;
             }
             if((int)emb_vec.size() != emb_dim) {
-                printf("FAIL: unexpected dim %d for %s\n", (int)emb_vec.size(), rec.id.c_str());
+                printf("FAIL: unexpected dim %d for %s\n", (int)emb_vec.size(), format_exemplar_id(rec.id).c_str());
                 return false;
             }
 
@@ -115,7 +117,7 @@ int main()
             double norm2 = 0;
             for(float f : emb_vec) norm2 += (double)f * f;
             if(std::fabs(norm2 - 1.0) >= 0.01)
-                printf("FAIL: embedding not unit-norm for %s (norm2=%f)\n", rec.id.c_str(), norm2);
+                printf("FAIL: embedding not unit-norm for %s (norm2=%f)\n", format_exemplar_id(rec.id).c_str(), norm2);
 
             db.begin_transaction();
             db.insert_group(rec);
@@ -148,8 +150,8 @@ int main()
             sqlite3_stmt* stmt = nullptr;
             sqlite3_prepare_v2(raw,
                 "SELECT rowid, distance FROM exemplar_vectors "
-                "WHERE kind = 'score' AND embedding MATCH ? "
-                "ORDER BY distance LIMIT 5;",
+                "WHERE kind = 'score' AND embedding MATCH vec_quantize_binary(?) AND k = 5 "
+                "ORDER BY distance;",
                 -1, &stmt, nullptr);
             sqlite3_bind_blob(stmt, 1, q_emb.data(),
                               (int)(q_emb.size() * sizeof(float)), SQLITE_STATIC);
@@ -168,8 +170,8 @@ int main()
             // KNN on choice kind should not return score
             sqlite3_prepare_v2(raw,
                 "SELECT rowid FROM exemplar_vectors "
-                "WHERE kind = 'choice' AND embedding MATCH ? "
-                "ORDER BY distance LIMIT 5;",
+                "WHERE kind = 'choice' AND embedding MATCH vec_quantize_binary(?) AND k = 5 "
+                "ORDER BY distance;",
                 -1, &stmt, nullptr);
             sqlite3_bind_blob(stmt, 1, q_emb.data(),
                               (int)(q_emb.size() * sizeof(float)), SQLITE_STATIC);

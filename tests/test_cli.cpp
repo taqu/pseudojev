@@ -123,10 +123,10 @@ static void test_score_format() {
 static void test_noul_engine_false() {
     MockBackend mock;
     mock.set_winner(65); // "A" / false wins (noul always uses A/B labels)
-    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL});
+    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL}, pjev::CalibrationConfig{}, pjev::EnsembleConfig{pjev::NoulEnsembleMode::NONE, pjev::ChoiceEnsembleMode::NONE, pjev::ScoreEnsembleMode::NONE});
 
     pjev::DecisionInput input;
-    input.type     = "noul";
+    input.type     = pjev::Type::Noul;
     input.state    = "The sky is blue.";
     input.question = "Is it night?";
     input.options  = {{"false", ""}, {"true", ""}};
@@ -144,10 +144,10 @@ static void test_noul_engine_false() {
 static void test_choice_engine() {
     MockBackend mock;
     mock.set_winner(66); // 'B' wins (token 66)
-    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS});
+    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS}, pjev::CalibrationConfig{}, pjev::EnsembleConfig{pjev::NoulEnsembleMode::NONE, pjev::ChoiceEnsembleMode::NONE, pjev::ScoreEnsembleMode::NONE});
 
     pjev::DecisionInput input;
-    input.type     = "choice";
+    input.type     = pjev::Type::Choice;
     input.state    = "Context here.";
     input.question = "Which option?";
     input.options  = {{"A", "Option A"}, {"B", "Option B"}, {"C", "Option C"}};
@@ -172,10 +172,10 @@ static void test_choice_engine() {
 static void test_score_engine() {
     MockBackend mock;
     mock.set_winner(204); // token 204 = digit '2'
-    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL});
+    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL}, pjev::CalibrationConfig{}, pjev::EnsembleConfig{pjev::NoulEnsembleMode::NONE, pjev::ChoiceEnsembleMode::NONE, pjev::ScoreEnsembleMode::NONE});
 
     pjev::DecisionInput input;
-    input.type     = "score";
+    input.type     = pjev::Type::Score;
     input.state    = "Essay text.";
     input.question = "Rate quality.";
     // keys: "0","1","2","3" — score uses numeric keys
@@ -221,10 +221,10 @@ static void test_json_cleanness() {
 static void test_option_order_preserved() {
     MockBackend mock;
     mock.set_winner(67); // 'C' wins
-    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS});
+    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS}, pjev::CalibrationConfig{}, pjev::EnsembleConfig{pjev::NoulEnsembleMode::NONE, pjev::ChoiceEnsembleMode::NONE, pjev::ScoreEnsembleMode::NONE});
 
     pjev::DecisionInput input;
-    input.type     = "choice";
+    input.type     = pjev::Type::Choice;
     input.state    = "";
     input.question = "Pick?";
     // Intentional order: C, A, B (non-alphabetical)
@@ -245,10 +245,10 @@ static void test_option_order_preserved() {
 static void test_japanese_input() {
     MockBackend mock;
     mock.set_winner(65); // "A" / false wins (noul always uses A/B labels)
-    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL});
+    pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::NATURAL}, pjev::CalibrationConfig{}, pjev::EnsembleConfig{pjev::NoulEnsembleMode::NONE, pjev::ChoiceEnsembleMode::NONE, pjev::ScoreEnsembleMode::NONE});
 
     pjev::DecisionInput input;
-    input.type     = "noul";
+    input.type     = pjev::Type::Noul;
     input.state    = "空は青い。"; // "The sky is blue." in Japanese
     input.question = "夜ですか?";  // "Is it night?"
     input.options  = {{"false", ""}, {"true", ""}};

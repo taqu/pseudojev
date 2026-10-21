@@ -4,22 +4,22 @@
 #include <string>
 
 // Mock backend for testing without a real model.
-// Token assignment:
-//   A-J  -> 65-74 (matches ASCII)
-//   No   -> 200
-//   Yes  -> 201
-//   0-9  -> 202-211
-//   Other multi-char strings -> encoded as multiple tokens (not single)
+// Token assignment (every candidate label the decision engine verifies is a single token):
+//   A-T   -> 65-84 (matches ASCII)
+//   No    -> 200
+//   Yes   -> 201
+//   0-19  -> 202-221
+//   Other strings -> encoded as multiple tokens (1000 + byte)
 class MockBackend : public pjev::ILlamaBackend {
 public:
     static int single_token_id(const std::string& text) {
         if (text.size() == 1) {
             char c = text[0];
-            if (c >= 'A' && c <= 'J') return (unsigned char)c;
+            if (c >= 'A' && c <= 'T') return (unsigned char)c;
         }
         if (text == "No")  return 200;
         if (text == "Yes") return 201;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 20; i++) {
             if (text == std::to_string(i)) return 202 + i;
         }
         return -1; // not a single token
@@ -37,10 +37,10 @@ public:
     int vocab_size() const override { return 600; }
 
     std::string token_to_piece(int token_id) const override {
-        if (token_id >= 65 && token_id <= 74) return std::string(1, (char)token_id);
+        if (token_id >= 65 && token_id <= 84) return std::string(1, (char)token_id);
         if (token_id == 200) return "No";
         if (token_id == 201) return "Yes";
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 20; i++) {
             if (token_id == 202 + i) return std::to_string(i);
         }
         return "?";

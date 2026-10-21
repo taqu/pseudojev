@@ -2,6 +2,7 @@
 #include "decision/prompt_strategy.h"
 #include "decision/decision_engine.h"
 #include "mock_backend.h"
+#include "engine_service.h"
 #include <nlohmann/json.hpp>
 #include <cstdio>
 #include <string>
@@ -18,7 +19,8 @@ int main() {
     using namespace pjev;
     MockBackend mock;
     DecisionEngine eng(mock, PromptConfig{Layout::AUTO, Scheme::LETTERS});
-    JevApiHandler handler(eng, "pseudojev-test");
+    EngineService svc(eng);
+    JevApiHandler handler(svc, "pseudojev-test");
 
     // Test 1: valid choice request
     {

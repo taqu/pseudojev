@@ -3,6 +3,7 @@
 #include "decision/prompt_strategy.h"
 #include "decision/decision_engine.h"
 #include "mock_backend.h"
+#include "engine_service.h"
 #include <nlohmann/json.hpp>
 #include <cassert>
 #include <cstdio>
@@ -32,7 +33,8 @@ static bool parse_error(const std::string& body, std::string& code, std::string&
 static void test_structured_errors() {
     MockBackend mock;
     pjev::DecisionEngine eng(mock);
-    pjev::JevApiHandler handler(eng);
+    EngineService svc(eng);
+    pjev::JevApiHandler handler(svc);
 
     // invalid JSON → {"error": {"code": "invalid_json", ...}}
     {
@@ -108,7 +110,8 @@ static void test_request_ids() {
     MockBackend mock;
     mock.set_winner(65); // A wins
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS});
-    pjev::JevApiHandler handler(eng);
+    EngineService svc(eng);
+    pjev::JevApiHandler handler(svc);
 
     // Successful response includes request_id
     {
@@ -155,7 +158,8 @@ static void test_request_ids() {
 static void test_field_limits() {
     MockBackend mock;
     pjev::DecisionEngine eng(mock);
-    pjev::JevApiHandler handler(eng);
+    EngineService svc(eng);
+    pjev::JevApiHandler handler(svc);
 
     // State too long (> 32 KiB)
     {
@@ -234,7 +238,8 @@ static void test_inference_error() {
 
     ThrowingBackend tb;
     pjev::DecisionEngine eng(tb, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS});
-    pjev::JevApiHandler handler(eng);
+    EngineService svc(eng);
+    pjev::JevApiHandler handler(svc);
 
     {
         json req;
@@ -264,12 +269,13 @@ static void test_overload() {
     mock.set_winner(65);
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS});
     // max_queued=1: only 1 concurrent request allowed
-    pjev::JevApiHandler handler(eng, "test", 1);
+    EngineService svc(eng);
+    pjev::JevApiHandler handler(svc, "test", 1);
 
     // First request occupies the slot (we simulate by launching it in a thread
     // that blocks on mutex_ — but that requires inference to be slow).
     // Instead, test the simpler case: max_queued=0 → always busy
-    pjev::JevApiHandler busy_handler(eng, "test", 0);
+    pjev::JevApiHandler busy_handler(svc, "test", 0);
     {
         json req;
         req["state"] = "S";
@@ -291,7 +297,8 @@ static void test_backward_compat() {
     MockBackend mock;
     mock.set_winner(65);
     pjev::DecisionEngine eng(mock, pjev::PromptConfig{pjev::Layout::AUTO, pjev::Scheme::LETTERS});
-    pjev::JevApiHandler handler(eng, "pseudojev-test");
+    EngineService svc(eng);
+    pjev::JevApiHandler handler(svc, "pseudojev-test");
 
     // Valid choice request still returns 200 and has answers/model/usage
     json req;

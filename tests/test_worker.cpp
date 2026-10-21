@@ -135,11 +135,13 @@ static void test_ipc_protocol_serialization()
 {
     // Test DecisionInput serialization
     DecisionInput in;
-    in.type     = "choice";
+    in.type     = pjev::Type::Choice;
     in.state    = "The sky is blue.";
     in.question = "What color is the sky?";
     in.options  = {{"A", "Red"}, {"B", "Blue"}, {"C", "Green"}};
     in.prior_correction = false;
+    in.domain   = "support";
+    in.family   = "policy";
 
     json j = ipc_input_to_json(in);
     CHECK(j["type"] == "choice",           "input_json: type field");
@@ -155,18 +157,20 @@ static void test_ipc_protocol_serialization()
     CHECK(in2.options.size() == in.options.size(), "input_rt: options size matches");
     CHECK(in2.options[0].first == "A",     "input_rt: option[0].key = A");
     CHECK(in2.options[1].second == "Blue", "input_rt: option[1].desc = Blue");
+    CHECK(in2.domain == "support" && in2.family == "policy", "input_rt: retrieval context (domain, family)");
 
     // Test noul input
     DecisionInput noul_in;
-    noul_in.type     = "noul";
+    noul_in.type     = pjev::Type::Noul;
     noul_in.question = "Is this a test?";
     noul_in.options  = {{"false", ""}, {"true", ""}};
 
     json noul_j = ipc_input_to_json(noul_in);
     DecisionInput noul_rt = ipc_input_from_json(noul_j);
-    CHECK(noul_rt.type == "noul",                   "noul_input_rt: type");
+    CHECK(noul_rt.type == pjev::Type::Noul,                   "noul_input_rt: type");
     CHECK(noul_rt.options.size() == 2,              "noul_input_rt: options count");
     CHECK(noul_rt.options[1].first == "true",       "noul_input_rt: true key");
+    CHECK(!noul_j.contains("domain") && noul_rt.domain.empty(), "noul_input_rt: no domain when unset");
 
     // Test DecisionOutput serialization
     DecisionOutput out;
@@ -179,6 +183,7 @@ static void test_ipc_protocol_serialization()
     out.raw_probs      = {0.12, 0.73, 0.15};
     out.keys           = {"A", "B", "C"};
     out.prompt_token_count = 42;
+    out.retrieval_us   = 1234;
 
     json out_j = ipc_output_to_json(out);
     CHECK(out_j["ok"] == true,             "output_json: ok");
@@ -194,15 +199,18 @@ static void test_ipc_protocol_serialization()
     CHECK(out2.probs.size() == 3,          "output_rt: probs size");
     CHECK(out2.keys[0] == "A",            "output_rt: key[0]");
     CHECK(out2.prompt_token_count == 42,   "output_rt: token_count");
+    CHECK(out2.retrieval_us == 1234,       "output_rt: retrieval_us");
 
     // Error case
     DecisionOutput err_out;
     err_out.ok    = false;
     err_out.error = "something went wrong";
+    err_out.error_code = "no_eligible_exemplar";
     json err_j = ipc_output_to_json(err_out);
     DecisionOutput err_rt = ipc_output_from_json(err_j);
     CHECK(err_rt.ok == false,              "error_output_rt: ok=false");
     CHECK(err_rt.error == "something went wrong", "error_output_rt: error message");
+    CHECK(err_rt.error_code == "no_eligible_exemplar", "error_output_rt: error code");
 }
 
 // ---------------------------------------------------------------------------
@@ -217,15 +225,18 @@ static void test_runtime_dir()
     // Should start with \\.\pipe\pjev-
     CHECK(ep.substr(0, 9) == "\\\\.\\pipe\\", "runtime_dir: Windows pipe prefix");
     CHECK(ep.find("pjev-") != std::string::npos, "runtime_dir: contains pjev-");
-    CHECK(ep.find("worker-v1") != std::string::npos, "runtime_dir: contains worker-v1");
+    CHECK(ep.find("worker-v" + std::to_string(IPC_PROTOCOL_VERSION)) != std::string::npos,
+          "runtime_dir: endpoint carries the protocol version");
 #else
     // Should end with .sock
     CHECK(ep.find("pjev-") != std::string::npos, "runtime_dir: Unix contains pjev-");
-    CHECK(ep.find("worker-v1.sock") != std::string::npos, "runtime_dir: Unix socket suffix");
+    CHECK(ep.find("worker-v" + std::to_string(IPC_PROTOCOL_VERSION) + ".sock") != std::string::npos,
+          "runtime_dir: Unix socket suffix carries the protocol version");
     // Lock path should be non-empty on Unix
     const std::string& lp = get_worker_lock_path();
     CHECK(!lp.empty(), "runtime_dir: Unix lock path non-empty");
-    CHECK(lp.find("worker-v1.lock") != std::string::npos, "runtime_dir: lock path suffix");
+    CHECK(lp.find("worker-v" + std::to_string(IPC_PROTOCOL_VERSION) + ".lock") != std::string::npos,
+          "runtime_dir: lock path suffix");
 #endif
 
     // Runtime dir
@@ -236,23 +247,40 @@ static void test_runtime_dir()
 // ---------------------------------------------------------------------------
 // Test 4: make_config_hash is deterministic
 // ---------------------------------------------------------------------------
+static RuntimePaths paths_with(const std::string& model, const std::string& emb = "models/emb.gguf",
+                               const std::string& db = "models/examplar.db",
+                               const std::string& allow = "models/examplar-allowlist.txt")
+{
+    RuntimePaths p;
+    p.model = model;
+    p.embedding_model = emb;
+    p.exemplar_db = db;
+    p.exemplar_allowlist = allow;
+    return p;
+}
+
 static void test_config_hash()
 {
-    std::string h1 = make_config_hash("models/bonsai2_2b.gguf", 8, 4096, "");
-    std::string h2 = make_config_hash("models/bonsai2_2b.gguf", 8, 4096, "");
+    const RuntimePaths base = paths_with("models/bonsai2_2b.gguf");
+    std::string h1 = make_config_hash(base, 8, 4096);
+    std::string h2 = make_config_hash(base, 8, 4096);
     CHECK(h1 == h2, "config_hash: deterministic");
 
-    std::string h3 = make_config_hash("models/other.gguf", 8, 4096, "");
+    std::string h3 = make_config_hash(paths_with("models/other.gguf"), 8, 4096);
     CHECK(h1 != h3, "config_hash: different model → different hash");
 
-    std::string h4 = make_config_hash("models/bonsai2_2b.gguf", 4, 4096, "");
+    std::string h4 = make_config_hash(base, 4, 4096);
     CHECK(h1 != h4, "config_hash: different threads → different hash");
 
-    std::string h5 = make_config_hash("models/bonsai2_2b.gguf", 8, 2048, "");
+    std::string h5 = make_config_hash(base, 8, 2048);
     CHECK(h1 != h5, "config_hash: different ctx_size → different hash");
 
-    std::string h6 = make_config_hash("models/bonsai2_2b.gguf", 8, 4096, "calib.json");
-    CHECK(h1 != h6, "config_hash: different calibration → different hash");
+    CHECK(h1 != make_config_hash(paths_with("models/bonsai2_2b.gguf", "other-emb.gguf"), 8, 4096),
+          "config_hash: different embedding model → different hash");
+    CHECK(h1 != make_config_hash(paths_with("models/bonsai2_2b.gguf", "models/emb.gguf", "other.db"), 8, 4096),
+          "config_hash: different exemplar database → different hash");
+    CHECK(h1 != make_config_hash(paths_with("models/bonsai2_2b.gguf", "models/emb.gguf", "models/examplar.db", "other.txt"), 8, 4096),
+          "config_hash: different allowlist → different hash");
 
     // Contains expected fields
     CHECK(h1.find("models/bonsai2_2b.gguf") != std::string::npos, "config_hash: contains model_path");
@@ -270,7 +298,7 @@ static void test_worker_info_json()
     info.pjev_version     = "0.10.0";
     info.pid              = 12345;
     info.model_identity   = "bonsai-q4";
-    info.config_hash      = make_config_hash("models/bonsai2_2b.gguf", 8, 4096, "");
+    info.config_hash      = make_config_hash(paths_with("models/bonsai2_2b.gguf"), 8, 4096);
     info.start_time_us    = 1700000000000000LL;
 
     json j = ipc_worker_info_to_json(info);
@@ -302,6 +330,7 @@ static void test_worker_info_json()
 int main()
 {
     printf("=== test_worker ===\n");
+    initialize_strings();
 
     test_ipc_framing();
     test_ipc_protocol_serialization();

@@ -10,15 +10,16 @@
 #include "lz4/xxhash.h"
 
 #include "exemplar_record.h"
-#include "embedding_text.h"
+#include "retrieval/embedding_text.h"
 #include "exemplar_database.h"
-#include "id_hash.h"
-#include "lz4_utils.h"
-#include "vec_autoext.h"
+#include "retrieval/id_hash.h"
+#include "retrieval/lz4_utils.h"
+#include "retrieval/vec_autoext.h"
 #include "nlohmann/json.hpp"
 #include "sqlite/sqlite3.h"
 
 using namespace pjev::filldb;
+using namespace pjev::retrieval;
 using json = nlohmann::ordered_json;
 
 // ---------------------------------------------------------------------------
@@ -294,7 +295,9 @@ static void test_eligibility()
         ExemplarRecord r;
         r.split    = "val";
         r.language = "en";
-        check(!is_eligible(r), "15. val+en: not eligible");
+        // Every English record enters the database; the runtime allowlist restricts demonstrations
+        // to the training split.
+        check(is_eligible(r), "15. val+en: stored (excluded at query time by the allowlist)");
     }
 
     // 16. split=train, language=fr → not eligible
@@ -310,7 +313,7 @@ static void test_eligibility()
         ExemplarRecord r;
         r.split    = "test";
         r.language = "en";
-        check(!is_eligible(r), "17. test+en: not eligible");
+        check(is_eligible(r), "17. test+en: stored (excluded at query time by the allowlist)");
     }
 }
 
@@ -846,7 +849,7 @@ static void test_lz4()
 
     // 59. Round-trip UTF-8 string
     {
-        std::string input = u8"こんにちは世界 — naïve résumé 🎉";
+        std::string input = "こんにちは世界 — naïve résumé 🎉";
         auto compressed = compress(input);
         std::string err;
         std::string result = decompress(compressed.data(), compressed.size(), err);
@@ -977,8 +980,8 @@ static void test_id_hash()
 
     // 71. UTF-8 input hashed by raw bytes (no normalization)
     {
-        std::string utf8_a = u8"こんにちは";
-        std::string utf8_b = u8"こんにちは";
+        std::string utf8_a = "こんにちは";
+        std::string utf8_b = "こんにちは";
         check(hash_exemplar_id(utf8_a) == hash_exemplar_id(utf8_b),
               "71. UTF-8 input: same bytes same hash");
         check(hash_exemplar_id(utf8_a) != hash_exemplar_id("konnichiha"),
