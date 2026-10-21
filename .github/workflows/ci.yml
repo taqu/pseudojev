@@ -31,6 +31,13 @@ jobs:
             cmake_flags: ""
 
     steps:
+      - name: Install Vulkan SDK
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          optional_components: com.lunarg.vulkan.vma
+          install_runtime: true
+          cache: true
+          stripdown: true
       - name: Checkout
         uses: actions/checkout@v4
         with:

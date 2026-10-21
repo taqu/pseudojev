@@ -52,13 +52,13 @@ for zero-shot. These figures describe that benchmark only; accuracy on other tas
 
 | Resource | Default file name | Flag | `pjev.json` key |
 |---|---|---|---|
-| Inference model (Ternary-Bonsai-2-2B, GGUF) | `model.gguf` | `--model` | `default_model` |
+| Inference model (Ternary-Bonsai-2-2B, GGUF) | `bonsai2_2b.gguf` | `--model` | `default_model` |
 | Embedding model (nomic-embed-text-v1.5, GGUF) | `nomic-embed-text-v1.5.gguf` | `--embedding-model` | `embedding_model` |
 | Exemplar database (SQLite) | `examplar.db` | `--exemplar-db` | `exemplar_db` |
 | Exemplar allowlist (text) | `examplar-allowlist.txt` | `--exemplar-allowlist` | `exemplar_allowlist` |
 
-None of them is included in the release archive. They are stored in this repository under
-`models/` with Git LFS:
+They are included in the release archive.
+They are also stored in this repository under `models/` with Git LFS:
 
 ```bash
 git lfs install

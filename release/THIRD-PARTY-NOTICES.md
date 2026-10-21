@@ -16,8 +16,8 @@ The pjev executable includes the following third-party software. pjev itself is 
 | xxHash | bundled with LZ4 | BSD 2-Clause | Copyright (C) 2012-2016, Yann Collet |
 | MurmurHash3 | — | Public domain | Austin Appleby |
 
-The models and the exemplar database that pjev loads at run time are **not** part of this package;
-they carry their own licenses (inference model: Apache-2.0; nomic-embed-text-v1.5: Apache-2.0 per its
+The models and the exemplar database that pjev loads at run time are part of this package;
+they carry their own licenses (inference Ternary Bonsai 2 2B: Apache-2.0; nomic-embed-text-v1.5: Apache-2.0 per its
 model card; exemplar data: Open-Jev v1.1 — CC0 1.0 / CC BY 4.0 — and OpenJevData-140k — MIT). See the
 README section "Runtime resources".
 

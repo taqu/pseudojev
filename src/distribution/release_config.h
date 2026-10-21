@@ -15,7 +15,7 @@ struct RuntimePaths {
 
 // Default file names of the runtime resources, looked up next to the executable and, as a development
 // fallback, under models/ relative to the working directory.
-constexpr const char* kDefaultModelFile              = "model.gguf";
+constexpr const char* kDefaultModelFile              = "bonsai2_2b.gguf";
 constexpr const char* kDefaultDevModelFile           = "bonsai2_2b.gguf";
 constexpr const char* kDefaultEmbeddingModelFile     = "nomic-embed-text-v1.5.gguf";
 constexpr const char* kDefaultExemplarDbFile         = "examplar.db";
