@@ -305,6 +305,7 @@ std::unique_ptr<ILocalServer> make_local_server()
 
 #else // Unix
 
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <poll.h>
