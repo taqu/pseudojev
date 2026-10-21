@@ -133,8 +133,11 @@ static void test_allowlist_format()
 
     std::string err;
     CHECK(write_allowlist("test_store_allow_rt.txt", {5, -1, 5, 3}, {"header line"}, err), "allowlist: write");
-    std::ifstream f("test_store_allow_rt.txt");
-    std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    std::string text;
+    {
+        std::ifstream f("test_store_allow_rt.txt");
+        text.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+    }
     CHECK(text == "# header line\n0000000000000003\n0000000000000005\nffffffffffffffff\n", "allowlist: sorted, unique, header");
     ExemplarAllowlist a;
     CHECK(load_allowlist("test_store_allow_rt.txt", a, err) && a.size() == 3 && a.count(-1), "allowlist: load");
@@ -225,11 +228,13 @@ static void test_load(const std::string& db, const std::string& allow)
                             std::to_string(hash_exemplar_id("c2"));
     sqlite3_exec(raw, sql.c_str(), nullptr, nullptr, nullptr);
     sqlite3_close(raw);
-    ExemplarStore c;
-    CHECK(c.open(bad, allow, err), "corrupt payload: database still opens");
-    CHECK(!c.load(hash_exemplar_id("c2"), p, err) && err.find("state_lz4") != std::string::npos,
-          "corrupt payload: LZ4 error reported");
-    CHECK(c.load(hash_exemplar_id("c1"), p, err), "corrupt payload: other rows still load");
+    {
+        ExemplarStore c;  // closed before the file is removed
+        CHECK(c.open(bad, allow, err), "corrupt payload: database still opens");
+        CHECK(!c.load(hash_exemplar_id("c2"), p, err) && err.find("state_lz4") != std::string::npos,
+              "corrupt payload: LZ4 error reported");
+        CHECK(c.load(hash_exemplar_id("c1"), p, err), "corrupt payload: other rows still load");
+    }
     remove_db(bad);
 }
 

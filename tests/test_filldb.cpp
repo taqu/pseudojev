@@ -1000,14 +1000,16 @@ static void test_id_hash()
         const std::string db_path = tmp_db_path("_hash");
         remove_file(db_path);
 
-        ExemplarDatabase db(db_path);
-        db.open(false);
-        db.create_schema(8, "m", "fp");
-
         ExemplarRecord rec = make_example_record("hash_rt_test", "choice", 0);
-        db.insert_group(rec);
         int64_t rowid = 0;
-        db.insert_example(rec, rowid);
+        {
+            // Closed before the file is removed (an open database cannot be deleted on Windows).
+            ExemplarDatabase db(db_path);
+            db.open(false);
+            db.create_schema(8, "m", "fp");
+            db.insert_group(rec);
+            db.insert_example(rec, rowid);
+        }
 
         // Read back id via raw sqlite3
         sqlite3* raw = nullptr;
