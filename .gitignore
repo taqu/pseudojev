@@ -59,3 +59,10 @@ phase0/phase0
 benchmark_results/
 experiment_results/
 *.jsonl
+
+# Test fixtures (golden regression references)
+!tests/data/*.jsonl
+
+# SQLite sidecar files created when the exemplar database is opened
+*.db-shm
+*.db-wal
