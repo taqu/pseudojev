@@ -171,7 +171,6 @@ install(FILES
     release/THIRD-PARTY-NOTICES.md
     models/LICENSE-bonsai.txt
     models/LICENSE-nomic-embed-text.txt
-    #docs/Open-Jev-v1.1
     DESTINATION ./docs COMPONENT runtime)
 install(FILES
     docs/OpenJevData-140k/LICENSE.txt
