@@ -195,18 +195,21 @@ jobs:
             | macOS arm64  | `pjev-${{ env.VERSION }}-macos-arm64.tar.gz` |
             | Windows x86_64 | `pjev-${{ env.VERSION }}-windows-x86_64.zip` |
 
-            ### Model
+            ### Runtime resources
 
-            A compatible GGUF model is required. Place `model.gguf` next to the `pjev` executable,
-            or specify `--model /path/to/model.gguf`.
+            pjev needs four files that are not included in the archive: the inference model
+            (`model.gguf`), the embedding model (`nomic-embed-text-v1.5.gguf`), the exemplar
+            database (`examplar.db`) and its allowlist (`examplar-allowlist.txt`). Place them next
+            to the `pjev` executable or point to them with command-line flags / `pjev.json`.
 
-            See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md#model-setup)
-            for model setup instructions.
+            See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md#runtime-resources)
+            for where to get them and their licenses.
 
             ### Quick start
 
             ```bash
             ./pjev --version
+            ./pjev diagnostics
             ./pjev noul --state "The sky is blue." --question "Is it daytime?"
             ./pjev serve
             ```
@@ -217,6 +220,6 @@ jobs:
 
             ### License
 
-            pjev is MIT licensed. See LICENSE.
-            llama.cpp is MIT licensed. See llama.cpp/LICENSE.
+            pjev is MIT licensed. See LICENSE. Third-party components are listed in
+            THIRD-PARTY-NOTICES.md (included in the archive).
           files: release_files/*
