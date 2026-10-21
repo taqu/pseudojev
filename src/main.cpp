@@ -826,8 +826,7 @@ static int32_t cmd_decision(Type type, int32_t argc, char** argv) {
             return 1;
         }
     } else {
-        SpdLogShutdown spdlog_shutdown;
-        spdlog::stdout_logger_mt("console");
+        // The default logger stays alive: the outcome below is reported through it.
         spdlog::set_level(opts.verbose ? spdlog::level::trace : spdlog::level::warn);
 
         std::unique_ptr<RouterRuntime> runtime = load_runtime(opts);

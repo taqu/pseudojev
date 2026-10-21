@@ -28,12 +28,18 @@ struct LlamaBackend::Impl {
     int32_t                n_vocab = 0;
 };
 
+void set_llama_log_errors_only()
+{
+    llama_log_set([](ggml_log_level lvl, const char* text, void*) {
+        // CONT records continue the previous record (e.g. load progress dots): keep them only after an error.
+        static ggml_log_level last = GGML_LOG_LEVEL_NONE;
+        if (lvl != GGML_LOG_LEVEL_CONT) last = lvl;
+        if (last == GGML_LOG_LEVEL_ERROR) fputs(text, stderr);
+    }, nullptr);
+}
+
 LlamaBackend::LlamaBackend(const LlamaConfig& cfg) : impl_(new Impl) {
-    if (!cfg.verbose) {
-        llama_log_set([](ggml_log_level lvl, const char* text, void*) {
-            if (lvl >= GGML_LOG_LEVEL_ERROR) fputs(text, stderr);
-        }, nullptr);
-    }
+    if (!cfg.verbose) set_llama_log_errors_only();
     llama_backend_init();
 
     auto mp = llama_model_default_params();

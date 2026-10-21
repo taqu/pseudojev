@@ -310,20 +310,12 @@ bool WorkerClient::get_status(WorkerInfo& info)
 
 bool WorkerClient::stop_worker()
 {
+    // The worker answers one request per connection, so the shutdown request gets a connection of its
+    // own. The endpoint name carries the protocol version, so only a worker of this version answers.
     auto conn = make_local_client(get_worker_endpoint(), 2000);
     if(!conn)
         return false;
 
-    // Ping first to validate
-    nlohmann::json ping = {{"type", "ping"}, {"protocol_version", IPC_PROTOCOL_VERSION}};
-    if(!conn->send_frame(ping.dump()))
-        return false;
-
-    std::string pong_str;
-    if(!conn->recv_frame(pong_str, 5000))
-        return false;
-
-    // Send shutdown
     nlohmann::json shut = {{"type", "shutdown"}, {"protocol_version", IPC_PROTOCOL_VERSION}};
     if(!conn->send_frame(shut.dump()))
         return false;

@@ -17,6 +17,9 @@ struct LlamaConfig {
     bool verbose;
 };
 
+// Routes llama.cpp / ggml logging to stderr for errors only (the default when not verbose).
+void set_llama_log_errors_only();
+
 class LlamaBackend : public ILlamaBackend {
 public:
     explicit LlamaBackend(const LlamaConfig& cfg);

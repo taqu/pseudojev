@@ -86,6 +86,9 @@ std::unique_ptr<RouterRuntime> RouterRuntime::load(const RuntimeOptions& opts, s
         return nullptr;
     }
 
+    // Installed before the embedding model loads so that its load log is filtered too.
+    if (!opts.verbose) set_llama_log_errors_only();
+
     std::unique_ptr<RouterRuntime> rt(new RouterRuntime());
     Impl& m = *rt->impl_;
 
