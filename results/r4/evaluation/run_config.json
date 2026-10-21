@@ -1,0 +1,133 @@
+{
+  "input_path": "datasets/validation.jsonl",
+  "input_sha256": "ce5d18132b4967ec5516a07b41700babeebef43b5d3dcc63ea62f01fcb4767cc",
+  "db_path": "models/examplar.db",
+  "train_path": "datasets/train.jsonl",
+  "inference_model": "models/bonsai2_2b.gguf",
+  "inference_model_identity": {
+    "architecture": "qwen35",
+    "gguf_path": "models/bonsai2_2b.gguf",
+    "license": "",
+    "llamacpp_revision": "",
+    "model_desc": "qwen35 2B PTQ1_0 - 1.75 bpw ternary (group 128)",
+    "n_params": 0,
+    "name": "Ternary-Bonsai-2-2B",
+    "pjev_commit": "",
+    "quantization": "",
+    "sha256": "36061ad406df8a4903a6db005be350c50fabfaf717f9ef0acf4b76adcd9929fa",
+    "size_bytes": 429183456,
+    "source": ""
+  },
+  "embedding_model": "models/nomic-embed-text-v1.5.gguf",
+  "embedding_fingerprint": "3e24342164b3d949",
+  "embedding_dim": 768,
+  "db_info": {
+    "schema_version": "4",
+    "embedding_fingerprint": "3e24342164b3d949",
+    "embedding_text_version": "1",
+    "distance_metric_label": "cosine",
+    "vector_storage": "bit (vec_quantize_binary); KNN distance is Hamming",
+    "compression_format": "lz4-frame",
+    "example_count": 270573,
+    "records_in_train_split": 111675,
+    "records_outside_train_split": 158898,
+    "train_records_without_one_hot": 79
+  },
+  "query_prefix": "search_query: ",
+  "prompt_format_version": "r1-demo-turn-v1",
+  "prompt_format": "S1 user turn for the exemplar, assistant turn = exemplar answer label, then the unchanged S1 query prompt",
+  "few_shot_prompt_format": "r1-demo-turn-v1 repeated: each demonstration is an S1 user turn followed by an assistant turn holding its answer label, in the stated order, then the unchanged S1 query prompt",
+  "scheme": "letters",
+  "layout": "auto",
+  "ensemble": "none (single order)",
+  "calibration": "none (temperature 1.0, no prior correction)",
+  "n_ctx": 4096,
+  "top_k": 1,
+  "leakage_policy": "demonstrations restricted to IDs whose split is 'train' in train_path; the query's own ID is rejected; query text never includes the target",
+  "max_fetch_k": 4096,
+  "experiment": "R4 measurement run",
+  "partition": "evaluation",
+  "run_timestamp": "2026-10-20T18:53:44",
+  "preliminary": false,
+  "frozen_policy_sha256": "22556532d51cc3a7ccb85156b57c2dbdfadd7979ab3cf3ef42140ec22300c327",
+  "detail": {
+    "reference_predictions": "results/r1-2b/predictions.jsonl",
+    "reference_predictions_sha256": "336c0cd757f482455eb4170ba2c7dc029571c14d53066f1a9bb011a26c87dd29",
+    "split_assignments": "results/r2/predictions.jsonl",
+    "split_assignments_sha256": "d1bb738a2e66141728eca06c5a60a127f813894e9a49eacea211c25902a2ab6e",
+    "r3_seed42_predictions": "results/r3-random-1shot/seed-42/predictions.jsonl",
+    "partition": {
+      "name": "evaluation",
+      "size": 5811,
+      "saved_evaluation": 5811,
+      "saved_tuning": 5863,
+      "disagreements": 0,
+      "group_overlap": 0,
+      "train_split_records": 0,
+      "evaluation_families": [
+        "contracts/governing_law_venue",
+        "ir/access_schedule",
+        "rubric_judge/trace_consistency",
+        "support/damaged_order"
+      ],
+      "tuning_families": [
+        "browser_tools/idempotent_retry",
+        "games/racing_overtake",
+        "rag/policy_exception",
+        "shell_history/checksum_verify"
+      ],
+      "queries_rejected_as_training": 0
+    },
+    "evaluated_queries": 5811,
+    "pool_stats": {
+      "vector_rows": 270573,
+      "eligible": 111596,
+      "outside_train": 158898,
+      "no_one_hot": 79,
+      "kind_metadata_mismatch": 0
+    },
+    "search_k": 10,
+    "max_neighbours": 5,
+    "neighbour_rule": "rank 1 = R1's top-1 search result; ranks 2.. = top-K search order (distance, rowid), skipping repeated IDs, the query itself (ID or identical content) and exemplars whose content (kind, question, state, options) duplicates an earlier neighbour",
+    "two_shot_orders": {
+      "A": "second-nearest, nearest, query",
+      "B": "nearest, second-nearest, query"
+    },
+    "random_seed": 42,
+    "random_selection": "XXH64(\"r3-random-v1|42|<query_id>\") mod pool size (pjev-r3, seed 42)",
+    "checks": {
+      "s1_reference_mismatch": 0,
+      "r1_reference_mismatch": 0,
+      "nearest_reference_mismatch": 0,
+      "topk_rank1_differs_from_r1": 96,
+      "random_checked": 5811,
+      "random_r3_mismatch": 0,
+      "retrieval_failures": 0,
+      "short_neighbour_lists": 0,
+      "duplicates_skipped": 0,
+      "self_skipped": 0,
+      "query_content_in_bank": 0,
+      "same_group_neighbours": 0
+    },
+    "condition_status": {
+      "r1": {
+        "ok": 5811
+      },
+      "random_1shot": {
+        "ok": 5811
+      },
+      "s1": {
+        "ok": 5811
+      },
+      "two_shot_a": {
+        "ok": 5811
+      },
+      "two_shot_b": {
+        "ok": 5811
+      }
+    },
+    "context_limit_by_kind": null,
+    "latency_conditions": "models loaded once; one untimed warm-up of every stage; sequential; every decision evaluates its full prompt from an empty KV cache; all actions of a query measured back to back in this process",
+    "wall_seconds": 13405.5621865
+  }
+}

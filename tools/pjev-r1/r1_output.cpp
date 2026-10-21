@@ -138,7 +138,7 @@ std::vector<SimilarityBin> similarity_bins(const ItemPtrs& paired, int n_bins)
 // JSON
 // ---------------------------------------------------------------------------
 
-static nlohmann::ordered_json condition_json(const ConditionResult& c)
+nlohmann::ordered_json condition_json(const ConditionResult& c)
 {
     nlohmann::ordered_json j;
     j["status"] = c.status;

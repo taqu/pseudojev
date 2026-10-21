@@ -391,3 +391,48 @@ target_include_directories(test_r2 PRIVATE ${PJEV_R0_INCS} ${CMAKE_SOURCE_DIR}/t
 target_compile_features(test_r2 PRIVATE cxx_std_20)
 add_test(NAME test_r2 COMMAND test_r2
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# test_r3: unit tests — R3 random exemplar selection, eligible pool, prompt equivalence, alignment, bootstrap (no model)
+add_executable(test_r3 test_r3.cpp
+    ${PJEV_R0_SRCS}
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r3/r3_select.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r3/r3_analysis.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_task.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_output.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/timer.cpp)
+target_include_directories(test_r3 PRIVATE ${PJEV_R0_INCS} ${CMAKE_SOURCE_DIR}/tools/pjev-r1
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r3)
+target_compile_features(test_r3 PRIVATE cxx_std_20)
+add_test(NAME test_r3 COMMAND test_r3
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# test_r4: unit tests — R4 neighbour list, 2-shot prompt order, kNN mapping / voting, routing costs, frozen config (no model)
+add_executable(test_r4 test_r4.cpp
+    ${PJEV_R0_SRCS}
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r4/r4_core.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_task.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r1/r1_output.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/prompt_strategy.cpp
+    ${CMAKE_SOURCE_DIR}/src/decision/decision_engine.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration.cpp
+    ${CMAKE_SOURCE_DIR}/src/calibration/calibration_metrics.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/jev_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/timer.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/model_identity.cpp
+    ${CMAKE_SOURCE_DIR}/src/util/platform.cpp)
+target_include_directories(test_r4 PRIVATE ${PJEV_R0_INCS} ${CMAKE_SOURCE_DIR}/tools/pjev-r1
+    ${CMAKE_SOURCE_DIR}/tools/pjev-r3 ${CMAKE_SOURCE_DIR}/tools/pjev-r4
+    ${CMAKE_SOURCE_DIR}/llama.cpp/include ${CMAKE_SOURCE_DIR}/llama.cpp/ggml/include)
+target_compile_features(test_r4 PRIVATE cxx_std_20)
+if(WIN32)
+    target_link_libraries(test_r4 PRIVATE psapi)
+endif()
+add_test(NAME test_r4 COMMAND test_r4
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

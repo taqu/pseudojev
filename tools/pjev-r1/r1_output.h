@@ -126,6 +126,8 @@ bool write_summary_md(const R1RunInfo& info, const std::vector<R1Item>& items);
 bool write_examples_md(const std::string& dir, const std::vector<R1Item>& items);
 
 nlohmann::ordered_json item_to_json(const R1Item& item);
+// One S1 / R1 condition as written in predictions.jsonl.
+nlohmann::ordered_json condition_json(const ConditionResult& c);
 
 // Similarity bins over paired items: quantile edges on Hamming distance (closest first).
 struct SimilarityBin {

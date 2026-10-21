@@ -140,5 +140,28 @@ std::vector<PromptSegment> PromptStrategy::build_demonstration_prompt_segments(
     segs.push_back({ANSWER_ANCHOR, true});
     return segs;
 }
+
+std::vector<PromptSegment> PromptStrategy::build_few_shot_prompt_segments(
+    Type type,
+    const std::vector<DemoTurn>& demos,
+    const std::string& state,
+    const std::string& question,
+    const std::vector<Candidate>& candidates) const
+{
+    std::vector<PromptSegment> segs;
+    segs.push_back({"<|im_start|>user\n", true});
+    for (size_t i = 0; i < demos.size(); ++i) {
+        const DemoTurn& d = demos[i];
+        assert(d.answer < d.candidates.size());
+        if (i > 0) segs.push_back({DEMO_TURN_SEPARATOR, true});
+        segs.push_back({build_user_content(type, d.state, d.question, d.candidates), false});
+        segs.push_back({ANSWER_ANCHOR, true});
+        segs.push_back({d.candidates[d.answer].internal, false});
+    }
+    if (!demos.empty()) segs.push_back({DEMO_TURN_SEPARATOR, true});
+    segs.push_back({build_user_content(type, state, question, candidates), false});
+    segs.push_back({ANSWER_ANCHOR, true});
+    return segs;
+}
 }
 

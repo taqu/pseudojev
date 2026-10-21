@@ -1,0 +1,1008 @@
+{
+  "stage": "frozen",
+  "created": "2026-10-20T18:33:32",
+  "preliminary": false,
+  "tuning_run": {
+    "queries": "results/r4/tuning/queries.jsonl",
+    "queries_sha256": "63b5811013259a473e296a5f5e7215cdb58dc78d8557070dabeb954874441abd",
+    "run_timestamp": "2026-10-20T15:06:41",
+    "n": 5863
+  },
+  "identity": {
+    "input_path": "datasets/validation.jsonl",
+    "input_sha256": "ce5d18132b4967ec5516a07b41700babeebef43b5d3dcc63ea62f01fcb4767cc",
+    "db_path": "models/examplar.db",
+    "train_path": "datasets/train.jsonl",
+    "inference_model": "models/bonsai2_2b.gguf",
+    "inference_model_identity": {
+      "architecture": "qwen35",
+      "gguf_path": "models/bonsai2_2b.gguf",
+      "license": "",
+      "llamacpp_revision": "",
+      "model_desc": "qwen35 2B PTQ1_0 - 1.75 bpw ternary (group 128)",
+      "n_params": 0,
+      "name": "Ternary-Bonsai-2-2B",
+      "pjev_commit": "",
+      "quantization": "",
+      "sha256": "36061ad406df8a4903a6db005be350c50fabfaf717f9ef0acf4b76adcd9929fa",
+      "size_bytes": 429183456,
+      "source": ""
+    },
+    "embedding_model": "models/nomic-embed-text-v1.5.gguf",
+    "embedding_fingerprint": "3e24342164b3d949",
+    "embedding_dim": 768,
+    "db_info": {
+      "schema_version": "4",
+      "embedding_fingerprint": "3e24342164b3d949",
+      "embedding_text_version": "1",
+      "distance_metric_label": "cosine",
+      "vector_storage": "bit (vec_quantize_binary); KNN distance is Hamming",
+      "compression_format": "lz4-frame",
+      "example_count": 270573,
+      "records_in_train_split": 111675,
+      "records_outside_train_split": 158898,
+      "train_records_without_one_hot": 79
+    },
+    "query_prefix": "search_query: ",
+    "prompt_format_version": "r1-demo-turn-v1",
+    "prompt_format": "S1 user turn for the exemplar, assistant turn = exemplar answer label, then the unchanged S1 query prompt",
+    "few_shot_prompt_format": "r1-demo-turn-v1 repeated: each demonstration is an S1 user turn followed by an assistant turn holding its answer label, in the stated order, then the unchanged S1 query prompt",
+    "scheme": "letters",
+    "layout": "auto",
+    "ensemble": "none (single order)",
+    "calibration": "none (temperature 1.0, no prior correction)",
+    "n_ctx": 4096,
+    "leakage_policy": "demonstrations restricted to IDs whose split is 'train' in train_path; the query's own ID is rejected; query text never includes the target",
+    "max_fetch_k": 4096
+  },
+  "data": {
+    "reference_predictions_sha256": "336c0cd757f482455eb4170ba2c7dc029571c14d53066f1a9bb011a26c87dd29",
+    "split_assignments_sha256": "d1bb738a2e66141728eca06c5a60a127f813894e9a49eacea211c25902a2ab6e",
+    "partition_rule": "R2 apply_partition: whole scenario families alternate by sorted name, other queries by group_id hash parity; evaluation families fixed",
+    "evaluation_partition": "evaluation"
+  },
+  "evaluation": {
+    "bootstrap_replicates": 2000,
+    "bootstrap_seed": 20261020,
+    "cluster": "group_id",
+    "ci": "95% percentile interval of the paired cluster bootstrap"
+  },
+  "actions": {
+    "zero_shot": "S1 decision",
+    "random_1shot": "XXH64(\"r3-random-v1|42|<query_id>\") draw from R1's eligible pool (seed 42), row fetch, LZ4, 1-shot decision",
+    "nearest_1shot": "query embedding, R1 top-1 search, row fetch, LZ4, 1-shot decision (R1)",
+    "nearest_2shot": "query embedding, top-10 search, neighbour list (rank 1 = R1's exemplar, ranks 2.. in (distance, rowid) order without ID/content duplicates), two row fetches, LZ4, 2-shot decision in the selected order",
+    "knn_k": "query embedding, search (top-1 for k=1, top-10 otherwise), neighbour fetches, label mapping, vote; no LLM"
+  },
+  "fallback_rules": {
+    "nearest_2shot": "if fewer than two distinct neighbours exist or the 2-shot prompt exceeds n_ctx: the 1-shot decision with the nearest exemplar (the refused attempt's measured cost is kept)",
+    "knn": "neighbours whose answer cannot be mapped abstain; no mapped neighbour -> failure (counted incorrect)",
+    "other": "any failed decision counts as incorrect and is reported; nothing is excluded"
+  },
+  "nearest_2shot": {
+    "order": "A",
+    "orders": {
+      "A": "second-nearest, nearest, query",
+      "B": "nearest, second-nearest, query"
+    },
+    "tuning_correct": {
+      "A": 2895,
+      "B": 2883
+    },
+    "tuning_n": 5863,
+    "by_kind": {
+      "choice": {
+        "n": 3855,
+        "A_correct": 1612,
+        "B_correct": 1611,
+        "nearest_1shot_correct": 1569
+      },
+      "noul": {
+        "n": 1322,
+        "A_correct": 1158,
+        "B_correct": 1157,
+        "nearest_1shot_correct": 1149
+      },
+      "score": {
+        "n": 686,
+        "A_correct": 125,
+        "B_correct": 115,
+        "nearest_1shot_correct": 238
+      }
+    },
+    "selection_rule": "higher tuning accuracy over all kinds; tie -> A"
+  },
+  "knn": {
+    "knn_1": {
+      "k": 1,
+      "voting": "uniform"
+    },
+    "knn_3": {
+      "k": 3,
+      "voting": "weighted",
+      "tau": 0.005
+    },
+    "knn_5": {
+      "k": 5,
+      "voting": "weighted",
+      "tau": 0.005
+    },
+    "weighted_candidates": {
+      "knn_3": {
+        "k": 3,
+        "voting": "weighted",
+        "tau": 0.005
+      },
+      "knn_5": {
+        "k": 5,
+        "voting": "weighted",
+        "tau": 0.005
+      }
+    },
+    "supported_kinds": [
+      "noul",
+      "score"
+    ],
+    "unsupported": {
+      "choice": "option identifiers are per-task item names; no candidate identity exists independently of the ground truth"
+    },
+    "mapping": {
+      "noul": "answer text no/yes -> the query option with the same text",
+      "score": "answer level index -> the same level index (level counts must match)"
+    },
+    "weighting": "w_i = exp((s_i - s_max) / tau), s = estimated cosine cos(pi*h/768), s_max = max over voters",
+    "tie_break": "highest total weight; equal totals (1e-12 relative) -> label of the best-ranked neighbour",
+    "tau_grid": [
+      0.002,
+      0.005,
+      0.01,
+      0.02,
+      0.05,
+      0.1
+    ],
+    "tuning_table": [
+      {
+        "k": 3,
+        "voting": "uniform",
+        "correct": 1328,
+        "n": 2008
+      },
+      {
+        "k": 3,
+        "voting": "weighted",
+        "tau": 0.002,
+        "correct": 1334,
+        "n": 2008
+      },
+      {
+        "k": 3,
+        "voting": "weighted",
+        "tau": 0.005,
+        "correct": 1336,
+        "n": 2008
+      },
+      {
+        "k": 3,
+        "voting": "weighted",
+        "tau": 0.01,
+        "correct": 1333,
+        "n": 2008
+      },
+      {
+        "k": 3,
+        "voting": "weighted",
+        "tau": 0.02,
+        "correct": 1330,
+        "n": 2008
+      },
+      {
+        "k": 3,
+        "voting": "weighted",
+        "tau": 0.05,
+        "correct": 1328,
+        "n": 2008
+      },
+      {
+        "k": 3,
+        "voting": "weighted",
+        "tau": 0.1,
+        "correct": 1328,
+        "n": 2008
+      },
+      {
+        "k": 5,
+        "voting": "uniform",
+        "correct": 1344,
+        "n": 2008
+      },
+      {
+        "k": 5,
+        "voting": "weighted",
+        "tau": 0.002,
+        "correct": 1347,
+        "n": 2008
+      },
+      {
+        "k": 5,
+        "voting": "weighted",
+        "tau": 0.005,
+        "correct": 1357,
+        "n": 2008
+      },
+      {
+        "k": 5,
+        "voting": "weighted",
+        "tau": 0.01,
+        "correct": 1353,
+        "n": 2008
+      },
+      {
+        "k": 5,
+        "voting": "weighted",
+        "tau": 0.02,
+        "correct": 1351,
+        "n": 2008
+      },
+      {
+        "k": 5,
+        "voting": "weighted",
+        "tau": 0.05,
+        "correct": 1344,
+        "n": 2008
+      },
+      {
+        "k": 5,
+        "voting": "weighted",
+        "tau": 0.1,
+        "correct": 1343,
+        "n": 2008
+      }
+    ],
+    "selection_rule": "per k, max tuning accuracy on noul+score; ties -> uniform, then larger tau"
+  },
+  "routing": {
+    "families": {
+      "task_only": "one fixed action per kind",
+      "adaptive": "per kind: a fixed action, a kNN gate (retrieve; unanimous top-k labels and nearest similarity >= t -> kNN, else fallback), a similarity gate (retrieve; similarity >= t -> nearest_1shot, else zero_shot/random_1shot) or an S1-margin gate (S1; margin >= m -> keep, else run the fallback action standalone)"
+    },
+    "threshold_grids": "similarity: tuning quantiles 0,5,...,95% of the nearest similarity per kind; margin: tuning quantiles 5,...,95% of the S1 winner margin per kind",
+    "cost_model": "per-query measured stage times of the tuning run composed along each rule's execution plan; work needed to decide (retrieval, S1) is always paid",
+    "budgets_ms": {
+      "A_latency": 487.9139312126911,
+      "random_latency": 333.80820518505885,
+      "zero_shot_latency": 225.21800938086312
+    },
+    "rules_considered": {
+      "task_only": 18,
+      "adaptive": 775
+    }
+  },
+  "finalist_policies": [
+    {
+      "name": "A_static_nearest_1shot",
+      "family": "static",
+      "rules": {
+        "choice": {
+          "type": "fixed",
+          "action": "nearest_1shot",
+          "description": "nearest_1shot"
+        },
+        "noul": {
+          "type": "fixed",
+          "action": "nearest_1shot",
+          "description": "nearest_1shot"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "nearest_1shot",
+          "description": "nearest_1shot"
+        }
+      }
+    },
+    {
+      "name": "B_task_only@A_latency",
+      "family": "task_only",
+      "rules": {
+        "choice": {
+          "type": "fixed",
+          "action": "nearest_2shot_a",
+          "description": "nearest_2shot_a"
+        },
+        "noul": {
+          "type": "fixed",
+          "action": "nearest_1shot",
+          "description": "nearest_1shot"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        }
+      }
+    },
+    {
+      "name": "B_task_only@random_latency",
+      "family": "task_only",
+      "rules": {
+        "choice": {
+          "type": "fixed",
+          "action": "random_1shot",
+          "description": "random_1shot"
+        },
+        "noul": {
+          "type": "fixed",
+          "action": "nearest_2shot_a",
+          "description": "nearest_2shot_a"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        }
+      }
+    },
+    {
+      "name": "B_task_only@zero_shot_latency",
+      "family": "task_only",
+      "rules": {
+        "choice": {
+          "type": "fixed",
+          "action": "random_1shot",
+          "description": "random_1shot"
+        },
+        "noul": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        }
+      }
+    },
+    {
+      "name": "B_task_only@A_accuracy",
+      "family": "task_only",
+      "rules": {
+        "choice": {
+          "type": "fixed",
+          "action": "random_1shot",
+          "description": "random_1shot"
+        },
+        "noul": {
+          "type": "fixed",
+          "action": "nearest_1shot",
+          "description": "nearest_1shot"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        }
+      }
+    },
+    {
+      "name": "C_adaptive@A_latency",
+      "family": "adaptive",
+      "rules": {
+        "choice": {
+          "type": "fixed",
+          "action": "nearest_2shot_a",
+          "description": "nearest_2shot_a"
+        },
+        "noul": {
+          "type": "knn_gate",
+          "gate_k": 1,
+          "threshold": 0.9680109352757227,
+          "fallback": "nearest_2shot_a",
+          "description": "retrieve; if nearest sim >= 0.968011 -> knn_1, else nearest_2shot_a"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        }
+      }
+    },
+    {
+      "name": "C_adaptive@random_latency",
+      "family": "adaptive",
+      "rules": {
+        "choice": {
+          "type": "s1_margin_gate",
+          "threshold": 1.0726877212524415,
+          "fallback": "random_1shot",
+          "description": "S1; if S1 margin >= 1.07269 keep S1, else random_1shot"
+        },
+        "noul": {
+          "type": "knn_gate",
+          "gate_k": 5,
+          "threshold": 0.8986744656939538,
+          "fallback": "nearest_2shot_a",
+          "description": "retrieve; if nearest sim >= 0.898674 and top-5 labels unanimous -> knn_5, else nearest_2shot_a"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        }
+      }
+    },
+    {
+      "name": "C_adaptive@zero_shot_latency",
+      "family": "adaptive",
+      "rules": {
+        "choice": {
+          "type": "fixed",
+          "action": "random_1shot",
+          "description": "random_1shot"
+        },
+        "noul": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        }
+      }
+    },
+    {
+      "name": "C_adaptive@A_accuracy",
+      "family": "adaptive",
+      "rules": {
+        "choice": {
+          "type": "fixed",
+          "action": "random_1shot",
+          "description": "random_1shot"
+        },
+        "noul": {
+          "type": "knn_gate",
+          "gate_k": 3,
+          "threshold": 0.8986744656939538,
+          "fallback": "nearest_1shot",
+          "description": "retrieve; if nearest sim >= 0.898674 and top-3 labels unanimous -> knn_3, else nearest_1shot"
+        },
+        "score": {
+          "type": "fixed",
+          "action": "knn_5",
+          "description": "knn_5"
+        }
+      }
+    }
+  ],
+  "finalist_selection": [
+    {
+      "name": "A_static_nearest_1shot",
+      "selection": "static reference: nearest_1shot for every query",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.5041787480811871,
+        "correct": 2956,
+        "failed": 0,
+        "fallbacks": 0,
+        "mean_ms": 487.9139312126911,
+        "p50_ms": 381.812,
+        "p95_ms": 892.3101899999999,
+        "p99_ms": 1310.4172300000002,
+        "llm_per_query": 1.0,
+        "embeddings_per_query": 1.0,
+        "prompt_tokens_per_query": 727.9435442606174,
+        "routed": {
+          "choice": {
+            "nearest_1shot": 3855
+          },
+          "noul": {
+            "nearest_1shot": 1322
+          },
+          "score": {
+            "nearest_1shot": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "A_static_nearest_1shot",
+        "family": "static",
+        "rules": {
+          "choice": {
+            "type": "fixed",
+            "action": "nearest_1shot",
+            "description": "nearest_1shot"
+          },
+          "noul": {
+            "type": "fixed",
+            "action": "nearest_1shot",
+            "description": "nearest_1shot"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "nearest_1shot",
+            "description": "nearest_1shot"
+          }
+        }
+      }
+    },
+    {
+      "name": "B_task_only@A_latency",
+      "selection": "max tuning accuracy with tuning mean latency <= 487.9 ms (A_latency); ties -> lower latency",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.5120245608050487,
+        "correct": 3002,
+        "failed": 0,
+        "fallbacks": 0,
+        "mean_ms": 463.9298618625271,
+        "p50_ms": 271.59929999999997,
+        "p95_ms": 1038.2945399999999,
+        "p99_ms": 1227.3848980000002,
+        "llm_per_query": 0.882995053726761,
+        "embeddings_per_query": 1.0,
+        "prompt_tokens_per_query": 771.2043322531127,
+        "routed": {
+          "choice": {
+            "nearest_2shot_a": 3855
+          },
+          "noul": {
+            "nearest_1shot": 1322
+          },
+          "score": {
+            "knn_5": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "B_task_only@A_latency",
+        "family": "task_only",
+        "rules": {
+          "choice": {
+            "type": "fixed",
+            "action": "nearest_2shot_a",
+            "description": "nearest_2shot_a"
+          },
+          "noul": {
+            "type": "fixed",
+            "action": "nearest_1shot",
+            "description": "nearest_1shot"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          }
+        }
+      }
+    },
+    {
+      "name": "B_task_only@random_latency",
+      "selection": "max tuning accuracy with tuning mean latency <= 333.8 ms (random_latency); ties -> lower latency",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.507931093296947,
+        "correct": 2978,
+        "failed": 0,
+        "fallbacks": 0,
+        "mean_ms": 328.994999948832,
+        "p50_ms": 316.9418,
+        "p95_ms": 802.80999,
+        "p99_ms": 1091.5805360000002,
+        "llm_per_query": 0.882995053726761,
+        "embeddings_per_query": 0.34248678151117173,
+        "prompt_tokens_per_query": 616.0760702711922,
+        "routed": {
+          "choice": {
+            "random_1shot": 3855
+          },
+          "noul": {
+            "nearest_2shot_a": 1322
+          },
+          "score": {
+            "knn_5": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "B_task_only@random_latency",
+        "family": "task_only",
+        "rules": {
+          "choice": {
+            "type": "fixed",
+            "action": "random_1shot",
+            "description": "random_1shot"
+          },
+          "noul": {
+            "type": "fixed",
+            "action": "nearest_2shot_a",
+            "description": "nearest_2shot_a"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          }
+        }
+      }
+    },
+    {
+      "name": "B_task_only@zero_shot_latency",
+      "selection": "max tuning accuracy with tuning mean latency <= 225.2 ms (zero_shot_latency); ties -> lower latency",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.500767525157769,
+        "correct": 2936,
+        "failed": 0,
+        "fallbacks": 0,
+        "mean_ms": 214.78792132014323,
+        "p50_ms": 159.6446,
+        "p95_ms": 482.2531099999999,
+        "p99_ms": 719.3272320000009,
+        "llm_per_query": 0.6575132184888283,
+        "embeddings_per_query": 0.34248678151117173,
+        "prompt_tokens_per_query": 341.9957359713457,
+        "routed": {
+          "choice": {
+            "random_1shot": 3855
+          },
+          "noul": {
+            "knn_5": 1322
+          },
+          "score": {
+            "knn_5": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "B_task_only@zero_shot_latency",
+        "family": "task_only",
+        "rules": {
+          "choice": {
+            "type": "fixed",
+            "action": "random_1shot",
+            "description": "random_1shot"
+          },
+          "noul": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          }
+        }
+      }
+    },
+    {
+      "name": "B_task_only@A_accuracy",
+      "selection": "min tuning mean latency with tuning accuracy >= policy A's (2956/5863); ties -> more correct",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.5063960429814088,
+        "correct": 2969,
+        "failed": 0,
+        "fallbacks": 0,
+        "mean_ms": 295.5677747228381,
+        "p50_ms": 251.74970000000002,
+        "p95_ms": 648.8192899999999,
+        "p99_ms": 814.2865340000001,
+        "llm_per_query": 0.882995053726761,
+        "embeddings_per_query": 0.34248678151117173,
+        "prompt_tokens_per_query": 525.6815623400989,
+        "routed": {
+          "choice": {
+            "random_1shot": 3855
+          },
+          "noul": {
+            "nearest_1shot": 1322
+          },
+          "score": {
+            "knn_5": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "B_task_only@A_accuracy",
+        "family": "task_only",
+        "rules": {
+          "choice": {
+            "type": "fixed",
+            "action": "random_1shot",
+            "description": "random_1shot"
+          },
+          "noul": {
+            "type": "fixed",
+            "action": "nearest_1shot",
+            "description": "nearest_1shot"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          }
+        }
+      }
+    },
+    {
+      "name": "C_adaptive@A_latency",
+      "selection": "max tuning accuracy with tuning mean latency <= 487.9 ms (A_latency); ties -> lower latency",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.5130479276820741,
+        "correct": 3008,
+        "failed": 0,
+        "fallbacks": 1042,
+        "mean_ms": 481.391516902609,
+        "p50_ms": 284.653,
+        "p95_ms": 1049.1904000000002,
+        "p99_ms": 1254.6787060000001,
+        "llm_per_query": 0.8352379327989085,
+        "embeddings_per_query": 1.0,
+        "prompt_tokens_per_query": 824.2043322531127,
+        "routed": {
+          "choice": {
+            "nearest_2shot_a": 3855
+          },
+          "noul": {
+            "knn_1": 280,
+            "nearest_2shot_a": 1042
+          },
+          "score": {
+            "knn_5": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "C_adaptive@A_latency",
+        "family": "adaptive",
+        "rules": {
+          "choice": {
+            "type": "fixed",
+            "action": "nearest_2shot_a",
+            "description": "nearest_2shot_a"
+          },
+          "noul": {
+            "type": "knn_gate",
+            "gate_k": 1,
+            "threshold": 0.9680109352757227,
+            "fallback": "nearest_2shot_a",
+            "description": "retrieve; if nearest sim >= 0.968011 -> knn_1, else nearest_2shot_a"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          }
+        }
+      }
+    },
+    {
+      "name": "C_adaptive@random_latency",
+      "selection": "max tuning accuracy with tuning mean latency <= 333.8 ms (random_latency); ties -> lower latency",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.5106600716356814,
+        "correct": 2994,
+        "failed": 0,
+        "fallbacks": 2153,
+        "mean_ms": 318.48655021320144,
+        "p50_ms": 140.7447,
+        "p95_ms": 816.43569,
+        "p99_ms": 1060.1624080000008,
+        "llm_per_query": 1.0247313661947808,
+        "embeddings_per_query": 0.34248678151117173,
+        "prompt_tokens_per_query": 526.7589971004605,
+        "routed": {
+          "choice": {
+            "random_1shot": 1542,
+            "zero_shot": 2313
+          },
+          "noul": {
+            "knn_5": 711,
+            "nearest_2shot_a": 611
+          },
+          "score": {
+            "knn_5": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "C_adaptive@random_latency",
+        "family": "adaptive",
+        "rules": {
+          "choice": {
+            "type": "s1_margin_gate",
+            "threshold": 1.0726877212524415,
+            "fallback": "random_1shot",
+            "description": "S1; if S1 margin >= 1.07269 keep S1, else random_1shot"
+          },
+          "noul": {
+            "type": "knn_gate",
+            "gate_k": 5,
+            "threshold": 0.8986744656939538,
+            "fallback": "nearest_2shot_a",
+            "description": "retrieve; if nearest sim >= 0.898674 and top-5 labels unanimous -> knn_5, else nearest_2shot_a"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          }
+        }
+      }
+    },
+    {
+      "name": "C_adaptive@zero_shot_latency",
+      "selection": "max tuning accuracy with tuning mean latency <= 225.2 ms (zero_shot_latency); ties -> lower latency",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.500767525157769,
+        "correct": 2936,
+        "failed": 0,
+        "fallbacks": 0,
+        "mean_ms": 214.78792132014323,
+        "p50_ms": 159.6446,
+        "p95_ms": 482.2531099999999,
+        "p99_ms": 719.3272320000009,
+        "llm_per_query": 0.6575132184888283,
+        "embeddings_per_query": 0.34248678151117173,
+        "prompt_tokens_per_query": 341.9957359713457,
+        "routed": {
+          "choice": {
+            "random_1shot": 3855
+          },
+          "noul": {
+            "knn_5": 1322
+          },
+          "score": {
+            "knn_5": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "C_adaptive@zero_shot_latency",
+        "family": "adaptive",
+        "rules": {
+          "choice": {
+            "type": "fixed",
+            "action": "random_1shot",
+            "description": "random_1shot"
+          },
+          "noul": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          }
+        }
+      }
+    },
+    {
+      "name": "C_adaptive@A_accuracy",
+      "selection": "min tuning mean latency with tuning accuracy >= policy A's (2956/5863); ties -> more correct",
+      "tuning": {
+        "n": 5863,
+        "accuracy": 0.5045198703735289,
+        "correct": 2958,
+        "failed": 0,
+        "fallbacks": 334,
+        "mean_ms": 237.72081390073348,
+        "p50_ms": 162.1133,
+        "p95_ms": 567.7525299999996,
+        "p99_ms": 808.486908,
+        "llm_per_query": 0.7144806413099096,
+        "embeddings_per_query": 0.34248678151117173,
+        "prompt_tokens_per_query": 392.91710728296096,
+        "routed": {
+          "choice": {
+            "random_1shot": 3855
+          },
+          "noul": {
+            "knn_3": 988,
+            "nearest_1shot": 334
+          },
+          "score": {
+            "knn_5": 686
+          }
+        }
+      },
+      "policy": {
+        "name": "C_adaptive@A_accuracy",
+        "family": "adaptive",
+        "rules": {
+          "choice": {
+            "type": "fixed",
+            "action": "random_1shot",
+            "description": "random_1shot"
+          },
+          "noul": {
+            "type": "knn_gate",
+            "gate_k": 3,
+            "threshold": 0.8986744656939538,
+            "fallback": "nearest_1shot",
+            "description": "retrieve; if nearest sim >= 0.898674 and top-3 labels unanimous -> knn_3, else nearest_1shot"
+          },
+          "score": {
+            "type": "fixed",
+            "action": "knn_5",
+            "description": "knn_5"
+          }
+        }
+      }
+    }
+  ],
+  "confirmatory_policies": [
+    "A_static_nearest_1shot",
+    "B_task_only@A_latency",
+    "C_adaptive@A_latency"
+  ],
+  "confirmatory_comparisons": [
+    {
+      "id": 1,
+      "a": "nearest_2shot",
+      "b": "nearest_1shot",
+      "scope": "all"
+    },
+    {
+      "id": 2,
+      "a": "nearest_2shot",
+      "b": "zero_shot",
+      "scope": "all"
+    },
+    {
+      "id": 3,
+      "a": "knn_1",
+      "b": "nearest_1shot",
+      "scope": "noul"
+    },
+    {
+      "id": 4,
+      "a": "knn_3",
+      "b": "knn_1",
+      "scope": "noul"
+    },
+    {
+      "id": 5,
+      "a": "knn_5",
+      "b": "knn_1",
+      "scope": "noul"
+    },
+    {
+      "id": 6,
+      "a": "B_task_only@A_latency",
+      "b": "A_static_nearest_1shot",
+      "scope": "all"
+    },
+    {
+      "id": 7,
+      "a": "C_adaptive@A_latency",
+      "b": "A_static_nearest_1shot",
+      "scope": "all"
+    },
+    {
+      "id": 8,
+      "a": "C_adaptive@A_latency",
+      "b": "B_task_only@A_latency",
+      "scope": "all"
+    }
+  ],
+  "decision_rules": {
+    "non_inferiority_margin_pp": 1.0,
+    "min_latency_reduction": 0.1,
+    "rules": [
+      "A policy 'qualifies' when either (i) its held-out accuracy difference to A has a 95% CI lower bound >= -1.0 pp and its held-out mean latency is at least 10% below A's, or (ii) the CI lower bound is > 0 and its mean latency is not above A's.",
+      "Adopt adaptive routing (C) if C qualifies and either C - B has a CI lower bound > 0 or B does not qualify.",
+      "Otherwise adopt task-only routing (B) if B qualifies.",
+      "Otherwise use direct kNN for noul if kNN-1 - R1 on noul has a CI lower bound >= -1.0 pp.",
+      "Otherwise keep nearest 1-shot as the default.",
+      "Defer deployment instead if the evaluation run fails its integrity checks (reference mismatches, unexplained failures)."
+    ]
+  }
+}

@@ -58,6 +58,14 @@ void fill_condition(const DecisionOutput&           out,
 // Candidate labels shown in the prompt for n candidates (same assignment as PromptStrategy).
 std::vector<std::string> candidate_labels(const PromptStrategy& strategy, Type type, size_t n);
 
+// Prompt segments exactly as the decision engine builds them for S1 and for the 1-shot decision.
+std::vector<PromptSegment> s1_prompt_segments(const PromptStrategy& strategy, const DecisionInput& input);
+std::vector<PromptSegment> r1_prompt_segments(const PromptStrategy& strategy, const DecisionInput& input,
+                                              const Demonstration& demo);
+// Few-shot prompt segments as decide_with_demonstrations() builds them (demos in prompt order).
+std::vector<PromptSegment> few_shot_prompt_segments(const PromptStrategy& strategy, const DecisionInput& input,
+                                                    const std::vector<Demonstration>& demos);
+
 // Full prompt text (segments concatenated) for diagnostics; never used for inference.
 std::string render_s1_prompt(const PromptStrategy& strategy, const DecisionInput& input);
 std::string render_r1_prompt(const PromptStrategy& strategy, const DecisionInput& input,

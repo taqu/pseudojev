@@ -148,6 +148,11 @@ public:
     // Not thread-safe. Callers must serialize access.
     DecisionOutput decide_with_demonstration(const DecisionInput& input, const Demonstration& demo);
 
+    // R4 few-shot: the demonstrations as earlier turns in the given order (first = earliest), then
+    // the query, scored exactly as decide_with_demonstration(). One demonstration gives the same
+    // prompt tokens as decide_with_demonstration(); none gives the S1 single-order prompt.
+    DecisionOutput decide_with_demonstrations(const DecisionInput& input, const std::vector<Demonstration>& demos);
+
     // Compute candidate logits for a blank (empty state/question) prompt of the given type and n_options.
     // Returns per-candidate raw logits (size = n_options), or empty vector on failure.
     // Used by the experiment framework for prior correction.
@@ -190,12 +195,13 @@ private:
     // decide_single with optional KV prefix reuse: when prev_tokens is non-null, the token prefix
     // shared with prev_tokens (the most recently evaluated sequence) is reused. The evaluated
     // prompt tokens are written to tokens_out and the reused length to reused_out when non-null.
-    // When demo is non-null, the demonstration turn is prepended to the prompt (R1).
+    // The n_demos demonstrations at `demos` are prepended as earlier turns (R1: one; R4: two).
     DecisionOutput decide_single_impl(const DecisionInput& input,
                                       const std::vector<int32_t>* prev_tokens,
                                       std::vector<int32_t>* tokens_out,
                                       int32_t* reused_out,
-                                      const Demonstration* demo = nullptr);
+                                      const Demonstration* demos = nullptr,
+                                      size_t n_demos = 0);
 
     // Cyclic option-rotation ensemble for choice (E2): evaluates N rotations, remaps candidate
     // logits to semantic option order, averages them, then applies temperature and softmax.

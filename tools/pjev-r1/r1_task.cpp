@@ -155,22 +155,44 @@ static std::string join(const std::vector<PromptSegment>& segs)
     return s;
 }
 
+std::vector<PromptSegment> s1_prompt_segments(const PromptStrategy& strategy, const DecisionInput& input)
+{
+    return strategy.build_prompt_segments(
+        input.type, input.state, input.question,
+        make_candidates(strategy, input.type, input.options));
+}
+
+std::vector<PromptSegment> r1_prompt_segments(const PromptStrategy& strategy, const DecisionInput& input,
+                                              const Demonstration& demo)
+{
+    return strategy.build_demonstration_prompt_segments(
+        input.type, demo.state, demo.question,
+        make_candidates(strategy, demo.type, demo.options),
+        static_cast<size_t>(demo.answer_index),
+        input.state, input.question,
+        make_candidates(strategy, input.type, input.options));
+}
+
+std::vector<PromptSegment> few_shot_prompt_segments(const PromptStrategy& strategy, const DecisionInput& input,
+                                                    const std::vector<Demonstration>& demos)
+{
+    std::vector<PromptStrategy::DemoTurn> turns;
+    for (const auto& d : demos)
+        turns.push_back({d.state, d.question, make_candidates(strategy, d.type, d.options),
+                         static_cast<size_t>(d.answer_index)});
+    return strategy.build_few_shot_prompt_segments(input.type, turns, input.state, input.question,
+                                                   make_candidates(strategy, input.type, input.options));
+}
+
 std::string render_s1_prompt(const PromptStrategy& strategy, const DecisionInput& input)
 {
-    return join(strategy.build_prompt_segments(
-        input.type, input.state, input.question,
-        make_candidates(strategy, input.type, input.options)));
+    return join(s1_prompt_segments(strategy, input));
 }
 
 std::string render_r1_prompt(const PromptStrategy& strategy, const DecisionInput& input,
                              const Demonstration& demo)
 {
-    return join(strategy.build_demonstration_prompt_segments(
-        input.type, demo.state, demo.question,
-        make_candidates(strategy, demo.type, demo.options),
-        static_cast<size_t>(demo.answer_index),
-        input.state, input.question,
-        make_candidates(strategy, input.type, input.options)));
+    return join(r1_prompt_segments(strategy, input, demo));
 }
 
 } // namespace r1

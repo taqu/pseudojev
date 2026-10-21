@@ -201,7 +201,8 @@ DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
                                                   const std::vector<int32_t>* prev_tokens,
                                                   std::vector<int32_t>* tokens_out,
                                                   int32_t* reused_out,
-                                                  const Demonstration* demo)
+                                                  const Demonstration* demos,
+                                                  size_t n_demos)
 {
     if(reused_out)
         *reused_out = 0;
@@ -248,8 +249,9 @@ DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
         cand_ids.push_back(it->second);
     }
 
-    std::vector<Candidate> demo_candidates;
-    if(demo) {
+    std::vector<PromptStrategy::DemoTurn> demo_turns;
+    for(size_t di = 0; di < n_demos; ++di) {
+        const Demonstration* demo = &demos[di];
         if(demo->type != input.type) {
             out.error = "demonstration type does not match the query type";
             return out;
@@ -262,6 +264,7 @@ DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
             out.error = "demonstration answer index out of range";
             return out;
         }
+        std::vector<Candidate> demo_candidates;
         for(const auto& kv: demo->options) {
             Candidate c;
             c.key = kv.first;
@@ -274,13 +277,14 @@ DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
             out.error = "demonstration answer label is not a verified single token";
             return out;
         }
+        demo_turns.push_back({demo->state, demo->question, std::move(demo_candidates), (size_t)demo->answer_index});
     }
 
     auto t0 = now_us();
-    auto prompt_tokens = demo
-        ? tokenize_segments(strategy_.build_demonstration_prompt_segments(
-              input.type, demo->state, demo->question, demo_candidates, (size_t)demo->answer_index,
-              input.state, input.question, candidates))
+    // One demonstration: build_few_shot_prompt_segments() yields exactly the R1 segments.
+    auto prompt_tokens = n_demos > 0
+        ? tokenize_segments(strategy_.build_few_shot_prompt_segments(
+              input.type, demo_turns, input.state, input.question, candidates))
         : make_prompt_tokens(input, candidates);
     auto t1 = now_us();
     out.prompt_token_count = (int32_t)prompt_tokens.size();
@@ -320,7 +324,13 @@ DecisionOutput DecisionEngine::decide_single_impl(const DecisionInput& input,
 DecisionOutput DecisionEngine::decide_with_demonstration(const DecisionInput& input,
                                                          const Demonstration& demo)
 {
-    return decide_single_impl(input, nullptr, nullptr, nullptr, &demo);
+    return decide_single_impl(input, nullptr, nullptr, nullptr, &demo, 1);
+}
+
+DecisionOutput DecisionEngine::decide_with_demonstrations(const DecisionInput& input,
+                                                          const std::vector<Demonstration>& demos)
+{
+    return decide_single_impl(input, nullptr, nullptr, nullptr, demos.data(), demos.size());
 }
 
 DecisionOutput DecisionEngine::decide(const DecisionInput& input)

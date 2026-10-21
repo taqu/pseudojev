@@ -93,6 +93,24 @@ public:
         const std::string& question,
         const std::vector<Candidate>& candidates) const;
 
+    // One solved demonstration turn for build_few_shot_prompt_segments().
+    struct DemoTurn {
+        std::string            state;
+        std::string            question;
+        std::vector<Candidate> candidates;
+        size_t                 answer = 0;
+    };
+
+    // R4 few-shot: the demonstrations in the given order, each a complete earlier turn, then the
+    // query. Demonstration i > 0 is opened with DEMO_TURN_SEPARATOR, so with one demonstration the
+    // segments are exactly those of build_demonstration_prompt_segments().
+    std::vector<PromptSegment> build_few_shot_prompt_segments(
+        Type type,
+        const std::vector<DemoTurn>& demos,
+        const std::string& state,
+        const std::string& question,
+        const std::vector<Candidate>& candidates) const;
+
     // Info for shared-prefix KV reuse across same-state questions.
     struct PrefixInfo {
         bool        valid = false;

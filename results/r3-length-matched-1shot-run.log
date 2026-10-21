@@ -1,0 +1,706 @@
+Reference: results/r1-2b/predictions.jsonl (11674 records, sha256 336c0cd757f48245)
+Partition: recomputed evaluation=5811; saved tuning=5863 evaluation=5811; disagreements=0; group overlap=0
+Pool: 270573 vector rows, 111596 eligible (158898 outside train, 79 without one-hot), kind metadata mismatches 0
+  pool choice   96268
+  pool noul     7822
+  pool score/3  546
+  pool score/5  6960
+Held-out queries: 5811 (evaluating 5811)
+ggml_vulkan: Found 2 Vulkan devices:
+ggml_vulkan: 0 = NVIDIA GeForce RTX 4060 Ti (NVIDIA) | uma: 0 | fp16: 1 | bf16: 1 | fp4: 0 | warp size: 32 | shared memory: 49152 | int dot: 1 | matrix cores: NV_coopmat2
+ggml_vulkan: 1 = Intel(R) UHD Graphics 770 (Intel Corporation) | uma: 1 | fp16: 1 | bf16: 0 | fp4: 0 | warp size: 32 | shared memory: 32768 | int dot: 1 | matrix cores: none
+llama_model_loader: loaded meta data with 23 key-value pairs and 112 tensors from models/nomic-embed-text-v1.5.gguf (version GGUF V3 (latest))
+llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+llama_model_loader: - kv   0:                       general.architecture str              = nomic-bert
+llama_model_loader: - kv   1:                               general.name str              = nomic-embed-text-v1.5
+llama_model_loader: - kv   2:                     nomic-bert.block_count u32              = 12
+llama_model_loader: - kv   3:                  nomic-bert.context_length u32              = 2048
+llama_model_loader: - kv   4:                nomic-bert.embedding_length u32              = 768
+llama_model_loader: - kv   5:             nomic-bert.feed_forward_length u32              = 3072
+llama_model_loader: - kv   6:            nomic-bert.attention.head_count u32              = 12
+llama_model_loader: - kv   7:    nomic-bert.attention.layer_norm_epsilon f32              = 0.000000
+llama_model_loader: - kv   8:                          general.file_type u32              = 7
+llama_model_loader: - kv   9:                nomic-bert.attention.causal bool             = false
+llama_model_loader: - kv  10:                    nomic-bert.pooling_type u32              = 1
+llama_model_loader: - kv  11:                  nomic-bert.rope.freq_base f32              = 1000.000000
+llama_model_loader: - kv  12:            tokenizer.ggml.token_type_count u32              = 2
+llama_model_loader: - kv  13:                tokenizer.ggml.bos_token_id u32              = 101
+llama_model_loader: - kv  14:                tokenizer.ggml.eos_token_id u32              = 102
+llama_model_loader: - kv  15:                       tokenizer.ggml.model str              = bert
+llama_model_loader: - kv  16:                      tokenizer.ggml.tokens arr[str,30522]   = ["[PAD]", "[unused0]", "[unused1]", "...
+llama_model_loader: - kv  17:                      tokenizer.ggml.scores arr[f32,30522]   = [-1000.000000, -1000.000000, -1000.00...
+llama_model_loader: - kv  18:                  tokenizer.ggml.token_type arr[i32,30522]   = [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+llama_model_loader: - kv  19:            tokenizer.ggml.unknown_token_id u32              = 100
+llama_model_loader: - kv  20:          tokenizer.ggml.seperator_token_id u32              = 102
+llama_model_loader: - kv  21:            tokenizer.ggml.padding_token_id u32              = 0
+llama_model_loader: - kv  22:               general.quantization_version u32              = 2
+llama_model_loader: - type  f32:   51 tensors
+llama_model_loader: - type q8_0:   61 tensors
+print_info: file format = GGUF V3 (latest)
+print_info: file type   = Q8_0
+print_info: file size   = 138.65 MiB (8.51 BPW) 
+llama_prepare_model_devices: using device Vulkan0 (NVIDIA GeForce RTX 4060 Ti) (0000:01:00.0) - 15524 MiB free
+init_tokenizer: initializing tokenizer for type 3
+load: 0 unused tokens
+load: control token:    100 '[UNK]' is not marked as EOG
+load: control token:    101 '[CLS]' is not marked as EOG
+load: control token:    102 '[SEP]' is not marked as EOG
+load: control token:    103 '[MASK]' is not marked as EOG
+load: special_eos_id is not in special_eog_ids - the tokenizer config may be incorrect
+load: printing all EOG tokens:
+load:   - 0 ('[PAD]')
+load:   - 102 ('[SEP]')
+load: special tokens cache size = 5
+load: token to piece cache size = 0.2032 MB
+print_info: arch                  = nomic-bert
+print_info: vocab_only            = 0
+print_info: no_alloc              = 0
+print_info: n_ctx_train           = 2048
+print_info: n_embd_inp            = 768
+print_info: n_embd                = 768
+print_info: n_embd_out            = 768
+print_info: n_layer               = 12
+print_info: n_layer_all           = 12
+print_info: n_head                = 12
+print_info: n_head_kv             = 12
+print_info: n_rot                 = 64
+print_info: n_swa                 = 0
+print_info: is_swa_any            = 0
+print_info: n_embd_head_k         = 64
+print_info: n_embd_head_v         = 64
+print_info: n_gqa                 = 1
+print_info: n_embd_k_gqa          = 768
+print_info: n_embd_v_gqa          = 768
+print_info: f_norm_eps            = 1.0e-12
+print_info: f_norm_rms_eps        = 0.0e+00
+print_info: f_clamp_kqv           = 0.0e+00
+print_info: f_max_alibi_bias      = 0.0e+00
+print_info: f_logit_scale         = 0.0e+00
+print_info: f_attn_scale          = 0.0e+00
+print_info: f_attn_value_scale    = 0.0000
+print_info: n_ff                  = 3072
+print_info: n_expert              = 0
+print_info: n_expert_used         = 0
+print_info: n_expert_groups       = 0
+print_info: n_group_used          = 0
+print_info: causal attn           = 0
+print_info: pooling type          = 1
+print_info: rope type             = 2
+print_info: rope scaling          = linear
+print_info: freq_base_train       = 1000.0
+print_info: freq_scale_train      = 1
+print_info: n_ctx_orig_yarn       = 2048
+print_info: rope_yarn_log_mul     = 0.0000
+print_info: rope_finetuned        = unknown
+print_info: model type            = 137M
+print_info: model params          = 136.73 M
+print_info: general.name          = nomic-embed-text-v1.5
+print_info: vocab type            = WPM
+print_info: n_vocab               = 30522
+print_info: n_merges              = 0
+print_info: BOS token             = 101 '[CLS]'
+print_info: EOS token             = 102 '[SEP]'
+print_info: UNK token             = 100 '[UNK]'
+print_info: SEP token             = 102 '[SEP]'
+print_info: PAD token             = 0 '[PAD]'
+print_info: MASK token            = 103 '[MASK]'
+print_info: LF token              = 0 '[PAD]'
+print_info: FIM PAD token         = 0 '[PAD]'
+print_info: EOG token             = 0 '[PAD]'
+print_info: EOG token             = 102 '[SEP]'
+print_info: max token length      = 21
+load_tensors: loading model tensors, this can take a while... (load_mode = mmap)
+load_tensors: layer   0 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   1 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   2 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   3 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   4 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   5 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   6 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   7 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   8 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer   9 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer  10 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer  11 assigned to device Vulkan0, is_swa = 0
+load_tensors: layer  12 assigned to device Vulkan0, is_swa = 0
+create_tensor: loading tensor token_embd.weight
+create_tensor: loading tensor token_types.weight
+create_tensor: loading tensor token_embd_norm.weight
+create_tensor: loading tensor token_embd_norm.bias
+create_tensor: loading tensor blk.0.attn_qkv.weight
+create_tensor: loading tensor blk.0.attn_qkv.bias
+create_tensor: loading tensor blk.0.attn_output.weight
+create_tensor: loading tensor blk.0.attn_output.bias
+create_tensor: loading tensor blk.0.attn_output_norm.weight
+create_tensor: loading tensor blk.0.attn_output_norm.bias
+create_tensor: loading tensor blk.0.ffn_up.weight
+create_tensor: loading tensor blk.0.ffn_up.bias
+create_tensor: loading tensor blk.0.ffn_down.weight
+create_tensor: loading tensor blk.0.ffn_down.bias
+create_tensor: loading tensor blk.0.ffn_gate.weight
+create_tensor: loading tensor blk.0.layer_output_norm.weight
+create_tensor: loading tensor blk.0.layer_output_norm.bias
+create_tensor: loading tensor blk.1.attn_qkv.weight
+create_tensor: loading tensor blk.1.attn_qkv.bias
+create_tensor: loading tensor blk.1.attn_output.weight
+create_tensor: loading tensor blk.1.attn_output.bias
+create_tensor: loading tensor blk.1.attn_output_norm.weight
+create_tensor: loading tensor blk.1.attn_output_norm.bias
+create_tensor: loading tensor blk.1.ffn_up.weight
+create_tensor: loading tensor blk.1.ffn_up.bias
+create_tensor: loading tensor blk.1.ffn_down.weight
+create_tensor: loading tensor blk.1.ffn_down.bias
+create_tensor: loading tensor blk.1.ffn_gate.weight
+create_tensor: loading tensor blk.1.layer_output_norm.weight
+create_tensor: loading tensor blk.1.layer_output_norm.bias
+create_tensor: loading tensor blk.2.attn_qkv.weight
+create_tensor: loading tensor blk.2.attn_qkv.bias
+create_tensor: loading tensor blk.2.attn_output.weight
+create_tensor: loading tensor blk.2.attn_output.bias
+create_tensor: loading tensor blk.2.attn_output_norm.weight
+create_tensor: loading tensor blk.2.attn_output_norm.bias
+create_tensor: loading tensor blk.2.ffn_up.weight
+create_tensor: loading tensor blk.2.ffn_up.bias
+create_tensor: loading tensor blk.2.ffn_down.weight
+create_tensor: loading tensor blk.2.ffn_down.bias
+create_tensor: loading tensor blk.2.ffn_gate.weight
+create_tensor: loading tensor blk.2.layer_output_norm.weight
+create_tensor: loading tensor blk.2.layer_output_norm.bias
+create_tensor: loading tensor blk.3.attn_qkv.weight
+create_tensor: loading tensor blk.3.attn_qkv.bias
+create_tensor: loading tensor blk.3.attn_output.weight
+create_tensor: loading tensor blk.3.attn_output.bias
+create_tensor: loading tensor blk.3.attn_output_norm.weight
+create_tensor: loading tensor blk.3.attn_output_norm.bias
+create_tensor: loading tensor blk.3.ffn_up.weight
+create_tensor: loading tensor blk.3.ffn_up.bias
+create_tensor: loading tensor blk.3.ffn_down.weight
+create_tensor: loading tensor blk.3.ffn_down.bias
+create_tensor: loading tensor blk.3.ffn_gate.weight
+create_tensor: loading tensor blk.3.layer_output_norm.weight
+create_tensor: loading tensor blk.3.layer_output_norm.bias
+create_tensor: loading tensor blk.4.attn_qkv.weight
+create_tensor: loading tensor blk.4.attn_qkv.bias
+create_tensor: loading tensor blk.4.attn_output.weight
+create_tensor: loading tensor blk.4.attn_output.bias
+create_tensor: loading tensor blk.4.attn_output_norm.weight
+create_tensor: loading tensor blk.4.attn_output_norm.bias
+create_tensor: loading tensor blk.4.ffn_up.weight
+create_tensor: loading tensor blk.4.ffn_up.bias
+create_tensor: loading tensor blk.4.ffn_down.weight
+create_tensor: loading tensor blk.4.ffn_down.bias
+create_tensor: loading tensor blk.4.ffn_gate.weight
+create_tensor: loading tensor blk.4.layer_output_norm.weight
+create_tensor: loading tensor blk.4.layer_output_norm.bias
+create_tensor: loading tensor blk.5.attn_qkv.weight
+create_tensor: loading tensor blk.5.attn_qkv.bias
+create_tensor: loading tensor blk.5.attn_output.weight
+create_tensor: loading tensor blk.5.attn_output.bias
+create_tensor: loading tensor blk.5.attn_output_norm.weight
+create_tensor: loading tensor blk.5.attn_output_norm.bias
+create_tensor: loading tensor blk.5.ffn_up.weight
+create_tensor: loading tensor blk.5.ffn_up.bias
+create_tensor: loading tensor blk.5.ffn_down.weight
+create_tensor: loading tensor blk.5.ffn_down.bias
+create_tensor: loading tensor blk.5.ffn_gate.weight
+create_tensor: loading tensor blk.5.layer_output_norm.weight
+create_tensor: loading tensor blk.5.layer_output_norm.bias
+create_tensor: loading tensor blk.6.attn_qkv.weight
+create_tensor: loading tensor blk.6.attn_qkv.bias
+create_tensor: loading tensor blk.6.attn_output.weight
+create_tensor: loading tensor blk.6.attn_output.bias
+create_tensor: loading tensor blk.6.attn_output_norm.weight
+create_tensor: loading tensor blk.6.attn_output_norm.bias
+create_tensor: loading tensor blk.6.ffn_up.weight
+create_tensor: loading tensor blk.6.ffn_up.bias
+create_tensor: loading tensor blk.6.ffn_down.weight
+create_tensor: loading tensor blk.6.ffn_down.bias
+create_tensor: loading tensor blk.6.ffn_gate.weight
+create_tensor: loading tensor blk.6.layer_output_norm.weight
+create_tensor: loading tensor blk.6.layer_output_norm.bias
+create_tensor: loading tensor blk.7.attn_qkv.weight
+create_tensor: loading tensor blk.7.attn_qkv.bias
+create_tensor: loading tensor blk.7.attn_output.weight
+create_tensor: loading tensor blk.7.attn_output.bias
+create_tensor: loading tensor blk.7.attn_output_norm.weight
+create_tensor: loading tensor blk.7.attn_output_norm.bias
+create_tensor: loading tensor blk.7.ffn_up.weight
+create_tensor: loading tensor blk.7.ffn_up.bias
+create_tensor: loading tensor blk.7.ffn_down.weight
+create_tensor: loading tensor blk.7.ffn_down.bias
+create_tensor: loading tensor blk.7.ffn_gate.weight
+create_tensor: loading tensor blk.7.layer_output_norm.weight
+create_tensor: loading tensor blk.7.layer_output_norm.bias
+create_tensor: loading tensor blk.8.attn_qkv.weight
+create_tensor: loading tensor blk.8.attn_qkv.bias
+create_tensor: loading tensor blk.8.attn_output.weight
+create_tensor: loading tensor blk.8.attn_output.bias
+create_tensor: loading tensor blk.8.attn_output_norm.weight
+create_tensor: loading tensor blk.8.attn_output_norm.bias
+create_tensor: loading tensor blk.8.ffn_up.weight
+create_tensor: loading tensor blk.8.ffn_up.bias
+create_tensor: loading tensor blk.8.ffn_down.weight
+create_tensor: loading tensor blk.8.ffn_down.bias
+create_tensor: loading tensor blk.8.ffn_gate.weight
+create_tensor: loading tensor blk.8.layer_output_norm.weight
+create_tensor: loading tensor blk.8.layer_output_norm.bias
+create_tensor: loading tensor blk.9.attn_qkv.weight
+create_tensor: loading tensor blk.9.attn_qkv.bias
+create_tensor: loading tensor blk.9.attn_output.weight
+create_tensor: loading tensor blk.9.attn_output.bias
+create_tensor: loading tensor blk.9.attn_output_norm.weight
+create_tensor: loading tensor blk.9.attn_output_norm.bias
+create_tensor: loading tensor blk.9.ffn_up.weight
+create_tensor: loading tensor blk.9.ffn_up.bias
+create_tensor: loading tensor blk.9.ffn_down.weight
+create_tensor: loading tensor blk.9.ffn_down.bias
+create_tensor: loading tensor blk.9.ffn_gate.weight
+create_tensor: loading tensor blk.9.layer_output_norm.weight
+create_tensor: loading tensor blk.9.layer_output_norm.bias
+create_tensor: loading tensor blk.10.attn_qkv.weight
+create_tensor: loading tensor blk.10.attn_qkv.bias
+create_tensor: loading tensor blk.10.attn_output.weight
+create_tensor: loading tensor blk.10.attn_output.bias
+create_tensor: loading tensor blk.10.attn_output_norm.weight
+create_tensor: loading tensor blk.10.attn_output_norm.bias
+create_tensor: loading tensor blk.10.ffn_up.weight
+create_tensor: loading tensor blk.10.ffn_up.bias
+create_tensor: loading tensor blk.10.ffn_down.weight
+create_tensor: loading tensor blk.10.ffn_down.bias
+create_tensor: loading tensor blk.10.ffn_gate.weight
+create_tensor: loading tensor blk.10.layer_output_norm.weight
+create_tensor: loading tensor blk.10.layer_output_norm.bias
+create_tensor: loading tensor blk.11.attn_qkv.weight
+create_tensor: loading tensor blk.11.attn_qkv.bias
+create_tensor: loading tensor blk.11.attn_output.weight
+create_tensor: loading tensor blk.11.attn_output.bias
+create_tensor: loading tensor blk.11.attn_output_norm.weight
+create_tensor: loading tensor blk.11.attn_output_norm.bias
+create_tensor: loading tensor blk.11.ffn_up.weight
+create_tensor: loading tensor blk.11.ffn_up.bias
+create_tensor: loading tensor blk.11.ffn_down.weight
+create_tensor: loading tensor blk.11.ffn_down.bias
+create_tensor: loading tensor blk.11.ffn_gate.weight
+create_tensor: loading tensor blk.11.layer_output_norm.weight
+create_tensor: loading tensor blk.11.layer_output_norm.bias
+create_tensor: loading tensor blk.0.attn_output.scale
+create_tensor: loading tensor blk.0.attn_qkv.scale
+create_tensor: loading tensor blk.0.ffn_gate.scale
+create_tensor: loading tensor blk.0.ffn_down.scale
+create_tensor: loading tensor blk.0.ffn_up.scale
+create_tensor: loading tensor blk.0.attn_output.input_scale
+create_tensor: loading tensor blk.0.attn_qkv.input_scale
+create_tensor: loading tensor blk.0.ffn_gate.input_scale
+create_tensor: loading tensor blk.0.ffn_down.input_scale
+create_tensor: loading tensor blk.0.ffn_up.input_scale
+create_tensor: loading tensor blk.1.attn_output.scale
+create_tensor: loading tensor blk.1.attn_qkv.scale
+create_tensor: loading tensor blk.1.ffn_gate.scale
+create_tensor: loading tensor blk.1.ffn_down.scale
+create_tensor: loading tensor blk.1.ffn_up.scale
+create_tensor: loading tensor blk.1.attn_output.input_scale
+create_tensor: loading tensor blk.1.attn_qkv.input_scale
+create_tensor: loading tensor blk.1.ffn_gate.input_scale
+create_tensor: loading tensor blk.1.ffn_down.input_scale
+create_tensor: loading tensor blk.1.ffn_up.input_scale
+create_tensor: loading tensor blk.2.attn_output.scale
+create_tensor: loading tensor blk.2.attn_qkv.scale
+create_tensor: loading tensor blk.2.ffn_gate.scale
+create_tensor: loading tensor blk.2.ffn_down.scale
+create_tensor: loading tensor blk.2.ffn_up.scale
+create_tensor: loading tensor blk.2.attn_output.input_scale
+create_tensor: loading tensor blk.2.attn_qkv.input_scale
+create_tensor: loading tensor blk.2.ffn_gate.input_scale
+create_tensor: loading tensor blk.2.ffn_down.input_scale
+create_tensor: loading tensor blk.2.ffn_up.input_scale
+create_tensor: loading tensor blk.3.attn_output.scale
+create_tensor: loading tensor blk.3.attn_qkv.scale
+create_tensor: loading tensor blk.3.ffn_gate.scale
+create_tensor: loading tensor blk.3.ffn_down.scale
+create_tensor: loading tensor blk.3.ffn_up.scale
+create_tensor: loading tensor blk.3.attn_output.input_scale
+create_tensor: loading tensor blk.3.attn_qkv.input_scale
+create_tensor: loading tensor blk.3.ffn_gate.input_scale
+create_tensor: loading tensor blk.3.ffn_down.input_scale
+create_tensor: loading tensor blk.3.ffn_up.input_scale
+create_tensor: loading tensor blk.4.attn_output.scale
+create_tensor: loading tensor blk.4.attn_qkv.scale
+create_tensor: loading tensor blk.4.ffn_gate.scale
+create_tensor: loading tensor blk.4.ffn_down.scale
+create_tensor: loading tensor blk.4.ffn_up.scale
+create_tensor: loading tensor blk.4.attn_output.input_scale
+create_tensor: loading tensor blk.4.attn_qkv.input_scale
+create_tensor: loading tensor blk.4.ffn_gate.input_scale
+create_tensor: loading tensor blk.4.ffn_down.input_scale
+create_tensor: loading tensor blk.4.ffn_up.input_scale
+create_tensor: loading tensor blk.5.attn_output.scale
+create_tensor: loading tensor blk.5.attn_qkv.scale
+create_tensor: loading tensor blk.5.ffn_gate.scale
+create_tensor: loading tensor blk.5.ffn_down.scale
+create_tensor: loading tensor blk.5.ffn_up.scale
+create_tensor: loading tensor blk.5.attn_output.input_scale
+create_tensor: loading tensor blk.5.attn_qkv.input_scale
+create_tensor: loading tensor blk.5.ffn_gate.input_scale
+create_tensor: loading tensor blk.5.ffn_down.input_scale
+create_tensor: loading tensor blk.5.ffn_up.input_scale
+create_tensor: loading tensor blk.6.attn_output.scale
+create_tensor: loading tensor blk.6.attn_qkv.scale
+create_tensor: loading tensor blk.6.ffn_gate.scale
+create_tensor: loading tensor blk.6.ffn_down.scale
+create_tensor: loading tensor blk.6.ffn_up.scale
+create_tensor: loading tensor blk.6.attn_output.input_scale
+create_tensor: loading tensor blk.6.attn_qkv.input_scale
+create_tensor: loading tensor blk.6.ffn_gate.input_scale
+create_tensor: loading tensor blk.6.ffn_down.input_scale
+create_tensor: loading tensor blk.6.ffn_up.input_scale
+create_tensor: loading tensor blk.7.attn_output.scale
+create_tensor: loading tensor blk.7.attn_qkv.scale
+create_tensor: loading tensor blk.7.ffn_gate.scale
+create_tensor: loading tensor blk.7.ffn_down.scale
+create_tensor: loading tensor blk.7.ffn_up.scale
+create_tensor: loading tensor blk.7.attn_output.input_scale
+create_tensor: loading tensor blk.7.attn_qkv.input_scale
+create_tensor: loading tensor blk.7.ffn_gate.input_scale
+create_tensor: loading tensor blk.7.ffn_down.input_scale
+create_tensor: loading tensor blk.7.ffn_up.input_scale
+create_tensor: loading tensor blk.8.attn_output.scale
+create_tensor: loading tensor blk.8.attn_qkv.scale
+create_tensor: loading tensor blk.8.ffn_gate.scale
+create_tensor: loading tensor blk.8.ffn_down.scale
+create_tensor: loading tensor blk.8.ffn_up.scale
+create_tensor: loading tensor blk.8.attn_output.input_scale
+create_tensor: loading tensor blk.8.attn_qkv.input_scale
+create_tensor: loading tensor blk.8.ffn_gate.input_scale
+create_tensor: loading tensor blk.8.ffn_down.input_scale
+create_tensor: loading tensor blk.8.ffn_up.input_scale
+create_tensor: loading tensor blk.9.attn_output.scale
+create_tensor: loading tensor blk.9.attn_qkv.scale
+create_tensor: loading tensor blk.9.ffn_gate.scale
+create_tensor: loading tensor blk.9.ffn_down.scale
+create_tensor: loading tensor blk.9.ffn_up.scale
+create_tensor: loading tensor blk.9.attn_output.input_scale
+create_tensor: loading tensor blk.9.attn_qkv.input_scale
+create_tensor: loading tensor blk.9.ffn_gate.input_scale
+create_tensor: loading tensor blk.9.ffn_down.input_scale
+create_tensor: loading tensor blk.9.ffn_up.input_scale
+create_tensor: loading tensor blk.10.attn_output.scale
+create_tensor: loading tensor blk.10.attn_qkv.scale
+create_tensor: loading tensor blk.10.ffn_gate.scale
+create_tensor: loading tensor blk.10.ffn_down.scale
+create_tensor: loading tensor blk.10.ffn_up.scale
+create_tensor: loading tensor blk.10.attn_output.input_scale
+create_tensor: loading tensor blk.10.attn_qkv.input_scale
+create_tensor: loading tensor blk.10.ffn_gate.input_scale
+create_tensor: loading tensor blk.10.ffn_down.input_scale
+create_tensor: loading tensor blk.10.ffn_up.input_scale
+create_tensor: loading tensor blk.11.attn_output.scale
+create_tensor: loading tensor blk.11.attn_qkv.scale
+create_tensor: loading tensor blk.11.ffn_gate.scale
+create_tensor: loading tensor blk.11.ffn_down.scale
+create_tensor: loading tensor blk.11.ffn_up.scale
+create_tensor: loading tensor blk.11.attn_output.input_scale
+create_tensor: loading tensor blk.11.attn_qkv.input_scale
+create_tensor: loading tensor blk.11.ffn_gate.input_scale
+create_tensor: loading tensor blk.11.ffn_down.input_scale
+create_tensor: loading tensor blk.11.ffn_up.input_scale
+done_getting_tensors: tensor 'token_embd.weight' (q8_0) (and 1 others) cannot be used with preferred buffer type Vulkan_Host, using CPU instead
+load_tensors: offloading output layer to GPU
+load_tensors: offloading 11 repeating layers to GPU
+load_tensors: offloaded 13/13 layers to GPU
+load_tensors:   CPU_Mapped model buffer size =    23.76 MiB
+load_tensors:      Vulkan0 model buffer size =   114.90 MiB
+.......................................................
+llama_context: constructing llama_context
+llama_context: n_seq_max             = 1
+llama_context: n_ctx                 = 2048
+llama_context: n_ctx_seq             = 2048
+llama_context: n_batch               = 2048
+llama_context: n_ubatch              = 2048
+llama_context: causal_attn           = 0
+llama_context: flash_attn            = auto
+llama_context: kv_unified            = false
+llama_context: freq_base             = 1000.0
+llama_context: freq_scale            = 1
+llama_context: n_rs_seq              = 0
+llama_context: n_outputs_max         = 2048
+llama_context: n_outputs_max_per_seq = 2048
+set_abort_callback: call
+llama_context: Vulkan_Host  output buffer size =     0.12 MiB
+llama_context: enumerating backends
+llama_context: backend_ptrs.size() = 2
+sched_reserve: reserving ...
+sched_reserve: max_nodes = 1024
+sched_reserve: worst-case: n_tokens = 2048, n_seqs = 1, n_outputs = 1
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: Flash Attention enabled
+resolve_fused_ops: resolving fused Gated Delta Net support:
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+resolve_fused_ops: resolving fused Lightning Indexer support:
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: Lightning Indexer enabled
+resolve_fused_ops: resolving fused DeepSeek V4 HC support:
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: fused DeepSeek V4 HC pre enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: fused DeepSeek V4 HC comb enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: fused DeepSeek V4 HC post enabled
+graph_reserve: reserving a graph for ubatch with n_tokens = 2048, n_seqs =  1, n_outputs = 2048
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+graph_reserve: reserving a graph for ubatch with n_tokens = 2048, n_seqs =  1, n_outputs = 2048
+sched_reserve:    Vulkan0 compute buffer size =    92.03 MiB
+sched_reserve: Vulkan_Host compute buffer size =    20.03 MiB
+sched_reserve: graph nodes  = 335
+sched_reserve: graph splits = 2
+sched_reserve: reserve took 4.17 ms, sched copies = 1
+...........................................................................
+Configuration identical to the reference on all identity keys
+  length pool choice   96268 exemplars, demo tokens 112..986
+  length pool noul     7822 exemplars, demo tokens 159..933
+  length pool score/3  546 exemplars, demo tokens 193..293
+  length pool score/5  6960 exemplars, demo tokens 504..1018
+Demonstration lengths computed in 334 s (0 exemplars could not be built)
+Selections written (5 seeds x 5811 queries, 0 without an eligible exemplar)
+  [25/5811] r3 ok=125  elapsed 438s
+  [50/5811] r3 ok=250  elapsed 526s
+  [75/5811] r3 ok=375  elapsed 611s
+  [100/5811] r3 ok=500  elapsed 698s
+  [125/5811] r3 ok=625  elapsed 761s
+  [150/5811] r3 ok=750  elapsed 823s
+  [175/5811] r3 ok=875  elapsed 884s
+  [200/5811] r3 ok=1000  elapsed 958s
+  [225/5811] r3 ok=1125  elapsed 1019s
+  [250/5811] r3 ok=1250  elapsed 1080s
+  [275/5811] r3 ok=1375  elapsed 1143s
+  [300/5811] r3 ok=1500  elapsed 1201s
+  [325/5811] r3 ok=1625  elapsed 1261s
+  [350/5811] r3 ok=1750  elapsed 1322s
+  [375/5811] r3 ok=1875  elapsed 1384s
+  [400/5811] r3 ok=2000  elapsed 1444s
+  [425/5811] r3 ok=2125  elapsed 1506s
+  [450/5811] r3 ok=2250  elapsed 1565s
+  [475/5811] r3 ok=2375  elapsed 1627s
+  [500/5811] r3 ok=2500  elapsed 1688s
+  [525/5811] r3 ok=2625  elapsed 1745s
+  [550/5811] r3 ok=2750  elapsed 1806s
+  [575/5811] r3 ok=2875  elapsed 1870s
+  [600/5811] r3 ok=3000  elapsed 1933s
+  [625/5811] r3 ok=3125  elapsed 1997s
+  [650/5811] r3 ok=3250  elapsed 2059s
+  [675/5811] r3 ok=3375  elapsed 2124s
+  [700/5811] r3 ok=3500  elapsed 2187s
+  [725/5811] r3 ok=3625  elapsed 2254s
+  [750/5811] r3 ok=3750  elapsed 2311s
+  [775/5811] r3 ok=3875  elapsed 2372s
+  [800/5811] r3 ok=4000  elapsed 2432s
+  [825/5811] r3 ok=4125  elapsed 2496s
+  [850/5811] r3 ok=4250  elapsed 2559s
+  [875/5811] r3 ok=4375  elapsed 2620s
+  [900/5811] r3 ok=4500  elapsed 2682s
+  [925/5811] r3 ok=4625  elapsed 2744s
+  [950/5811] r3 ok=4750  elapsed 2807s
+  [975/5811] r3 ok=4875  elapsed 2870s
+  [1000/5811] r3 ok=5000  elapsed 2932s
+  [1025/5811] r3 ok=5125  elapsed 2995s
+  [1050/5811] r3 ok=5250  elapsed 3057s
+  [1075/5811] r3 ok=5375  elapsed 3118s
+  [1100/5811] r3 ok=5500  elapsed 3180s
+  [1125/5811] r3 ok=5625  elapsed 3243s
+  [1150/5811] r3 ok=5750  elapsed 3305s
+  [1175/5811] r3 ok=5875  elapsed 3368s
+  [1200/5811] r3 ok=6000  elapsed 3431s
+  [1225/5811] r3 ok=6125  elapsed 3493s
+  [1250/5811] r3 ok=6250  elapsed 3556s
+  [1275/5811] r3 ok=6375  elapsed 3620s
+  [1300/5811] r3 ok=6500  elapsed 3684s
+  [1325/5811] r3 ok=6625  elapsed 3747s
+  [1350/5811] r3 ok=6750  elapsed 3810s
+  [1375/5811] r3 ok=6875  elapsed 3872s
+  [1400/5811] r3 ok=7000  elapsed 3938s
+  [1425/5811] r3 ok=7125  elapsed 4004s
+  [1450/5811] r3 ok=7250  elapsed 4065s
+  [1475/5811] r3 ok=7375  elapsed 4128s
+  [1500/5811] r3 ok=7500  elapsed 4192s
+  [1525/5811] r3 ok=7625  elapsed 4255s
+  [1550/5811] r3 ok=7750  elapsed 4317s
+  [1575/5811] r3 ok=7875  elapsed 4379s
+  [1600/5811] r3 ok=8000  elapsed 4443s
+  [1625/5811] r3 ok=8125  elapsed 4505s
+  [1650/5811] r3 ok=8250  elapsed 4566s
+  [1675/5811] r3 ok=8375  elapsed 4628s
+  [1700/5811] r3 ok=8500  elapsed 4690s
+  [1725/5811] r3 ok=8625  elapsed 4752s
+  [1750/5811] r3 ok=8750  elapsed 4814s
+  [1775/5811] r3 ok=8875  elapsed 4877s
+  [1800/5811] r3 ok=9000  elapsed 4939s
+  [1825/5811] r3 ok=9125  elapsed 5002s
+  [1850/5811] r3 ok=9250  elapsed 5064s
+  [1875/5811] r3 ok=9375  elapsed 5126s
+  [1900/5811] r3 ok=9500  elapsed 5189s
+  [1925/5811] r3 ok=9625  elapsed 5253s
+  [1950/5811] r3 ok=9750  elapsed 5316s
+  [1975/5811] r3 ok=9875  elapsed 5379s
+  [2000/5811] r3 ok=10000  elapsed 5442s
+  [2025/5811] r3 ok=10125  elapsed 5503s
+  [2050/5811] r3 ok=10250  elapsed 5564s
+  [2075/5811] r3 ok=10375  elapsed 5626s
+  [2100/5811] r3 ok=10500  elapsed 5654s
+  [2125/5811] r3 ok=10625  elapsed 5672s
+  [2150/5811] r3 ok=10750  elapsed 5692s
+  [2175/5811] r3 ok=10875  elapsed 5711s
+  [2200/5811] r3 ok=11000  elapsed 5730s
+  [2225/5811] r3 ok=11125  elapsed 5749s
+  [2250/5811] r3 ok=11250  elapsed 5768s
+  [2275/5811] r3 ok=11375  elapsed 5787s
+  [2300/5811] r3 ok=11500  elapsed 5806s
+  [2325/5811] r3 ok=11625  elapsed 5825s
+  [2350/5811] r3 ok=11750  elapsed 5844s
+  [2375/5811] r3 ok=11875  elapsed 5862s
+  [2400/5811] r3 ok=12000  elapsed 5881s
+  [2425/5811] r3 ok=12125  elapsed 5900s
+  [2450/5811] r3 ok=12250  elapsed 5920s
+  [2475/5811] r3 ok=12375  elapsed 5939s
+  [2500/5811] r3 ok=12500  elapsed 5958s
+  [2525/5811] r3 ok=12625  elapsed 5976s
+  [2550/5811] r3 ok=12750  elapsed 5996s
+  [2575/5811] r3 ok=12875  elapsed 6015s
+  [2600/5811] r3 ok=13000  elapsed 6034s
+  [2625/5811] r3 ok=13125  elapsed 6053s
+  [2650/5811] r3 ok=13250  elapsed 6072s
+  [2675/5811] r3 ok=13375  elapsed 6091s
+  [2700/5811] r3 ok=13500  elapsed 6111s
+  [2725/5811] r3 ok=13625  elapsed 6130s
+  [2750/5811] r3 ok=13750  elapsed 6149s
+  [2775/5811] r3 ok=13875  elapsed 6168s
+  [2800/5811] r3 ok=14000  elapsed 6187s
+  [2825/5811] r3 ok=14125  elapsed 6206s
+  [2850/5811] r3 ok=14250  elapsed 6225s
+  [2875/5811] r3 ok=14375  elapsed 6243s
+  [2900/5811] r3 ok=14500  elapsed 6262s
+  [2925/5811] r3 ok=14625  elapsed 6281s
+  [2950/5811] r3 ok=14750  elapsed 6300s
+  [2975/5811] r3 ok=14875  elapsed 6320s
+  [3000/5811] r3 ok=15000  elapsed 6338s
+  [3025/5811] r3 ok=15125  elapsed 6357s
+  [3050/5811] r3 ok=15250  elapsed 6376s
+  [3075/5811] r3 ok=15375  elapsed 6395s
+  [3100/5811] r3 ok=15500  elapsed 6414s
+  [3125/5811] r3 ok=15625  elapsed 6433s
+  [3150/5811] r3 ok=15750  elapsed 6452s
+  [3175/5811] r3 ok=15875  elapsed 6471s
+  [3200/5811] r3 ok=16000  elapsed 6490s
+  [3225/5811] r3 ok=16125  elapsed 6509s
+  [3250/5811] r3 ok=16250  elapsed 6528s
+  [3275/5811] r3 ok=16375  elapsed 6547s
+  [3300/5811] r3 ok=16500  elapsed 6566s
+  [3325/5811] r3 ok=16625  elapsed 6584s
+  [3350/5811] r3 ok=16750  elapsed 6604s
+  [3375/5811] r3 ok=16875  elapsed 6623s
+  [3400/5811] r3 ok=17000  elapsed 6642s
+  [3425/5811] r3 ok=17125  elapsed 6661s
+  [3450/5811] r3 ok=17250  elapsed 6680s
+  [3475/5811] r3 ok=17375  elapsed 6698s
+  [3500/5811] r3 ok=17500  elapsed 6718s
+  [3525/5811] r3 ok=17625  elapsed 6737s
+  [3550/5811] r3 ok=17750  elapsed 6756s
+  [3575/5811] r3 ok=17875  elapsed 6775s
+  [3600/5811] r3 ok=18000  elapsed 6793s
+  [3625/5811] r3 ok=18125  elapsed 6813s
+  [3650/5811] r3 ok=18250  elapsed 6832s
+  [3675/5811] r3 ok=18375  elapsed 6851s
+  [3700/5811] r3 ok=18500  elapsed 6871s
+  [3725/5811] r3 ok=18625  elapsed 6890s
+  [3750/5811] r3 ok=18750  elapsed 6909s
+  [3775/5811] r3 ok=18875  elapsed 6927s
+  [3800/5811] r3 ok=19000  elapsed 6946s
+  [3825/5811] r3 ok=19125  elapsed 6966s
+  [3850/5811] r3 ok=19250  elapsed 6985s
+  [3875/5811] r3 ok=19375  elapsed 7004s
+  [3900/5811] r3 ok=19500  elapsed 7023s
+  [3925/5811] r3 ok=19625  elapsed 7042s
+  [3950/5811] r3 ok=19750  elapsed 7061s
+  [3975/5811] r3 ok=19875  elapsed 7080s
+  [4000/5811] r3 ok=20000  elapsed 7100s
+  [4025/5811] r3 ok=20125  elapsed 7119s
+  [4050/5811] r3 ok=20250  elapsed 7138s
+  [4075/5811] r3 ok=20375  elapsed 7156s
+  [4100/5811] r3 ok=20500  elapsed 7176s
+  [4125/5811] r3 ok=20625  elapsed 7195s
+  [4150/5811] r3 ok=20750  elapsed 7214s
+  [4175/5811] r3 ok=20875  elapsed 7233s
+  [4200/5811] r3 ok=21000  elapsed 7253s
+  [4225/5811] r3 ok=21125  elapsed 7272s
+  [4250/5811] r3 ok=21250  elapsed 7291s
+  [4275/5811] r3 ok=21375  elapsed 7310s
+  [4300/5811] r3 ok=21500  elapsed 7329s
+  [4325/5811] r3 ok=21625  elapsed 7347s
+  [4350/5811] r3 ok=21750  elapsed 7366s
+  [4375/5811] r3 ok=21875  elapsed 7385s
+  [4400/5811] r3 ok=22000  elapsed 7404s
+  [4425/5811] r3 ok=22125  elapsed 7423s
+  [4450/5811] r3 ok=22250  elapsed 7442s
+  [4475/5811] r3 ok=22375  elapsed 7461s
+  [4500/5811] r3 ok=22500  elapsed 7489s
+  [4525/5811] r3 ok=22625  elapsed 7520s
+  [4550/5811] r3 ok=22750  elapsed 7548s
+  [4575/5811] r3 ok=22875  elapsed 7591s
+  [4600/5811] r3 ok=23000  elapsed 7629s
+  [4625/5811] r3 ok=23125  elapsed 7656s
+  [4650/5811] r3 ok=23250  elapsed 7690s
+  [4675/5811] r3 ok=23375  elapsed 7735s
+  [4700/5811] r3 ok=23500  elapsed 7768s
+  [4725/5811] r3 ok=23625  elapsed 7794s
+  [4750/5811] r3 ok=23750  elapsed 7835s
+  [4775/5811] r3 ok=23875  elapsed 7876s
+  [4800/5811] r3 ok=24000  elapsed 7914s
+  [4825/5811] r3 ok=24125  elapsed 7940s
+  [4850/5811] r3 ok=24250  elapsed 7979s
+  [4875/5811] r3 ok=24375  elapsed 8020s
+  [4900/5811] r3 ok=24500  elapsed 8056s
+  [4925/5811] r3 ok=24625  elapsed 8080s
+  [4950/5811] r3 ok=24750  elapsed 8121s
+  [4975/5811] r3 ok=24875  elapsed 8162s
+  [5000/5811] r3 ok=25000  elapsed 8194s
+  [5025/5811] r3 ok=25125  elapsed 8219s
+  [5050/5811] r3 ok=25250  elapsed 8263s
+  [5075/5811] r3 ok=25375  elapsed 8305s
+  [5100/5811] r3 ok=25500  elapsed 8335s
+  [5125/5811] r3 ok=25625  elapsed 8366s
+  [5150/5811] r3 ok=25750  elapsed 8403s
+  [5175/5811] r3 ok=25875  elapsed 8451s
+  [5200/5811] r3 ok=26000  elapsed 8480s
+  [5225/5811] r3 ok=26125  elapsed 8510s
+  [5250/5811] r3 ok=26250  elapsed 8551s
+  [5275/5811] r3 ok=26375  elapsed 8591s
+  [5300/5811] r3 ok=26500  elapsed 8619s
+  [5325/5811] r3 ok=26625  elapsed 8651s
+  [5350/5811] r3 ok=26750  elapsed 8690s
+  [5375/5811] r3 ok=26875  elapsed 8730s
+  [5400/5811] r3 ok=27000  elapsed 8757s
+  [5425/5811] r3 ok=27125  elapsed 8792s
+  [5450/5811] r3 ok=27250  elapsed 8840s
+  [5475/5811] r3 ok=27375  elapsed 8878s
+  [5500/5811] r3 ok=27500  elapsed 8903s
+  [5525/5811] r3 ok=27625  elapsed 8939s
+  [5550/5811] r3 ok=27750  elapsed 8983s
+  [5575/5811] r3 ok=27875  elapsed 9020s
+  [5600/5811] r3 ok=28000  elapsed 9045s
+  [5625/5811] r3 ok=28125  elapsed 9084s
+  [5650/5811] r3 ok=28250  elapsed 9126s
+  [5675/5811] r3 ok=28375  elapsed 9158s
+  [5700/5811] r3 ok=28500  elapsed 9182s
+  [5725/5811] r3 ok=28625  elapsed 9224s
+  [5750/5811] r3 ok=28750  elapsed 9263s
+  [5775/5811] r3 ok=28875  elapsed 9297s
+  [5800/5811] r3 ok=29000  elapsed 9324s
+  [5811/5811] r3 ok=29055  elapsed 9344s
+
+Reference check: 100 queries, S1 mismatches 0, nearest example mismatches 0, R1 logit mismatches 0, Hamming probe 100/100 exact, demo length model 100/100 exact
+  seed 42: ok 5811 failed 0
+  seed 123: ok 5811 failed 0
+  seed 456: ok 5811 failed 0
+  seed 789: ok 5811 failed 0
+  seed 2026: ok 5811 failed 0
