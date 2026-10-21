@@ -51,8 +51,9 @@ struct ExemplarRecord {
 // Returns "" on success, or a human-readable error string.
 std::string parse_exemplar(const nlohmann::ordered_json& j, ExemplarRecord& rec);
 
-// Returns true iff the record should enter the exemplar bank
-// (split == "train" && language == "en").
+// Returns true iff the record should be stored in the exemplar database (language == "en").
+// Demonstration eligibility (training split, one-hot answer) is applied at query time through the
+// exemplar allowlist written by `pjev-filldb --allowlist`.
 bool is_eligible(const ExemplarRecord& rec);
 
 } // namespace filldb

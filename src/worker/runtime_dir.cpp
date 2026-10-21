@@ -1,4 +1,5 @@
 #include "runtime_dir.h"
+#include "ipc_protocol.h"
 #include <format>
 
 #ifdef _WIN32
@@ -63,7 +64,7 @@ void initialize_strings()
     // Create if needed
     CreateDirectoryA(worker_runtime_dir.c_str(), nullptr);
 
-    worker_endpoint = "\\\\.\\pipe\\pjev-" + username + "-worker-v1";
+    worker_endpoint = "\\\\.\\pipe\\pjev-" + username + "-worker-v" + std::to_string(IPC_PROTOCOL_VERSION);
 }
 
 const std::string& get_worker_runtime_dir()
@@ -113,8 +114,8 @@ void initialize_strings()
     uid_t uid = getuid();
     worker_runtime_dir = base + "/pjev-" + std::to_string((unsigned)uid) + "/";
     mkdir(worker_runtime_dir.c_str(), 0700);
-    worker_endpoint = worker_runtime_dir + "worker-v1.sock";
-    worker_lock_path = worker_runtime_dir + "worker-v1.lock";
+    worker_endpoint = worker_runtime_dir + "worker-v" + std::to_string(IPC_PROTOCOL_VERSION) + ".sock";
+    worker_lock_path = worker_runtime_dir + "worker-v" + std::to_string(IPC_PROTOCOL_VERSION) + ".lock";
 }
 
 const std::string& get_worker_runtime_dir()

@@ -6,7 +6,7 @@
 
 namespace pjev
 {
-namespace filldb
+namespace retrieval
 {
 
 // Generic value formatter — handles strings, numbers, booleans, arrays, objects.
@@ -154,5 +154,5 @@ std::string build_document_embedding_text(
            build_embedding_text(kind, domain, family, question, state, options);
 }
 
-} // namespace filldb
+} // namespace retrieval
 } // namespace pjev

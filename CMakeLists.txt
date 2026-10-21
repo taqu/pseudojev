@@ -4,6 +4,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Build options
+option(PJEV_BUILD_TOOLS "Build the exemplar database tool (pjev-filldb)" ON)
+include(CTest)  # BUILD_TESTING (default ON): unit and integration tests
+
 set(LLAMA_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER   OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -32,111 +36,10 @@ if (WIN32)
     target_link_libraries(pjev-httplib PUBLIC ws2_32)
 endif()
 
-set(PJEV_INCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/ggml/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/vendor
-    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/vendor/cpp-httplib
-    ${CMAKE_CURRENT_SOURCE_DIR}/spdlog/include
-)
-
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_CURRENT_SOURCE_DIR}/bin")
-
-set(PJEV_HEADER
-    src/util/timer.h
-    src/util/platform.h
-    src/inference/backend.h
-    src/inference/llama_backend.h
-    src/calibration/calibration.h
-    src/calibration/calibration_metrics.h
-    src/calibration/calibration_fit.h
-    src/decision/prompt_strategy.h
-    src/decision/decision_engine.h
-    src/decision/rotation.h
-    src/server/jev_api.h
-    src/server/server_config.h
-    src/server/http_server.h
-    src/experiment/config.h
-    src/experiment/metrics.h
-    src/experiment/permute.h
-    src/experiment/dataset.h
-    src/experiment/runner.h
-    src/experiment/noul_metrics.h
-    src/experiment/choice_metrics.h
-    src/experiment/score_metrics.h
-    src/multilingual/multilingual.h
-    src/model/model_identity.h
-    src/model/value_profile.h
-    src/distribution/release_config.h
-    src/cli/cli.h
-    src/worker/ipc_protocol.h
-    src/worker/runtime_dir.h
-    src/worker/local_transport.h
-    src/worker/worker_server.h
-    src/worker/worker_client.h
-    src/murmur3/murmur3.h
-    src/sqlite/sqlite3.h
-    src/sqlite/sqlite3ext.h
-    src/sqlite/sqlite-vec.h
-    src/lz4/lz4.h
-    src/lz4/lz4file.h
-    src/lz4/lz4frame.h
-    src/lz4/lz4frame_static.h
-    src/lz4/lz4hc.h
-    src/lz4/xxhash.h
-)
-source_group(include FILES ${PJEV_HEADER})
-
-set(PJEV_SOURCE
-    src/main.cpp
-    src/util/timer.cpp
-    src/util/platform.cpp
-    src/inference/llama_backend.cpp
-    src/calibration/calibration.cpp
-    src/calibration/calibration_metrics.cpp
-    src/calibration/calibration_fit.cpp
-    src/decision/prompt_strategy.cpp
-    src/decision/decision_engine.cpp
-    src/server/jev_api.cpp
-    src/server/http_server.cpp
-    src/experiment/dataset.cpp
-    src/experiment/runner.cpp
-    src/experiment/noul_metrics.cpp
-    src/experiment/choice_metrics.cpp
-    src/experiment/score_metrics.cpp
-    src/multilingual/multilingual.cpp
-    src/model/model_identity.cpp
-    src/model/value_profile.cpp
-    src/distribution/release_config.cpp
-    src/cli/cli.cpp
-    src/worker/ipc_protocol.cpp
-    src/worker/runtime_dir.cpp
-    src/worker/local_transport.cpp
-    src/worker/worker_server.cpp
-    src/worker/worker_client.cpp
-    src/murmur3/murmur3.c
-    src/sqlite/sqlite3.c
-    src/sqlite/sqlite-vec.c
-    src/lz4/lz4.c
-    src/lz4/lz4file.c
-    src/lz4/lz4frame.c
-    src/lz4/lz4hc.c
-    src/lz4/xxhash.c
-)
-source_group(src FILES ${PJEV_SOURCE})
-add_executable(pjev
-    ${PJEV_SOURCE}
-    ${PJEV_HEADER}
-)
-if (MSVC)
-    target_compile_options(pjev PRIVATE /utf-8)
-else()
-endif()
-target_compile_features(pjev PRIVATE cxx_std_20)
 
 # Embed git commit and llama.cpp revision as compile-time strings
 execute_process(
@@ -177,7 +80,7 @@ else()
     set(CPACK_GENERATOR "TGZ")
 endif()
 
-target_compile_definitions(pjev PRIVATE
+set(PJEV_BUILD_DEFINITIONS
     PJEV_VERSION="${PJEV_VERSION}"
     PJEV_GIT_COMMIT="${PJEV_GIT_COMMIT_VAL}"
     PJEV_LLAMA_REVISION="${PJEV_LLAMA_REV_VAL}"
@@ -185,14 +88,86 @@ target_compile_definitions(pjev PRIVATE
     PJEV_ARCH="${PJEV_ARCH}"
 )
 
-target_include_directories(pjev PRIVATE ${PJEV_INCS})
-target_link_libraries(pjev PRIVATE llama pjev-httplib)
-if (WIN32)
-    target_link_libraries(pjev PRIVATE psapi)
+# ---------------------------------------------------------------------------
+# pjev-core: decision engine, task routing, exemplar retrieval, API, CLI formatting, worker protocol,
+# configuration. No llama.cpp dependency, so unit tests link it with mock backends.
+# ---------------------------------------------------------------------------
+add_library(pjev-core STATIC
+    src/util/platform.cpp
+    src/calibration/calibration.cpp
+    src/decision/prompt_strategy.cpp
+    src/decision/decision_engine.cpp
+    src/retrieval/embedding_text.cpp
+    src/retrieval/exemplar_allowlist.cpp
+    src/retrieval/exemplar_store.cpp
+    src/retrieval/lz4_utils.cpp
+    src/retrieval/vec_autoext.cpp
+    src/routing/knn.cpp
+    src/routing/task_mapping.cpp
+    src/routing/task_router.cpp
+    src/server/jev_api.cpp
+    src/model/model_identity.cpp
+    src/distribution/release_config.cpp
+    src/cli/cli.cpp
+    src/worker/ipc_protocol.cpp
+    src/worker/runtime_dir.cpp
+    src/worker/local_transport.cpp
+    src/murmur3/murmur3.c
+    src/sqlite/sqlite3.c
+    src/sqlite/sqlite-vec.c
+    src/lz4/lz4.c
+    src/lz4/lz4file.c
+    src/lz4/lz4frame.c
+    src/lz4/lz4hc.c
+    src/lz4/xxhash.c
+)
+target_include_directories(pjev-core PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/vendor
+    ${CMAKE_CURRENT_SOURCE_DIR}/spdlog/include
+)
+target_compile_features(pjev-core PUBLIC cxx_std_20)
+if (MSVC)
+    target_compile_options(pjev-core PUBLIC $<$<COMPILE_LANGUAGE:CXX,C>:/utf-8>)
 endif()
+if (WIN32)
+    target_link_libraries(pjev-core PUBLIC psapi)
+endif()
+
+# ---------------------------------------------------------------------------
+# pjev-runtime: model loading (llama.cpp), the background worker and the HTTP server.
+# ---------------------------------------------------------------------------
+add_library(pjev-runtime STATIC
+    src/inference/llama_backend.cpp
+    src/inference/llama_instance.cpp
+    src/embedding/embedding.cpp
+    src/routing/router_runtime.cpp
+    src/server/http_server.cpp
+    src/worker/worker_server.cpp
+    src/worker/worker_client.cpp
+)
+target_include_directories(pjev-runtime PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/ggml/include
+)
+target_compile_definitions(pjev-runtime PRIVATE ${PJEV_BUILD_DEFINITIONS})
+target_link_libraries(pjev-runtime PUBLIC pjev-core llama pjev-httplib)
+
+# ---------------------------------------------------------------------------
+# pjev executable
+# ---------------------------------------------------------------------------
+add_executable(pjev src/main.cpp)
+target_compile_definitions(pjev PRIVATE ${PJEV_BUILD_DEFINITIONS})
+target_link_libraries(pjev PRIVATE pjev-runtime)
 set_target_properties(pjev PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 install(TARGETS pjev RUNTIME DESTINATION .)
+install(FILES
+    LICENSE
+    README.md
+    release/pjev.json
+    release/THIRD-PARTY-NOTICES.md
+    DESTINATION .)
 
 # CPack — release archive generation
 set(CPACK_PACKAGE_NAME "pjev")
@@ -202,6 +177,9 @@ set(CPACK_STRIP_FILES TRUE)
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${CMAKE_PROJECT_NAME};ALL;/")
 include(CPack)
 
-add_subdirectory(tools)
-enable_testing()
-add_subdirectory(tests)
+if (PJEV_BUILD_TOOLS)
+    add_subdirectory(tools)
+endif()
+if (BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

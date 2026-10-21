@@ -5,7 +5,7 @@ namespace pjev {
 nlohmann::json ipc_input_to_json(const DecisionInput& in)
 {
     nlohmann::json j;
-    j["type"]     = in.type;
+    j["type"]     = to_string(in.type);
     j["state"]    = in.state;
     j["question"] = in.question;
     nlohmann::json opts = nlohmann::json::array();
@@ -18,6 +18,8 @@ nlohmann::json ipc_input_to_json(const DecisionInput& in)
         j["prior_logits"] = in.prior_logits;
     }
     j["collect_corrected_logits"] = in.collect_corrected_logits;
+    if (!in.domain.empty()) j["domain"] = in.domain;
+    if (!in.family.empty()) j["family"] = in.family;
     return j;
 }
 
@@ -39,6 +41,8 @@ DecisionInput ipc_input_from_json(const nlohmann::json& j)
         in.prior_logits = j["prior_logits"].get<std::vector<float>>();
     }
     in.collect_corrected_logits = j.value("collect_corrected_logits", false);
+    in.domain = j.value("domain", "");
+    in.family = j.value("family", "");
     return in;
 }
 
@@ -47,6 +51,7 @@ nlohmann::json ipc_output_to_json(const DecisionOutput& out)
     nlohmann::json j;
     j["ok"]             = out.ok;
     j["error"]          = out.error;
+    if (!out.error_code.empty()) j["error_code"] = out.error_code;
     j["selected"]       = out.selected;
     j["p_true"]         = out.p_true;
     j["expected_score"] = out.expected_score;
@@ -57,6 +62,7 @@ nlohmann::json ipc_output_to_json(const DecisionOutput& out)
     j["tokenize_us"]    = out.tokenize_us;
     j["eval_us"]        = out.eval_us;
     j["decision_us"]    = out.decision_us;
+    j["retrieval_us"]   = out.retrieval_us;
     if (!out.corrected_logits.empty()) {
         j["corrected_logits"] = out.corrected_logits;
     }
@@ -68,6 +74,7 @@ DecisionOutput ipc_output_from_json(const nlohmann::json& j)
     DecisionOutput out;
     out.ok             = j.value("ok", false);
     out.error          = j.value("error", "");
+    out.error_code     = j.value("error_code", "");
     out.selected       = j.value("selected", -1);
     out.p_true         = j.value("p_true", 0.0);
     out.expected_score = j.value("expected_score", 0.0);
@@ -84,6 +91,7 @@ DecisionOutput ipc_output_from_json(const nlohmann::json& j)
     out.tokenize_us        = j.value("tokenize_us", (int64_t)0);
     out.eval_us            = j.value("eval_us", (int64_t)0);
     out.decision_us        = j.value("decision_us", (int64_t)0);
+    out.retrieval_us       = j.value("retrieval_us", (int64_t)0);
     if (j.contains("corrected_logits") && j["corrected_logits"].is_array()) {
         out.corrected_logits = j["corrected_logits"].get<std::vector<float>>();
     }
@@ -114,9 +122,10 @@ WorkerInfo ipc_worker_info_from_json(const nlohmann::json& j)
     return info;
 }
 
-const std::string& make_config_hash(const std::string& model_path)
+std::string make_config_hash(const RuntimePaths& paths, int threads, int ctx_size)
 {
-    return model_path;
+    return paths.model + "|" + std::to_string(threads) + "|" + std::to_string(ctx_size) + "|" +
+           paths.embedding_model + "|" + paths.exemplar_db + "|" + paths.exemplar_allowlist;
 }
 
 } // namespace pjev

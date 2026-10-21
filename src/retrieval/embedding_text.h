@@ -6,7 +6,7 @@
 
 namespace pjev
 {
-namespace filldb
+namespace retrieval
 {
 
 // Version incremented whenever the canonical text format changes.
@@ -35,5 +35,5 @@ std::string build_embedding_text(
     const nlohmann::ordered_json& state,
     const std::vector<std::string>& options);
 
-} // namespace filldb
+} // namespace retrieval
 } // namespace pjev

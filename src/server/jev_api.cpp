@@ -2,7 +2,7 @@
 #include <chrono>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
-#include "decision/decision_engine.h"
+#include "decision/decision_service.h"
 #include "spdlog/spdlog.h"
 
 namespace pjev {
@@ -67,6 +67,18 @@ static bool build_input(DecisionInput& input,
     input.state    = state;
     input.question = question["instructions"].get<std::string>();
     input.type     = to_type(question["type"].get<std::string>());
+    // Optional retrieval context (task domain / family); never shown to the model.
+    for (const char* field : {"domain", "family"}) {
+        if (!question.contains(field)) continue;
+        if (!question[field].is_string() || question[field].get<std::string>().size() > MAX_OPTION_LEN) {
+            status_out   = 400;
+            response_out = make_error(ErrorCode::INVALID_REQUEST,
+                                      std::string(field) + " must be a string of at most " +
+                                          std::to_string(MAX_OPTION_LEN) + " bytes", req_id);
+            return false;
+        }
+        (field[0] == 'd' ? input.domain : input.family) = question[field].get<std::string>();
+    }
 
     if (input.question.size() > MAX_QUESTION_LEN) {
         status_out   = 400;
@@ -144,17 +156,29 @@ static bool build_input(DecisionInput& input,
     }
     return true;
 }
+
+// HTTP status and error code for a failed decision.
+static void classify_failure(const DecisionOutput& out, int32_t& status, std::string& code)
+{
+    code = out.error_code;
+    if (code.empty()) {
+        // Engine errors without a code: the backend refuses prompts longer than the context.
+        const bool ctx = out.error.find("context") != std::string::npos ||
+                         out.error.find("token") != std::string::npos;
+        code = ctx ? ErrorCode::CONTEXT_TOO_LONG : ErrorCode::INFERENCE_ERROR;
+    }
+    if (code == ErrorCode::CONTEXT_TOO_LONG || code == ErrorCode::INVALID_REQUEST)            status = 400;
+    else if (code == ErrorCode::UNSUPPORTED_PRIMITIVE || code == ErrorCode::NO_ELIGIBLE_EXEMPLAR) status = 422;
+    else                                                                                        status = 500;
+}
 } // anonymous namespace
 
 // ---------------------------------------------------------------------------
 
-JevApiHandler::JevApiHandler(DecisionEngine& engine,
+JevApiHandler::JevApiHandler(DecisionService& service,
                               const std::string& model_name,
-                              int max_queued,
-                              bool kv_reuse,
-                              bool batch_questions)
-    : engine_(engine), model_name_(model_name), max_queued_(max_queued),
-      kv_reuse_(kv_reuse), batch_questions_(batch_questions)
+                              int max_queued)
+    : service_(service), model_name_(model_name), max_queued_(max_queued)
 {}
 
 void JevApiHandler::handle(const std::string& request_body,
@@ -232,14 +256,8 @@ void JevApiHandler::handle(const std::string& request_body,
         std::vector<DecisionOutput> outputs;
         {
             std::lock_guard<std::mutex> lk(mutex_);
-            if (batch_questions_ && decision_inputs.size() > 1) {
-                BatchConfig bcfg;
-                bcfg.use_kv_reuse = kv_reuse_;
-                outputs = engine_.decide_batch(decision_inputs, bcfg);
-            } else {
-                for (const auto& inp : decision_inputs) {
-                    outputs.push_back(engine_.decide(inp));
-                }
+            for (const auto& inp : decision_inputs) {
+                outputs.push_back(service_.decide(inp));
             }
         }
 
@@ -250,22 +268,17 @@ void JevApiHandler::handle(const std::string& request_body,
             const auto& out   = outputs[qi];
 
             if (!out.ok) {
-                status_out = 500;
-                std::string err_code = ErrorCode::INFERENCE_ERROR;
-                if (out.error.find("context") != std::string::npos ||
-                    out.error.find("token") != std::string::npos) {
-                    err_code = ErrorCode::CONTEXT_TOO_LONG;
-                    status_out = 400;
-                }
+                std::string err_code;
+                classify_failure(out, status_out, err_code);
                 response_out = make_error(err_code, out.error, req_id);
                 auto t_end = std::chrono::steady_clock::now();
                 long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
-                spdlog::error("[{}] inference_error status={} latency={}ms", req_id, status_out, ms);
+                spdlog::error("[{}] {} status={} latency={}ms", req_id, err_code, status_out, ms);
                 return;
             }
 
             json answer;
-            answer["type"] = input.type;
+            answer["type"] = to_string(input.type);
             if (input.type == Type::Noul) {
                 answer["noul"] = out.p_true;
             } else {
@@ -274,7 +287,7 @@ void JevApiHandler::handle(const std::string& request_body,
                 answer["probabilities"] = probs_obj;
                 if (input.type == Type::Choice) answer["choice"] = out.keys[out.selected];
             }
-            int64_t q_total_us = out.tokenize_us + out.eval_us + out.decision_us;
+            int64_t q_total_us = out.tokenize_us + out.eval_us + out.decision_us + out.retrieval_us;
             answer["duration"] = std::to_string(q_total_us / 1000);
             answers[key] = answer;
         }

@@ -39,12 +39,17 @@ struct DecisionInput
     bool prior_correction = false;
     std::vector<float> prior_logits; // per-candidate prior logits (size == options.size()); used when prior_correction=true
     bool collect_corrected_logits = false; // populate corrected_logits in output
+    // Optional task context used only by exemplar retrieval (task routing); never shown to the model.
+    std::string domain;
+    std::string family;
 };
 
 struct DecisionOutput
 {
     bool ok = false;
     std::string error;
+    // Stable error code (an ErrorCode constant) when the failure has one; empty otherwise.
+    std::string error_code;
     int32_t selected = -1;         // index into options
     double p_true = 0.0;           // noul: probability of "true"
     double expected_score = 0.0;   // score: expected value
@@ -57,6 +62,19 @@ struct DecisionOutput
     int64_t tokenize_us = 0;  // microseconds for prompt tokenization
     int64_t eval_us     = 0;  // microseconds for llama_decode
     int64_t decision_us = 0;  // microseconds for logit extraction + softmax
+    int64_t retrieval_us = 0; // microseconds for query embedding, exemplar search, payload loading and voting
+
+    // Task routing trace (only populated by TaskRouter).
+    struct RoutingDiag {
+        std::string strategy;                // "nearest_2shot" | "nearest_1shot" | "knn_5"
+        bool fallback = false;               // nearest_2shot answered by its 1-shot fallback
+        std::vector<int64_t> demonstration_ids; // exemplars in prompt order (LLM strategies)
+        std::vector<int64_t> neighbour_ids;  // neighbour list, rank order
+        std::vector<double>  neighbour_hamming;
+        std::vector<double>  neighbour_similarity;
+        std::vector<int32_t> neighbour_labels; // kNN: mapped candidate per neighbour (-1 = abstains)
+    };
+    std::optional<RoutingDiag> routing;
 
     // E1 ensemble diagnostics (only populated when NoulEnsembleMode::BINARY_ORDER is active)
     struct EnsembleDiag {

@@ -15,8 +15,6 @@ struct ServerConfig {
     int          execution_timeout_secs = 120;
     int          shutdown_grace_secs   = 10;
     int          max_queued_requests   = 8;
-    bool kv_reuse        = true;   // reuse KV prefix for multi-question same-state requests
-    bool batch_questions = true;   // collect all questions then run decide_batch()
 };
 
 } // namespace pjev

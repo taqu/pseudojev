@@ -14,25 +14,14 @@
 #define PJEV_LLAMA_REVISION "unknown"
 #endif
 
-#include "calibration/calibration.h"
-#include "calibration/calibration_fit.h"
-#include "calibration/calibration_metrics.h"
-#include "multilingual/multilingual.h"
 #include "model/model_identity.h"
-#include "model/value_profile.h"
 #include "util/platform.h"
-#include "util/timer.h"
-#include "inference/llama_backend.h"
-#include "decision/decision_engine.h"
+#include "decision/decision_service.h"
+#include "routing/router_runtime.h"
+#include "routing/task_policy.h"
 #include "server/jev_api.h"
 #include "server/server_config.h"
 #include "server/http_server.h"
-#include "experiment/config.h"
-#include "experiment/noul_metrics.h"
-#include "experiment/choice_metrics.h"
-#include "experiment/score_metrics.h"
-#include "experiment/dataset.h"
-#include "experiment/runner.h"
 #include "distribution/release_config.h"
 #include "cli/cli.h"
 #include "worker/ipc_protocol.h"
@@ -40,13 +29,15 @@
 #include "worker/local_transport.h"
 #include "worker/worker_server.h"
 #include "worker/worker_client.h"
-#include "worker/runtime_dir.h"
+#include <algorithm>
 #include <atomic>
-#include <cmath>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <thread>
 #include <string>
@@ -57,284 +48,88 @@
 // Usage helpers
 // ---------------------------------------------------------------------------
 using namespace pjev;
+
+static const char* kResourceOptionsHelp =
+    "  --model PATH               inference model (.gguf)\n"
+    "  --embedding-model PATH     query embedding model (.gguf)\n"
+    "  --exemplar-db PATH         exemplar database (read-only)\n"
+    "  --exemplar-allowlist PATH  eligible exemplar IDs\n"
+    "  --threads N                CPU threads (default: physical cores)\n"
+    "  --ctx-size N               context size (default: 4096)\n"
+    "  --n-gpu-layers N           number of layers to offload to GPU (default: 0)\n"
+    "  --main-gpu N               GPU device index to use as main GPU (default: 0)\n";
+
 static void usage_server(const char* prog) {
     fprintf(stderr,
-        "usage: %s server|serve --model PATH [options]\n"
-        "  --model PATH           path to .gguf model file (default: models/bonsai2_2b.gguf)\n"
-        "  --port N               HTTP port (default: 8080)\n"
-        "  --host ADDR            bind address (default: 127.0.0.1)\n"
-        "  --calibration FILE     load calibration artifact (optional)\n"
-        "  --layout LAYOUT        auto|state-first|state-last|question-first (default: auto)\n"
-        "  --scheme SCHEME        natural|letters (default: natural)\n"
-        "  --threads N            CPU threads (default: 8)\n"
-        "  --threads-batch N      batch CPU threads (default: same as --threads)\n"
-        "  --ctx-size N           context size (default: 4096)\n"
-        "  --n-gpu-layers N       number of layers to offload to GPU (default: 0)\n"
-        "  --main-gpu N           GPU device index to use as main GPU (default: 0)\n"
-        "  --verbose              enable llama.cpp verbose logging\n"
-        "  --model-name NAME      model name in responses (default: pseudojev)\n"
-        "  --request-limit BYTES  max request body size in bytes (default: 1048576)\n"
-        "  --read-timeout SECS    read timeout in seconds (default: 30)\n"
-        "  --max-queued N         max concurrent requests before returning 503 (default: 8)\n"
-        "  --no-kv-reuse          disable KV prefix reuse for multi-question requests\n"
-        "  --no-batch-questions   disable batching questions within a request\n",
-        prog);
-}
-
-static void usage_run(const char* prog) {
-    fprintf(stderr,
-        "usage: %s run --model PATH --input FILE [options]\n"
-        "  --model PATH               path to .gguf model file (default: models/bonsai2_2b.gguf)\n"
-        "  --input FILE               JSONL/JSON dataset file (required, or - for stdin)\n"
-        "  --output FILE              write JSON result here (default: stdout)\n"
-        "  --calibration FILE         calibration artifact (default: models/calibration.json;\n"
-        "                             \"\" = none, i.e. T = 1)\n"
-        "  --layout LAYOUT            auto|state-first|state-last|question-first (default: auto)\n"
-        "  --scheme SCHEME            natural|letters (default: natural; score: digits vs A, B, ...)\n"
-        "  --prior-correction         enable prior correction\n"
-        "  --option-order ORDER       original|reversed|random (default: original)\n"
-        "  --ensemble              E1: binary option-order ensemble for noul\n"
-        "  --choice-ensemble          E2: cyclic option-rotation ensemble for choice (N evaluations)\n"
-        "  --choice-prefix-reuse      E2: reuse the KV prefix shared between rotations\n"
-        "  --score-ensemble           S2: cyclic label-rotation ensemble for score (N evaluations)\n"
-        "  --score-prefix-reuse       S2: reuse the KV prefix shared between label rotations\n"
-        "  --filler-text TEXT         F1: fixed filler inserted before Answer: anchor (empty = disabled)\n"
-        "  --threads N                CPU threads (default: 8)\n"
-        "  --ctx-size N               context size (default: 4096)\n"
-        "  --n-gpu-layers N           number of layers to offload to GPU (default: 0)\n"
-        "  --main-gpu N               GPU device index to use as main GPU (default: 0)\n"
-        "  --verbose                  enable llama.cpp verbose logging\n",
-        prog);
-}
-
-static void usage_compare(const char* prog) {
-    fprintf(stderr,
-        "usage: %s compare --baseline FILE --target FILE [options]\n"
-        "  Recompute confidence / calibration / margin metrics from two stored\n"
-        "  'run' result JSON files and print them side by side (no model needed).\n"
-        "  --baseline FILE            result JSON of the baseline run (required)\n"
-        "  --target FILE              result JSON of the compared run (required)\n"
-        "  --primitive TYPE           noul|choice|score (default: noul)\n"
-        "  --baseline-label NAME      column label (default: baseline)\n"
-        "  --target-label NAME        column label (default: target)\n"
-        "  --title TEXT               table title (default: the primitive)\n"
-        "  --ece-bins N               equal-width ECE bins (default: 15)\n"
-        "  --output FILE              also write the comparison as JSON\n",
-        prog);
-}
-
-static void usage_calibration(const char* prog) {
-    fprintf(stderr,
-        "usage: %s calibration <collect|fit|evaluate> [options]\n"
-        "\n"
-        "  collect  run inference and write derived JSONL dataset (raw logits + prior logits)\n"
-        "    --model PATH        path to .gguf model file (required)\n"
-        "    --input FILE        JSONL/JSON dataset (required)\n"
-        "    --output FILE       write derived JSONL here (required)\n"
-        "    --model-id NAME     model identifier stored in records (default: model path)\n"
-        "    --layout LAYOUT     auto|state-first|state-last|question-first (default: auto)\n"
-        "    --scheme SCHEME     natural|letters (default: natural)\n"
-        "    --seed N            split seed for reproducibility (default: 42)\n"
-        "    --threads N         CPU threads (default: 8)\n"
-        "    --ctx-size N        context size (default: 4096)\n"
-        "    --n-gpu-layers N    number of layers to offload to GPU (default: 0)\n"
-        "    --main-gpu N        GPU device index to use as main GPU (default: 0)\n"
-        "    --verbose           enable llama.cpp verbose logging\n"
-        "\n"
-        "  fit     fit per-primitive alpha+temperature from a calibration dataset\n"
-        "    --model PATH        path to .gguf model file (required, unless --collected given)\n"
-        "    --input FILE        JSONL/JSON calibration dataset (required, unless --collected given)\n"
-        "    --collected FILE    derived JSONL from 'collect' (skips inference; preferred)\n"
-        "    --output FILE       write calibration artifact JSON here (required)\n"
-        "    --model-id NAME     model identifier stored in artifact (default: model path)\n"
-        "    --layout LAYOUT     auto|state-first|state-last|question-first (default: auto)\n"
-        "    --scheme SCHEME     natural|letters (default: natural)\n"
-        "    --prior-correction  enable prior correction (also searched via alpha)\n"
-        "    --threads N         CPU threads (default: 8)\n"
-        "    --ctx-size N        context size (default: 4096)\n"
-        "    --n-gpu-layers N    number of layers to offload to GPU (default: 0)\n"
-        "    --main-gpu N        GPU device index to use as main GPU (default: 0)\n"
-        "    --verbose           enable llama.cpp verbose logging\n"
-        "\n"
-        "  evaluate  compare raw/prior/temperature/combined metrics on a dataset\n"
-        "    --model PATH        path to .gguf model file (required, unless --collected given)\n"
-        "    --input FILE        JSONL/JSON evaluation dataset (required, unless --collected given)\n"
-        "    --collected FILE    derived JSONL from 'collect' (skips inference; preferred)\n"
-        "    --calibration FILE  calibration artifact (required)\n"
-        "    --output FILE       write report JSON here (default: stdout)\n"
-        "    --layout LAYOUT     auto|state-first|state-last|question-first (default: auto)\n"
-        "    --scheme SCHEME     natural|letters (default: natural)\n"
-        "    --prior-correction  enable prior correction\n"
-        "    --threads N         CPU threads (default: 8)\n"
-        "    --ctx-size N        context size (default: 4096)\n"
-        "    --n-gpu-layers N    number of layers to offload to GPU (default: 0)\n"
-        "    --main-gpu N        GPU device index to use as main GPU (default: 0)\n"
-        "    --verbose           enable llama.cpp verbose logging\n",
-        prog);
-}
-
-static void usage_experiment(const char* prog) {
-    fprintf(stderr,
-        "usage: %s experiment NAME --model PATH --input FILE [options]\n"
-        "  NAME: candidate-binding | option-order | prompt-layout | prior-correction | score-formulation\n"
-        "        multilingual  (requires --input-reference and --input-target instead of --input)\n"
-        "  --model PATH              path to .gguf model file (required)\n"
-        "  --input FILE              JSONL/JSON dataset file (single-language experiments)\n"
-        "  --input-reference FILE    reference/English dataset (multilingual experiment)\n"
-        "  --input-target FILE       target/Japanese dataset  (multilingual experiment)\n"
-        "  --ref-language LANG       reference language tag (default: en)\n"
-        "  --target-language LANG    target language tag (default: ja)\n"
-        "  --output DIR/FILE         output file or directory (default: stdout)\n"
-        "  --calibration FILE        calibration artifact (optional)\n"
-        "  --layout LAYOUT           auto|state-first|state-last|question-first\n"
-        "  --scheme SCHEME           natural|letters\n"
-        "  --prior-correction        enable prior correction\n"
-        "  --threads N               CPU threads (default: 8)\n"
-        "  --ctx-size N              context size (default: 4096)\n"
-        "  --n-gpu-layers N          number of layers to offload to GPU (default: 0)\n"
-        "  --main-gpu N              GPU device index to use as main GPU (default: 0)\n"
-        "  --verbose                 enable llama.cpp verbose logging\n",
-        prog);
-}
-
-static void usage_model(const char* prog) {
-    fprintf(stderr,
-        "usage: %s model <inspect|evaluate> [options]\n"
-        "\n"
-        "  inspect   load a model and report identity, candidate compatibility, RSS, smoke test\n"
-        "    --model PATH         path to .gguf model file (required)\n"
-        "    --threads N          CPU threads (default: 8)\n"
-        "    --ctx-size N         context size (default: 4096)\n"
-        "    --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
-        "    --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
-        "    --output FILE        write JSON report here (default: stdout)\n"
-        "    --verbose            enable llama.cpp verbose logging\n"
-        "\n"
-        "  evaluate   run full benchmark and produce a model value profile\n"
-        "    --model PATH         path to .gguf model file (required)\n"
-        "    --input FILE         English benchmark dataset (required)\n"
-        "    --input-ja FILE      Japanese benchmark dataset (optional)\n"
-        "    --calibration FILE   load existing calibration artifact\n"
-        "    --fit-calibration    fit model-specific calibration from the run\n"
-        "    --output FILE        write ValueProfile JSON here (required)\n"
-        "    --layout LAYOUT      auto|state-first|state-last|question-first (default: auto)\n"
-        "    --scheme SCHEME      natural|letters (default: natural)\n"
-        "    --prior-correction   enable prior correction\n"
-        "    --threads N          CPU threads (default: 8)\n"
-        "    --ctx-size N         context size (default: 4096)\n"
-        "    --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
-        "    --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
-        "    --verbose            enable llama.cpp verbose logging\n",
-        prog);
+        "usage: %s serve [options]\n"
+        "%s"
+        "  --port N                   HTTP port (default: 8080)\n"
+        "  --host ADDR                bind address (default: 127.0.0.1)\n"
+        "  --threads-batch N          batch CPU threads (default: same as --threads)\n"
+        "  --verbose                  enable llama.cpp verbose logging\n"
+        "  --model-name NAME          model name in responses (default: pseudojev)\n"
+        "  --request-limit BYTES      max request body size in bytes (default: 1048576)\n"
+        "  --read-timeout SECS        read timeout in seconds (default: 30)\n"
+        "  --max-queued N             max concurrent requests before returning 503 (default: 8)\n",
+        prog, kResourceOptionsHelp);
 }
 
 static void usage_benchmark(const char* prog) {
     fprintf(stderr,
-        "usage: %s benchmark latency --model PATH [options]\n"
-        "  --model PATH       path to .gguf model file (required)\n"
-        "  --iterations N     number of measurement iterations (default: 20)\n"
-        "  --warmup N         number of warmup iterations (default: 3)\n"
-        "  --questions N      questions per request (default: 1)\n"
-        "  --state TEXT       shared state text (default: \"This is a test state for benchmarking.\")\n"
-        "  --output FILE      JSON output file (optional)\n"
-        "  --threads N        CPU threads (default: 8)\n"
-        "  --ctx-size N       context size (default: 4096)\n"
-        "  --n-gpu-layers N   number of layers to offload to GPU (default: 0)\n"
-        "  --main-gpu N       GPU device index to use as main GPU (default: 0)\n"
-        "  --no-kv-reuse      disable KV prefix reuse\n"
-        "  --no-batch-questions disable question batching\n",
-        prog);
+        "usage: %s benchmark latency [options]\n"
+        "  Measures end-to-end decision latency per task kind (models loaded once, one untimed\n"
+        "  warm-up pass, sequential decisions).\n"
+        "%s"
+        "  --input FILE               JSONL tasks: {\"type\",\"state\",\"question\",\"options\":[[key,desc],..],\n"
+        "                             \"domain\",\"family\"} or {\"input\": {...}} (default: built-in tasks)\n"
+        "  --state TEXT               state of the built-in tasks\n"
+        "  --iterations N             measured passes over the tasks (default: 20)\n"
+        "  --warmup N                 untimed passes (default: 1)\n"
+        "  --output FILE              JSON output file (default: stdout)\n",
+        prog, kResourceOptionsHelp);
 }
 
 static void usage_diagnostics(const char* prog) {
     fprintf(stderr,
         "usage: %s diagnostics [options]\n"
-        "  --model PATH       path to .gguf model file (optional; uses default if omitted)\n"
-        "  --threads N        CPU threads (default: 8)\n"
-        "  --ctx-size N       context size (default: 4096)\n"
-        "  --n-gpu-layers N   number of layers to offload to GPU (default: 0)\n"
-        "  --main-gpu N       GPU device index to use as main GPU (default: 0)\n"
-        "  --json             output JSON to stdout\n"
+        "%s"
+        "  --load                     also load the models and the exemplar database and check them\n"
+        "  --json                     output JSON to stdout\n"
         "\n"
-        "Shows pjev version, build, platform, CPU, model path, worker status, and config.\n"
+        "Shows pjev version, build, platform, CPU, runtime resources, worker status, and config.\n"
         "Use 'pjev diagnostics --json' for machine-readable output (useful for bug reports).\n",
-        prog);
+        prog, kResourceOptionsHelp);
 }
 
-static void usage_noul(const char* prog) {
+static void usage_decision(const char* prog, Type type) {
+    const char* cmd = to_string(type);
+    fprintf(stderr, "usage: %s %s --question TEXT", prog, cmd);
+    if (type == Type::Choice) fprintf(stderr, " --option KEY[:DESC] --option KEY[:DESC] ...");
+    if (type == Type::Score)  fprintf(stderr, " --level DESC --level DESC ...");
+    fprintf(stderr, " [options]\n"
+        "  --question TEXT            question to evaluate (required)\n");
+    if (type == Type::Choice)
+        fprintf(stderr, "  --option KEY[:DESC]        add a candidate option (at least 2 required); KEY is the label\n");
+    if (type == Type::Score)
+        fprintf(stderr, "  --level DESC               add a score level description (at least 2, lowest first)\n");
     fprintf(stderr,
-        "usage: %s noul --question TEXT [options]\n"
-        "  --question TEXT      question to evaluate (required)\n"
-        "  --state TEXT         context state (default: empty)\n"
-        "  --state-file FILE    read state from file (- for stdin)\n"
-        "  --model PATH         path to .gguf model file\n"
-        "  --calibration FILE   calibration artifact (optional)\n"
-        "  --threads N          CPU threads (default: 8)\n"
-        "  --ctx-size N         context size (default: 4096)\n"
-        "  --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
-        "  --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
-        "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
-        "  --verbose            enable verbose logging to stderr\n"
-        "  --json               output JSON instead of plain text\n"
-        "  --direct             bypass worker, load model in-process\n"
-        "\n"
-        "output: 'true' or 'false' (plain); JSON with p_true and probabilities (--json)\n"
-        "\n"
-        "examples:\n"
-        "  %s noul --state \"The sky is blue.\" --question \"Is it daytime?\"\n"
-        "  %s noul --state-file state.txt --question \"問題はありますか?\"\n",
-        prog, prog, prog);
-}
-
-static void usage_choice(const char* prog) {
-    fprintf(stderr,
-        "usage: %s choice --question TEXT --option KEY[:DESC] --option KEY[:DESC] ... [options]\n"
-        "  --question TEXT      question to evaluate (required)\n"
-        "  --option KEY[:DESC]  add a candidate option (at least 2 required); KEY is the label\n"
-        "  --state TEXT         context state (default: empty)\n"
-        "  --state-file FILE    read state from file (- for stdin)\n"
-        "  --model PATH         path to .gguf model file\n"
-        "  --calibration FILE   calibration artifact (optional)\n"
-        "  --threads N          CPU threads (default: 8)\n"
-        "  --ctx-size N         context size (default: 4096)\n"
-        "  --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
-        "  --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
-        "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
-        "  --verbose            enable verbose logging to stderr\n"
-        "  --json               output JSON instead of plain text\n"
-        "  --direct             bypass worker, load model in-process\n"
-        "\n"
-        "output: selected KEY (plain); JSON with index, key, probabilities (--json)\n"
-        "\n"
-        "examples:\n"
-        "  %s choice --state \"...\" --question \"Which action?\" --option A:\"Go left\" --option B:\"Go right\"\n"
-        "  %s choice --question \"どちら?\" --option はい --option いいえ --json\n",
-        prog, prog, prog);
-}
-
-static void usage_score(const char* prog) {
-    fprintf(stderr,
-        "usage: %s score --question TEXT --level DESC --level DESC ... [options]\n"
-        "  --question TEXT      question to evaluate (required)\n"
-        "  --level DESC         add a score level description (at least 2 required, in order)\n"
-        "  --state TEXT         context state (default: empty)\n"
-        "  --state-file FILE    read state from file (- for stdin)\n"
-        "  --model PATH         path to .gguf model file\n"
-        "  --calibration FILE   calibration artifact (optional)\n"
-        "  --threads N          CPU threads (default: 8)\n"
-        "  --ctx-size N         context size (default: 4096)\n"
-        "  --n-gpu-layers N     number of layers to offload to GPU (default: 0)\n"
-        "  --main-gpu N         GPU device index to use as main GPU (default: 0)\n"
-        "  --idle-timeout SECS  worker idle timeout in seconds (default: 300)\n"
-        "  --verbose            enable verbose logging to stderr\n"
-        "  --json               output JSON instead of plain text\n"
-        "  --direct             bypass worker, load model in-process\n"
-        "\n"
-        "output: expected score as decimal (plain); JSON with expected_score and probabilities (--json)\n"
-        "\n"
-        "examples:\n"
-        "  %s score --state \"Essay text.\" --question \"Rate quality\" --level Poor --level Fair --level Good\n",
-        prog, prog);
+        "  --state TEXT               context state (default: empty); a JSON object is also\n"
+        "                             matched field by field against the exemplar bank\n"
+        "  --state-file FILE          read state from file (- for stdin)\n"
+        "  --domain TEXT              task domain, used for exemplar retrieval (optional)\n"
+        "  --family TEXT              task family, used for exemplar retrieval (optional)\n"
+        "%s"
+        "  --idle-timeout SECS        worker idle timeout in seconds (default: 600)\n"
+        "  --verbose                  enable verbose logging to stderr\n"
+        "  --json                     output JSON instead of plain text\n"
+        "  --direct                   bypass worker, load models in-process\n"
+        "\n", kResourceOptionsHelp);
+    if (type == Type::Noul)
+        fprintf(stderr, "output: 'true' or 'false' (plain); JSON with p_true and probabilities (--json)\n");
+    if (type == Type::Choice)
+        fprintf(stderr, "output: selected KEY (plain); JSON with index, key, probabilities (--json)\n");
+    if (type == Type::Score)
+        fprintf(stderr, "output: expected level as decimal (plain); JSON with expected_score and probabilities (--json)\n");
 }
 
 static void usage(const char* prog) {
@@ -356,9 +151,8 @@ static void usage(const char* prog) {
         "  serve        start the Jev-compatible HTTP server\n"
         "\n"
         "utilities:\n"
-        "  diagnostics  runtime info, model path, CPU, worker state  (--json for reports)\n"
+        "  diagnostics  runtime info, resource paths, CPU, worker state  (--json for reports)\n"
         "  benchmark    measure decision latency\n"
-        "  compare      compare noul metrics of two stored 'run' results\n"
         "  --version    print version and exit\n"
         "\n"
         "run '%s <command> --help' for command-specific options\n"
@@ -370,27 +164,6 @@ static void usage(const char* prog) {
         prog, prog, prog, prog, prog);
 }
 
-// ---------------------------------------------------------------------------
-// Layout / Scheme / OptionOrder parse helpers
-// ---------------------------------------------------------------------------
-
-static Layout parse_layout(const std::string& s) {
-    if (s == "state-first")    return Layout::STATE_FIRST;
-    if (s == "state-last")     return Layout::STATE_LAST;
-    if (s == "question-first") return Layout::QUESTION_FIRST;
-    return Layout::AUTO;
-}
-
-static Scheme parse_scheme(const std::string& s) {
-    return (s == "letters") ? Scheme::LETTERS : Scheme::NATURAL;
-}
-
-static OptionOrder parse_order(const std::string& s) {
-    if (s == "reversed") return OptionOrder::REVERSED;
-    if (s == "random")   return OptionOrder::RANDOM;
-    return OptionOrder::ORIGINAL;
-}
-
 struct SpdLogShutdown {
     SpdLogShutdown() = default;
     ~SpdLogShutdown()
@@ -398,6 +171,86 @@ struct SpdLogShutdown {
         spdlog::shutdown();
     }
 };
+
+// ---------------------------------------------------------------------------
+// Runtime options shared by every command that decides
+// ---------------------------------------------------------------------------
+
+// Options without effect since task-aware routing fixed the decision configuration. Accepted so
+// existing scripts keep working; `takes_value` options consume their argument.
+static bool consume_deprecated(const std::string& a, int32_t& i, int32_t argc)
+{
+    static const std::map<std::string, bool> kDeprecated = {
+        {"--calibration", true}, {"--layout", true}, {"--scheme", true}, {"--questions", true},
+        {"--ensemble", false}, {"--no-kv-reuse", false}, {"--no-batch-questions", false}};
+    auto it = kDeprecated.find(a);
+    if (it == kDeprecated.end()) return false;
+    if (it->second && i + 1 < argc) ++i;
+    fprintf(stderr, "warning: %s has no effect (the decision configuration is fixed by the task routing policy)\n",
+            a.c_str());
+    return true;
+}
+
+struct RuntimeArgs {
+    RuntimePaths explicit_paths;
+    int32_t threads      = -1;
+    int32_t ctx_size     = -1;
+    int32_t n_gpu_layers = 0;
+    int32_t main_gpu     = 0;
+    int32_t threads_batch = -1;
+    bool    verbose      = false;
+
+    // Parses one resource / runtime option at argv[i]; false when `a` is not one.
+    template <class Next>
+    bool parse(const std::string& a, Next&& next) {
+        if      (a == "--model")              explicit_paths.model = next();
+        else if (a == "--embedding-model")    explicit_paths.embedding_model = next();
+        else if (a == "--exemplar-db")        explicit_paths.exemplar_db = next();
+        else if (a == "--exemplar-allowlist") explicit_paths.exemplar_allowlist = next();
+        else if (a == "--threads")            threads = std::stoi(next());
+        else if (a == "--ctx-size")           ctx_size = std::stoi(next());
+        else if (a == "--n-gpu-layers")       n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")           main_gpu = std::stoi(next());
+        else if (a == "--verbose")            verbose = true;
+        else return false;
+        return true;
+    }
+
+    // Resolves paths (flags > pjev.json > next to the executable > models/) and the thread / context
+    // defaults (flags > pjev.json > built-in).
+    RuntimeOptions resolve() const {
+        const std::string exe_dir = get_executable_dir();
+        ReleaseConfig rc;
+        const bool have_cfg = ReleaseConfig::load_adjacent(exe_dir, rc);
+        RuntimeOptions o;
+        o.paths        = ReleaseConfig::resolve_runtime_paths(explicit_paths, exe_dir);
+        o.n_threads    = threads > 0 ? threads : (have_cfg && rc.threads > 0 ? rc.threads : get_physical_core_count());
+        o.n_ctx        = ctx_size > 0 ? ctx_size : (have_cfg && rc.context_size > 0 ? rc.context_size : 4096);
+        o.n_gpu_layers = n_gpu_layers;
+        o.main_gpu     = main_gpu;
+        o.n_threads_batch = threads_batch;
+        o.verbose      = verbose;
+        return o;
+    }
+};
+
+static std::string absolute_path(const std::string& p)
+{
+    std::error_code ec;
+    std::filesystem::path abs = std::filesystem::absolute(p, ec);
+    return ec ? p : abs.lexically_normal().string();
+}
+
+static std::unique_ptr<RouterRuntime> load_runtime(const RuntimeOptions& opts)
+{
+    std::string err;
+    std::unique_ptr<RouterRuntime> rt = RouterRuntime::load(opts, err);
+    if (!rt) {
+        spdlog::error("{}", err);
+        spdlog::error("check the resource paths with 'pjev diagnostics' (see README: Runtime resources)");
+    }
+    return rt;
+}
 
 // ---------------------------------------------------------------------------
 // server subcommand
@@ -429,39 +282,26 @@ static void pjev_sig_handler(int32_t) {
 enum class ServerState { INITIALIZING, READY, SHUTTING_DOWN };
 
 static int32_t cmd_server(int32_t argc, char** argv) {
-    LlamaConfig  llama_cfg;
-    PromptConfig prompt_cfg;
-    llama_cfg.model_path = "models/bonsai2_2b.gguf";
+    RuntimeArgs  rargs;
     ServerConfig srv_cfg;
-    std::string  model_name      = "pseudojev";
-    std::string  calibration_path = "models/calibration.json";
-    bool         model_explicitly_set = false;
+    std::string  model_name = "pseudojev";
 
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_server(argv[-1]); exit(2); }
+            if (i + 1 >= argc) { usage_server("pjev"); exit(2); }
             return argv[++i];
         };
 
-        if      (a == "--model")        { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--port")         srv_cfg.port = (uint16_t)std::stoi(next());
-        else if (a == "--host")         srv_cfg.host = next();
-        else if (a == "--threads")      llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--threads-batch") llama_cfg.n_threads_batch = std::stoi(next());
-        else if (a == "--ctx-size")     llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers") llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")     llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--verbose")      llama_cfg.verbose = true;
-        else if (a == "--model-name")   model_name = next();
-        else if (a == "--layout")       prompt_cfg.layout = parse_layout(next());
-        else if (a == "--scheme")       prompt_cfg.scheme = parse_scheme(next());
-        else if (a == "--calibration")  calibration_path = next();
+        if      (rargs.parse(a, next))   {}
+        else if (consume_deprecated(a, i, argc)) {}
+        else if (a == "--port")          srv_cfg.port = (uint16_t)std::stoi(next());
+        else if (a == "--host")          srv_cfg.host = next();
+        else if (a == "--threads-batch") rargs.threads_batch = std::stoi(next());
+        else if (a == "--model-name")    model_name = next();
         else if (a == "--request-limit") srv_cfg.request_body_limit = (size_t)std::stoul(next());
         else if (a == "--read-timeout")  srv_cfg.read_timeout_secs = std::stoi(next());
         else if (a == "--max-queued")    srv_cfg.max_queued_requests = std::stoi(next());
-        else if (a == "--no-kv-reuse")   srv_cfg.kv_reuse = false;
-        else if (a == "--no-batch-questions") srv_cfg.batch_questions = false;
         else if (a == "-h" || a == "--help") { usage_server("pjev"); return 0; }
         else {
             spdlog::error("unknown option: {}", a);
@@ -469,79 +309,23 @@ static int32_t cmd_server(int32_t argc, char** argv) {
             return 2;
         }
     }
-
-    // Resolve model path from executable-relative location if not explicitly set
-    if (!model_explicitly_set) {
-        std::string exe_dir = get_executable_dir();
-        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
-        if (!resolved.empty()) {
-            llama_cfg.model_path = resolved;
-        }
-        // else: keep the default "models/bonsai2_2b.gguf" for dev use
-    }
+    const RuntimeOptions opts = rargs.resolve();
 
     SpdLogShutdown spdlog_shutdown;
     spdlog::stdout_logger_mt("console");
-    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::info);
-
-    if (llama_cfg.model_path.empty()) {
-        spdlog::error("--model is required");
-        usage_server("pjev");
-        return 1;
-    }
+    spdlog::set_level(opts.verbose ? spdlog::level::trace : spdlog::level::info);
 
     std::atomic<ServerState> server_state{ServerState::INITIALIZING};
-    std::string model_id_for_health;
 
-    // Load model
-    std::unique_ptr<LlamaBackend> backend;
-    try {
-        backend = std::make_unique<LlamaBackend>(llama_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("model load error: {}", e.what());
-        return 1;
-    }
+    // Load models and the exemplar database
+    std::unique_ptr<RouterRuntime> runtime = load_runtime(opts);
+    if (!runtime) return 1;
 
-    // Load calibration (optional)
-    CalibrationConfig calib_cfg;
-    if (!calibration_path.empty()) {
-        std::ifstream cf(calibration_path);
-        if (!cf) {
-            spdlog::error("cannot open calibration file: {}", calibration_path);
-            return 1;
-        }
-        nlohmann::json cj;
-        try { cf >> cj; } catch (const std::exception& e) {
-            spdlog::error("calibration JSON parse error: {}", e.what());
-            return 1;
-        }
-        CalibrationArtifact art;
-        std::string calib_err;
-        if (!CalibrationArtifact::from_json(cj, art, calib_err)) {
-            spdlog::error("calibration artifact error: {}", calib_err);
-            return 1;
-        }
-        calib_cfg = art.to_config();
-        spdlog::info("calibration loaded from {}", calibration_path);
-    }
-
-    // Initialize DecisionEngine
-    std::unique_ptr<DecisionEngine> engine;
-    try {
-        engine = std::make_unique<DecisionEngine>(*backend, prompt_cfg, calib_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("engine init error: {}", e.what());
-        return 1;
-    }
-
-    // Get model identity for health/version
-    ModelIdentity mid = ModelIdentity::from_path(llama_cfg.model_path, backend.get());
-    model_id_for_health = mid.name.empty() ? llama_cfg.model_path : mid.name;
+    const ModelIdentity& mid = runtime->model_identity();
+    const std::string model_id_for_health = mid.name.empty() ? opts.paths.model : mid.name;
 
     // Build API handler
-    auto api_handler = std::make_unique<JevApiHandler>(
-        *engine, model_name, srv_cfg.max_queued_requests,
-        srv_cfg.kv_reuse, srv_cfg.batch_questions);
+    auto api_handler = std::make_unique<JevApiHandler>(runtime->service(), model_name, srv_cfg.max_queued_requests);
 
     // Build HTTP server
     PjevHttpServer server;
@@ -571,6 +355,7 @@ static int32_t cmd_server(int32_t argc, char** argv) {
         v["pjev_commit"]       = PJEV_GIT_COMMIT;
         v["llamacpp_revision"] = PJEV_LLAMA_REVISION;
         v["model"]             = model_id_for_health;
+        v["routing_policy"]    = routing::kPolicyName;
         status = 200;
         body   = v.dump();
     });
@@ -580,15 +365,17 @@ static int32_t cmd_server(int32_t argc, char** argv) {
         api_handler->handle(req, st, resp);
     });
 
-    // Log startup info (only after model is ready)
+    // Log startup info (only after the runtime is ready)
     spdlog::info("pjev {} (commit: {}, llama.cpp: {})", PJEV_VERSION, PJEV_GIT_COMMIT, PJEV_LLAMA_REVISION);
-    spdlog::info("model: {}", model_id_for_health);
+    spdlog::info("model: {} ({})", model_id_for_health, opts.paths.model);
+    spdlog::info("routing policy: {}", routing::kPolicyName);
+    spdlog::info("embedding model: {} (fingerprint {})", opts.paths.embedding_model, runtime->embedding_fingerprint());
+    spdlog::info("exemplars: {} ({} rows, {} eligible)", opts.paths.exemplar_db, runtime->exemplar_count(),
+                 runtime->eligible_exemplars());
     spdlog::info("bind: {}:{}", srv_cfg.host, (int32_t)srv_cfg.port);
     spdlog::info("request_body_limit: {} bytes", srv_cfg.request_body_limit);
     spdlog::info("read_timeout: {}s", srv_cfg.read_timeout_secs);
     spdlog::info("inference: serialized (single mutex, not safe for concurrent llama_context use)");
-    spdlog::info("kv_reuse: {} batch_questions: {}",
-        srv_cfg.kv_reuse, srv_cfg.batch_questions);
 
     server_state.store(ServerState::READY);
 
@@ -607,1264 +394,57 @@ static int32_t cmd_server(int32_t argc, char** argv) {
     g_server_ptr = nullptr;
 
     spdlog::info("server stopped");
-    // RAII: engine and backend destroyed in reverse order here
+    // RAII: runtime (engine, models, database) released here
 
     return ok ? 0 : 1;
-}
-
-// ---------------------------------------------------------------------------
-// run subcommand
-// ---------------------------------------------------------------------------
-
-static bool load_calibration_artifact(const std::string& path,
-                                      CalibrationArtifact& art,
-                                      std::string& err)
-{
-    std::ifstream cf(path);
-    if (!cf) { err = "cannot open file: " + path; return false; }
-    nlohmann::json cj;
-    try { cf >> cj; } catch (const std::exception& e) {
-        err = std::string("JSON parse error: ") + e.what(); return false;
-    }
-    return CalibrationArtifact::from_json(cj, art, err);
-}
-
-static int32_t cmd_run(int32_t argc, char** argv) {
-    LlamaConfig    llama_cfg;
-    llama_cfg.model_path = "models/bonsai2_2b.gguf";
-    ExperimentConfig exp_cfg;
-    exp_cfg.name = "run";
-    exp_cfg.record_score_candidates = true;
-    bool ensemble_binary = true;
-    std::string input_path;
-    std::string output_path;
-    std::string calibration_path = "models/calibration.json";
-
-    for (int32_t i = 0; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_run("pjev"); exit(2); }
-            return argv[++i];
-        };
-
-        if      (a == "--model")           llama_cfg.model_path = next();
-        else if (a == "--input")           input_path = next();
-        else if (a == "--output")          output_path = next();
-        else if (a == "--calibration")     calibration_path = next();
-        else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")    llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")        llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--verbose")         llama_cfg.verbose = true;
-        else if (a == "--layout")          exp_cfg.layout = parse_layout(next());
-        else if (a == "--scheme")          exp_cfg.scheme = parse_scheme(next());
-        else if (a == "--prior-correction") exp_cfg.prior_correction = true;
-        else if (a == "--option-order")    exp_cfg.option_order = parse_order(next());
-        else if (a == "--ensemble")        ensemble_binary = true;
-        else if (a == "--choice-ensemble") exp_cfg.ensemble.choice_mode = ChoiceEnsembleMode::CYCLIC_ROTATION;
-        else if (a == "--choice-prefix-reuse") exp_cfg.ensemble.choice_prefix_reuse = true;
-        else if (a == "--score-ensemble")  exp_cfg.ensemble.score_mode = ScoreEnsembleMode::LABEL_ROTATION;
-        else if (a == "--score-prefix-reuse") exp_cfg.ensemble.score_prefix_reuse = true;
-        else if (a == "--filler-text")     exp_cfg.filler_text = next();
-        else if (a == "-h" || a == "--help") { usage_run("pjev"); return 0; }
-        else {
-            spdlog::error("unknown option: {}", a);
-            usage_run("pjev");
-            return 2;
-        }
-    }
-
-    if (ensemble_binary)
-        exp_cfg.ensemble.noul_mode = NoulEnsembleMode::BINARY_ORDER;
-
-    // Recorded in the result so a report shows which calibration (if any) produced the
-    // calibrated metrics. An artifact fitted for another formulation is applied but flagged.
-    nlohmann::json calib_info = {{"path", calibration_path}, {"applied", false}};
-    if (!calibration_path.empty()) {
-        CalibrationArtifact art;
-        std::string calib_err;
-        if (!load_calibration_artifact(calibration_path, art, calib_err)) {
-            spdlog::error("calibration error: {}", calib_err.c_str());
-            return 1;
-        }
-        exp_cfg.calibration = art.to_config();
-        CalibrationFormulation current{exp_cfg.layout_str(), exp_cfg.scheme_str(), exp_cfg.prior_correction};
-        std::string warn;
-        bool compatible = art.check_compatible(current, warn);
-        if (!compatible)
-            fprintf(stderr, "warning: %s\n", warn.c_str());
-        calib_info = {
-            {"path", calibration_path},
-            {"applied", true},
-            {"compatible", compatible},
-            {"warning", warn},
-            {"artifact_formulation", art.to_json()["formulation"]},
-            {"noul_temperature", exp_cfg.calibration.temperature_for(Type::Noul)},
-            {"choice_temperature", exp_cfg.calibration.temperature_for(Type::Choice)},
-            {"score_temperature", exp_cfg.calibration.temperature_for(Type::Score)}};
-    }
-
-    SpdLogShutdown spdlog_shutdown;
-    spdlog::stdout_logger_mt("console");
-    if(llama_cfg.verbose){
-        spdlog::set_level(spdlog::level::trace);
-    }else{
-        spdlog::set_level(spdlog::level::warn);
-    }
-
-    if (llama_cfg.model_path.empty()) {
-        spdlog::error("--model is required");
-        usage_run("pjev");
-        return 1;
-    }
-    if (input_path.empty()) {
-        spdlog::error("--input is required");
-        usage_run("pjev");
-        return 1;
-    }
-
-    std::vector<DatasetRow> rows;
-    std::string err;
-    if (!load_dataset(input_path, rows, err)) {
-        spdlog::error("dataset error: {}", err.c_str());
-        return 1;
-    }
-    if (rows.empty()) {
-        spdlog::warn("dataset is empty");
-    }
-
-    LlamaBackend* backend = nullptr;
-    try {
-        backend = new LlamaBackend(llama_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("model load error: {}", e.what());
-        return 1;
-    }
-
-    RunResult result = run_experiment(*backend, rows, exp_cfg);
-    delete backend;
-
-    nlohmann::json result_j = result.to_json();
-    result_j["calibration"] = calib_info;
-    std::string output_str = result_j.dump(2);
-    if (output_path.empty()) {
-        printf("%s\n", output_str.c_str());
-    } else {
-        std::ofstream f(output_path);
-        if (!f) {
-            spdlog::error("cannot open output: {}", output_path.c_str());
-            return 1;
-        }
-        f << output_str << "\n";
-    }
-    return 0;
-}
-
-// ---------------------------------------------------------------------------
-// compare subcommand
-// ---------------------------------------------------------------------------
-
-// Loads "<primitive>_items" and metrics.<primitive>.eval_ms from a stored 'run' result.
-static bool load_result_items(const std::string& path, const std::string& primitive,
-                              nlohmann::json& items, int64_t& eval_ms, std::string& err) {
-    std::ifstream f(path);
-    if (!f) { err = "cannot open: " + path; return false; }
-    nlohmann::json j;
-    try { f >> j; } catch (const std::exception& e) {
-        err = path + ": JSON parse error: " + e.what(); return false;
-    }
-    const std::string key = primitive + "_items";
-    if (!j.contains(key) || !j[key].is_array()) {
-        err = path + ": no \"" + key + "\" (re-run 'pjev run' with this version)";
-        return false;
-    }
-    items = j[key];
-    eval_ms = -1;
-    if (j.contains("metrics") && j["metrics"].contains(primitive) &&
-        j["metrics"][primitive].contains("eval_ms") && j["metrics"][primitive]["eval_ms"].is_number())
-        eval_ms = j["metrics"][primitive]["eval_ms"].get<int64_t>();
-    return true;
-}
-
-struct CompareArgs {
-    std::string baseline_path, target_path, output_path;
-    std::string baseline_label = "baseline", target_label = "target", title;
-    int32_t ece_bins = DEFAULT_ECE_BINS;
-};
-
-// Sample: NoulSample | ChoiceSample. compute / format are the primitive's metric functions.
-template <class Sample, class Compute, class Format>
-static int32_t run_compare(const CompareArgs& a, const std::string& primitive,
-                           Compute compute, Format format) {
-    nlohmann::json base_j, tgt_j;
-    int64_t base_ms = -1, tgt_ms = -1;
-    std::string err;
-    if (!load_result_items(a.baseline_path, primitive, base_j, base_ms, err) ||
-        !load_result_items(a.target_path, primitive, tgt_j, tgt_ms, err)) {
-        fprintf(stderr, "error: %s\n", err.c_str());
-        return 1;
-    }
-    std::vector<Sample> base_s, tgt_s;
-    for (const auto& it : base_j) base_s.push_back(Sample::from_json(it));
-    for (const auto& it : tgt_j)  tgt_s.push_back(Sample::from_json(it));
-
-    auto bm = compute(base_s, a.ece_bins);
-    auto tm = compute(tgt_s, a.ece_bins);
-    MarginGain gain = compute_margin_gain(base_s, tgt_s);
-
-    printf("%s", format(a.title, a.baseline_label, bm, base_ms, a.target_label, tm, tgt_ms, gain).c_str());
-
-    if (!a.output_path.empty()) {
-        auto side = [](const auto& m, int64_t ms) {
-            nlohmann::json j = {{"n", m.n}, {"labeled", m.labeled},
-                                {"accuracy", std::isfinite(m.accuracy) ? nlohmann::json(m.accuracy) : nlohmann::json(nullptr)},
-                                {"eval_ms", ms}};
-            m.merge_into(j);
-            return j;
-        };
-        nlohmann::json out = {
-            {"title", a.title},
-            {"primitive", primitive},
-            {"baseline_label", a.baseline_label},
-            {"target_label", a.target_label},
-            {"baseline", side(bm, base_ms)},
-            {"target", side(tm, tgt_ms)},
-            {"margin_gain", gain.to_json()}};
-        std::ofstream f(a.output_path);
-        if (!f) { fprintf(stderr, "cannot open output: %s\n", a.output_path.c_str()); return 1; }
-        f << out.dump(2) << "\n";
-    }
-    return 0;
-}
-
-static int32_t cmd_compare(int32_t argc, char** argv) {
-    CompareArgs args;
-    std::string primitive = "noul";
-
-    for (int32_t i = 0; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_compare("pjev"); exit(2); }
-            return argv[++i];
-        };
-        if      (a == "--baseline")       args.baseline_path = next();
-        else if (a == "--target")         args.target_path = next();
-        else if (a == "--primitive")      primitive = next();
-        else if (a == "--baseline-label") args.baseline_label = next();
-        else if (a == "--target-label")   args.target_label = next();
-        else if (a == "--title")          args.title = next();
-        else if (a == "--ece-bins")       args.ece_bins = std::stoi(next());
-        else if (a == "--output")         args.output_path = next();
-        else if (a == "-h" || a == "--help") { usage_compare("pjev"); return 0; }
-        else {
-            fprintf(stderr, "unknown option: %s\n", a.c_str());
-            usage_compare("pjev");
-            return 2;
-        }
-    }
-    if (args.baseline_path.empty() || args.target_path.empty() || args.ece_bins < 1 ||
-        (primitive != "noul" && primitive != "choice" && primitive != "score")) {
-        usage_compare("pjev");
-        return 2;
-    }
-    if (args.title.empty()) args.title = primitive;
-
-    if (primitive == "score")
-        return run_compare<ScoreSample>(args, primitive,
-            [](const std::vector<ScoreSample>& s, int32_t bins) { return compute_score_metrics(s, bins); },
-            format_score_comparison);
-    if (primitive == "choice")
-        return run_compare<ChoiceSample>(args, primitive,
-            [](const std::vector<ChoiceSample>& s, int32_t bins) { return compute_choice_metrics(s, bins); },
-            format_choice_comparison);
-    return run_compare<NoulSample>(args, primitive,
-        [](const std::vector<NoulSample>& s, int32_t bins) { return compute_noul_metrics(s, bins); },
-        format_noul_comparison);
-}
-
-// ---------------------------------------------------------------------------
-// experiment subcommand
-// ---------------------------------------------------------------------------
-
-static int32_t cmd_experiment(int32_t argc, char** argv) {
-    if (argc < 1) {
-        usage_experiment("pjev");
-        return 2;
-    }
-
-    std::string exp_name = argv[0];
-    LlamaConfig      llama_cfg;
-    ExperimentConfig exp_cfg;
-    std::string input_path;
-    std::string input_reference;
-    std::string input_target;
-    std::string ref_language   = "en";
-    std::string target_language = "ja";
-    std::string output_dir;
-    std::string calibration_path = "models/calibration.json";
-
-    for (int32_t i = 1; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_experiment("pjev"); exit(2); }
-            return argv[++i];
-        };
-
-        if      (a == "--model")            llama_cfg.model_path = next();
-        else if (a == "--input")            input_path = next();
-        else if (a == "--input-reference")  input_reference = next();
-        else if (a == "--input-target")     input_target = next();
-        else if (a == "--ref-language")     ref_language = next();
-        else if (a == "--target-language")  target_language = next();
-        else if (a == "--output")           output_dir = next();
-        else if (a == "--calibration")      calibration_path = next();
-        else if (a == "--layout")           exp_cfg.layout = parse_layout(next());
-        else if (a == "--scheme")           exp_cfg.scheme = parse_scheme(next());
-        else if (a == "--prior-correction") exp_cfg.prior_correction = true;
-        else if (a == "--threads")          llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")         llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")     llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")         llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--verbose")          llama_cfg.verbose = true;
-        else if (a == "-h" || a == "--help") { usage_experiment("pjev"); return 0; }
-        else {
-            spdlog::error("unknown option: {}", a);
-            usage_experiment("pjev");
-            return 2;
-        }
-    }
-    SpdLogShutdown spdlog_shutdown;
-    spdlog::stdout_logger_mt("console");
-    if(llama_cfg.verbose){
-        spdlog::set_level(spdlog::level::trace);
-    }else{
-        spdlog::set_level(spdlog::level::warn);
-    }
-
-    if (llama_cfg.model_path.empty()) {
-        spdlog::error("--model is required");
-        usage_experiment("pjev");
-        return 1;
-    }
-
-    // Load calibration if provided
-    if (!calibration_path.empty()) {
-        CalibrationArtifact art;
-        std::string calib_err;
-        if (!load_calibration_artifact(calibration_path, art, calib_err)) {
-            spdlog::error("calibration error: {}", calib_err.c_str());
-            return 1;
-        }
-        exp_cfg.calibration = art.to_config();
-    }
-
-    // ---------------------------------------------------------------------------
-    // Multilingual experiment
-    // ---------------------------------------------------------------------------
-    if (exp_name == "multilingual") {
-        if (input_reference.empty() || input_target.empty()) {
-            spdlog::error("--input-reference and --input-target are required for multilingual");
-            return 1;
-        }
-
-        std::vector<DatasetRow> ref_rows, tgt_rows;
-        std::string load_err;
-        if (!load_dataset(input_reference, ref_rows, load_err)) {
-            spdlog::error("reference dataset error: {}", load_err.c_str());
-            return 1;
-        }
-        if (!load_dataset(input_target, tgt_rows, load_err)) {
-            spdlog::error("target dataset error: {}", load_err.c_str());
-            return 1;
-        }
-
-        // Validate pairs
-        auto violations = validate_pairs(ref_rows, tgt_rows);
-        for (const auto& v : violations)
-            spdlog::warn("pair validation: {}", v.c_str());
-
-        LlamaBackend* backend = nullptr;
-        try {
-            backend = new LlamaBackend(llama_cfg);
-        } catch (const std::exception& e) {
-            spdlog::error("model load error: {}", e.what());
-            return 1;
-        }
-
-        ExperimentConfig ref_cfg = exp_cfg;
-        ref_cfg.name = "multilingual-reference";
-        ref_cfg.collect_corrected_logits = true;
-
-        ExperimentConfig tgt_cfg = exp_cfg;
-        tgt_cfg.name = "multilingual-target";
-        tgt_cfg.collect_corrected_logits = true;
-
-        RunResult ref_run = run_experiment(*backend, ref_rows, ref_cfg);
-        RunResult tgt_run = run_experiment(*backend, tgt_rows, tgt_cfg);
-        delete backend;
-
-        MultilingualResult ml = compare_runs(ref_run, tgt_run,
-                                              ref_language, target_language,
-                                              llama_cfg.model_path);
-
-        std::string output_str = ml.to_json().dump(2);
-        if (output_dir.empty()) {
-            printf("%s\n", output_str.c_str());
-        } else {
-            std::ofstream f(output_dir);
-            if (!f) {
-                spdlog::error("cannot open output: {}", output_dir.c_str());
-                return 1;
-            }
-            f << output_str << "\n";
-            printf("wrote: %s\n", output_dir.c_str());
-        }
-        return 0;
-    }
-
-    // ---------------------------------------------------------------------------
-    // Standard single-language experiments
-    // ---------------------------------------------------------------------------
-    if (input_path.empty()) {
-        spdlog::error("--input is required");
-        usage_experiment("pjev");
-        return 1;
-    }
-
-    const std::string valid_names[] = {
-        "candidate-binding", "option-order", "prompt-layout", "prior-correction", "score-formulation"
-    };
-    bool valid = false;
-    for (const auto& n : valid_names) { if (n == exp_name) { valid = true; break; } }
-    if (!valid) {
-        spdlog::error("unknown experiment: {}", exp_name.c_str());
-        usage_experiment("pjev");
-        return 2;
-    }
-
-    std::vector<DatasetRow> rows;
-    std::string err;
-    if (!load_dataset(input_path, rows, err)) {
-        spdlog::error("dataset error: {}", err.c_str());
-        return 1;
-    }
-    if (rows.empty()) {
-        spdlog::warn("dataset is empty");
-    }
-
-    LlamaBackend* backend = nullptr;
-    try {
-        backend = new LlamaBackend(llama_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("model load error: {}", e.what());
-        return 1;
-    }
-
-    CompareResult cr;
-    if      (exp_name == "candidate-binding")  cr = exp_candidate_binding(*backend, rows, llama_cfg.model_path);
-    else if (exp_name == "option-order")       cr = exp_option_order(*backend, rows, llama_cfg.model_path);
-    else if (exp_name == "prompt-layout")      cr = exp_prompt_layout(*backend, rows, llama_cfg.model_path);
-    else if (exp_name == "prior-correction")   cr = exp_prior_correction(*backend, rows, llama_cfg.model_path);
-    else                                       cr = exp_score_formulation(*backend, rows, llama_cfg.model_path);
-
-    delete backend;
-
-    std::string output_str = cr.to_json().dump(2);
-    if (output_dir.empty()) {
-        printf("%s\n", output_str.c_str());
-    } else {
-        std::string out_path = output_dir + "/" + exp_name + ".json";
-        std::ofstream f(out_path);
-        if (!f) {
-            spdlog::error("cannot open output: {}", out_path.c_str());
-            return 1;
-        }
-        f << output_str << "\n";
-        printf("wrote: %s\n", out_path.c_str());
-    }
-    return 0;
-}
-
-// ---------------------------------------------------------------------------
-// Helper: build CalibrationSamples from ItemResults
-// ---------------------------------------------------------------------------
-
-static std::vector<CalibrationSample>
-collect_samples(const std::vector<ItemResult>& items, Type type)
-{
-    std::vector<CalibrationSample> out;
-    for (const auto& ir : items) {
-        if (ir.type != type) continue;
-        if (!ir.ok || ir.correct_index < 0 || ir.corrected_logits.empty()) continue;
-        CalibrationSample s;
-        s.logits        = ir.corrected_logits;
-        s.correct_index = ir.correct_index;
-        s.type          = to_string(ir.type);
-        s.expected_score = ir.expected_score;
-        out.push_back(s);
-    }
-    return out;
-}
-
-// ---------------------------------------------------------------------------
-// calibration subcommand
-// ---------------------------------------------------------------------------
-
-// Parse a derived JSONL (from 'collect') into per-primitive CalibrationSamples.
-// Fills tuning_* and val_* vectors by the 'split' field; skips held_out.
-static void load_collected_jsonl(
-    const std::string& path,
-    std::vector<CalibrationSample>& tuning_noul,   std::vector<CalibrationSample>& val_noul,
-    std::vector<CalibrationSample>& tuning_choice, std::vector<CalibrationSample>& val_choice,
-    std::vector<CalibrationSample>& tuning_score,  std::vector<CalibrationSample>& val_score)
-{
-    std::ifstream f(path);
-    std::string line;
-    while (std::getline(f, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        nlohmann::json j;
-        try { j = nlohmann::json::parse(line); } catch (...) { continue; }
-        std::string prim  = j.value("primitive", "");
-        std::string split = j.value("split", "tuning");
-        if (split == "held_out") continue;
-        bool is_val = (split == "validation");
-
-        CalibrationSample s;
-        s.type = prim;
-        s.correct_index = j.value("correct_index", -1);
-        if (j.contains("raw_logits") && j["raw_logits"].is_array())
-            s.raw_logits = j["raw_logits"].get<std::vector<float>>();
-        if (j.contains("prior_logits") && j["prior_logits"].is_array())
-            s.prior_logits = j["prior_logits"].get<std::vector<float>>();
-        s.logits = s.raw_logits;
-        if (prim == "score") s.expected_score = (double)s.correct_index;
-
-        if (s.correct_index < 0 || s.raw_logits.empty()) continue;
-
-        auto& noul_v   = is_val ? val_noul   : tuning_noul;
-        auto& choice_v = is_val ? val_choice : tuning_choice;
-        auto& score_v  = is_val ? val_score  : tuning_score;
-        if      (prim == "noul")   noul_v.push_back(s);
-        else if (prim == "choice") choice_v.push_back(s);
-        else if (prim == "score")  score_v.push_back(s);
-    }
-}
-
-static int32_t cmd_calibration(int32_t argc, char** argv) {
-    if (argc < 1 || std::string(argv[0]) == "-h" || std::string(argv[0]) == "--help") {
-        usage_calibration("pjev");
-        return (argc < 1) ? 2 : 0;
-    }
-    std::string subcmd = argv[0];
-    argc--; argv++;
-
-    LlamaConfig llama_cfg;
-    llama_cfg.model_path = "models/bonsai2_2b.gguf";
-    ExperimentConfig exp_cfg;
-    exp_cfg.collect_corrected_logits = true;
-    std::string input_path;
-    std::string output_path;
-    std::string calibration_path;
-    std::string collected_path;
-    std::string model_id;
-    uint32_t    split_seed = 42;
-
-    for (int32_t i = 0; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_calibration("pjev"); exit(2); }
-            return argv[++i];
-        };
-        if      (a == "--model")            llama_cfg.model_path = next();
-        else if (a == "--input")            input_path = next();
-        else if (a == "--output")           output_path = next();
-        else if (a == "--calibration")      calibration_path = next();
-        else if (a == "--collected")        collected_path = next();
-        else if (a == "--model-id")         model_id = next();
-        else if (a == "--seed")             split_seed = (uint32_t)std::stoul(next());
-        else if (a == "--threads")          llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")         llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")     llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")         llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--verbose")          llama_cfg.verbose = true;
-        else if (a == "--layout")           exp_cfg.layout = parse_layout(next());
-        else if (a == "--scheme")           exp_cfg.scheme = parse_scheme(next());
-        else if (a == "--prior-correction") exp_cfg.prior_correction = true;
-        else if (a == "-h" || a == "--help") { usage_calibration("pjev"); return 0; }
-        else {
-            spdlog::error("unknown option: {}", a);
-            usage_calibration("pjev");
-            return 2;
-        }
-    }
-
-    SpdLogShutdown spdlog_shutdown;
-    spdlog::stdout_logger_mt("console");
-    if (llama_cfg.verbose) spdlog::set_level(spdlog::level::trace);
-    else                   spdlog::set_level(spdlog::level::warn);
-
-    if (subcmd != "collect" && subcmd != "fit" && subcmd != "evaluate") {
-        spdlog::error("unknown calibration subcommand: {}", subcmd.c_str());
-        usage_calibration("pjev");
-        return 2;
-    }
-
-    // -----------------------------------------------------------------------
-    // collect: run inference, write derived JSONL with raw + prior logits
-    // -----------------------------------------------------------------------
-    if (subcmd == "collect") {
-        if (llama_cfg.model_path.empty()) { spdlog::error("--model is required for collect"); return 1; }
-        if (input_path.empty())           { spdlog::error("--input is required for collect");  return 1; }
-        if (output_path.empty())          { spdlog::error("--output is required for collect"); return 1; }
-
-        std::vector<DatasetRow> rows;
-        std::string load_err;
-        if (!load_dataset(input_path, rows, load_err)) {
-            spdlog::error("dataset error: {}", load_err.c_str());
-            return 1;
-        }
-
-        LlamaBackend* backend = nullptr;
-        try { backend = new LlamaBackend(llama_cfg); }
-        catch (const std::exception& e) { spdlog::error("model load error: {}", e.what()); return 1; }
-
-        // Run inference without prior correction to capture raw logits
-        exp_cfg.name = "calibration-collect";
-        exp_cfg.prior_correction = false;
-        RunResult run = run_experiment(*backend, rows, exp_cfg);
-
-        // Compute prior logits for each (type, n_options)
-        PromptConfig pcfg{exp_cfg.layout, exp_cfg.scheme};
-        DecisionEngine prior_engine(*backend, pcfg, {});
-        std::map<std::pair<std::string,int>, std::vector<float>> prior_cache;
-        for (const char* type : {"noul", "choice", "score"}) {
-            for (int n = 2; n <= PromptStrategy::MAX_CANDIDATES; n++) {
-                auto pl = prior_engine.compute_blank_logits(to_type(type), n);
-                if (!pl.empty()) prior_cache[{std::string(type), n}] = pl;
-            }
-        }
-        delete backend;
-
-        PromptStrategy ps(pcfg);
-        std::string mid = model_id.empty() ? llama_cfg.model_path : model_id;
-
-        std::ofstream outf(output_path);
-        if (!outf) { spdlog::error("cannot open output: {}", output_path); return 1; }
-
-        for (size_t ri = 0; ri < rows.size() && ri < run.items.size(); ri++) {
-            const DatasetRow& row = rows[ri];
-            const ItemResult&  ir = run.items[ri];
-            if (!ir.ok || ir.corrected_logits.empty()) continue;
-
-            int n_opts = (int)row.input.options.size();
-            DataSplit sp = assign_split(row.id, split_seed);
-
-            std::vector<float> prior_logits;
-            auto pit = prior_cache.find({to_string(ir.type), n_opts});
-            if (pit != prior_cache.end()) prior_logits = pit->second;
-
-            // Compute internal labels via PromptStrategy
-            std::vector<Candidate> cands;
-            cands.reserve(n_opts);
-            for (const auto& kv : row.input.options) {
-                Candidate c; c.key = kv.first; c.description = kv.second; c.internal = "";
-                cands.push_back(c);
-            }
-            ps.assign_labels(ir.type, cands);
-
-            nlohmann::json rec;
-            rec["source_id"]    = row.id;
-            rec["split"]        = split_name(sp);
-            rec["primitive"]    = ir.type;
-            if (!row.difficulty.empty()) rec["difficulty"] = row.difficulty;
-            rec["state"]        = row.input.state;
-            rec["question"]     = row.input.question;
-
-            nlohmann::json opts_j = nlohmann::json::array();
-            for (const auto& kv : row.input.options) opts_j.push_back({kv.first, kv.second});
-            rec["options"]      = opts_j;
-
-            if (!row.expected.is_null()) rec["ground_truth"] = row.expected;
-            rec["correct_index"] = ir.correct_index;
-
-            rec["prompt_config"] = {{"layout", exp_cfg.layout_str()}, {"scheme", exp_cfg.scheme_str()}};
-
-            nlohmann::json mapping = nlohmann::json::array();
-            for (const auto& c : cands) {
-                nlohmann::json m = {{"key", c.key}, {"internal", c.internal}};
-                if (c.noul_value.has_value())
-                    m["noul_value"] = (*c.noul_value == NoulValue::True) ? "true" : "false";
-                mapping.push_back(m);
-            }
-            rec["candidate_mapping"] = mapping;
-            rec["raw_logits"]        = ir.corrected_logits;
-            rec["prior_logits"]      = prior_logits;
-
-            if (!prior_logits.empty() && prior_logits.size() == ir.corrected_logits.size()) {
-                std::vector<float> corr = ir.corrected_logits;
-                for (size_t k = 0; k < corr.size(); k++) corr[k] -= prior_logits[k];
-                rec["corrected_logits"] = corr;
-            }
-            rec["raw_probs"]          = ir.raw_probs;
-            if (ir.selected >= 0 && ir.selected < (int)ir.keys.size())
-                rec["prediction"] = ir.keys[ir.selected];
-            rec["model"]              = mid;
-            rec["prompt_token_count"] = ir.prompt_token_count;
-            rec["eval_ms"]            = ir.eval_ms;
-            outf << rec.dump() << "\n";
-        }
-        spdlog::info("wrote {} records to {}", run.items.size(), output_path);
-        return 0;
-    }
-
-    // -----------------------------------------------------------------------
-    // fit and evaluate: optionally load from --collected (no inference needed)
-    // -----------------------------------------------------------------------
-    CalibrationArtifact eval_art;
-    if (subcmd == "evaluate") {
-        if (calibration_path.empty()) {
-            spdlog::error("--calibration is required for evaluate");
-            return 1;
-        }
-        std::string calib_err;
-        if (!load_calibration_artifact(calibration_path, eval_art, calib_err)) {
-            spdlog::error("calibration error: {}", calib_err.c_str());
-            return 1;
-        }
-    }
-
-    // --- path A: collected JSONL supplied (no inference) ---
-    if (!collected_path.empty()) {
-        std::vector<CalibrationSample> tun_noul, val_noul, tun_choice, val_choice, tun_score, val_score;
-        load_collected_jsonl(collected_path, tun_noul, val_noul, tun_choice, val_choice, tun_score, val_score);
-
-        if (subcmd == "fit") {
-            if (output_path.empty()) { spdlog::error("--output is required for fit"); return 1; }
-
-            AlphaTResult at_noul   = fit_alpha_temperature(tun_noul,   val_noul);
-            AlphaTResult at_choice = fit_alpha_temperature(tun_choice, val_choice);
-            AlphaTResult at_score  = fit_alpha_temperature(tun_score,  val_score);
-
-            CalibrationArtifact art;
-            art.model_identifier           = model_id;
-            art.formulation.layout         = exp_cfg.layout_str();
-            art.formulation.candidate_scheme = exp_cfg.scheme_str();
-            art.formulation.prior_correction = true;
-            art.noul_temperature    = at_noul.converged   ? at_noul.temperature   : 1.0;
-            art.choice_temperature  = at_choice.converged ? at_choice.temperature : 1.0;
-            art.score_temperature   = at_score.converged  ? at_score.temperature  : 1.0;
-            art.noul_prior_alpha    = at_noul.converged   ? at_noul.alpha   : 1.0;
-            art.choice_prior_alpha  = at_choice.converged ? at_choice.alpha : 1.0;
-            art.score_prior_alpha   = at_score.converged  ? at_score.alpha  : 1.0;
-
-            auto at_json = [](const AlphaTResult& r) {
-                return nlohmann::json{
-                    {"n_tuning", r.n_tuning}, {"n_val", r.n_val},
-                    {"alpha", r.alpha}, {"temperature", r.temperature},
-                    {"tuning_nll", r.tuning_nll}, {"val_nll", r.val_nll},
-                    {"converged", r.converged}
-                };
-            };
-            nlohmann::json result = {
-                {"artifact", art.to_json()},
-                {"fit", {{"noul", at_json(at_noul)}, {"choice", at_json(at_choice)}, {"score", at_json(at_score)}}}
-            };
-
-            std::ofstream f(output_path);
-            if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
-            f << art.to_json().dump(2) << "\n";
-            printf("%s\n", result.dump(2).c_str());
-            return 0;
-        }
-
-        // evaluate with collected
-        double T_noul   = eval_art.noul_temperature;
-        double T_choice = eval_art.choice_temperature;
-        double T_score  = eval_art.score_temperature;
-        double A_noul   = eval_art.noul_prior_alpha;
-        double A_choice = eval_art.choice_prior_alpha;
-        double A_score  = eval_art.score_prior_alpha;
-
-        // Merge tuning+val for evaluation
-        auto merge = [](std::vector<CalibrationSample> a, const std::vector<CalibrationSample>& b) {
-            a.insert(a.end(), b.begin(), b.end());
-            return a;
-        };
-        auto all_noul   = merge(tun_noul,   val_noul);
-        auto all_choice = merge(tun_choice, val_choice);
-        auto all_score  = merge(tun_score,  val_score);
-
-        CalibrationComparisonReport report = build_comparison_report(
-            all_noul, all_choice, all_score, T_noul, T_choice, T_score, A_noul, A_choice, A_score);
-
-        nlohmann::json result = {{"calibration", eval_art.to_json()}, {"comparison", report.to_json()}};
-        std::string output_str = result.dump(2);
-        if (output_path.empty()) {
-            printf("%s\n", output_str.c_str());
-        } else {
-            std::ofstream f(output_path);
-            if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
-            f << output_str << "\n";
-        }
-        return 0;
-    }
-
-    // --- path B: classic inference-based fit/evaluate ---
-    if (llama_cfg.model_path.empty()) { spdlog::error("--model is required"); return 1; }
-    if (input_path.empty())           { spdlog::error("--input is required");  return 1; }
-
-    std::vector<DatasetRow> rows;
-    std::string load_err;
-    if (!load_dataset(input_path, rows, load_err)) {
-        spdlog::error("dataset error: {}", load_err.c_str());
-        return 1;
-    }
-    if (rows.empty()) spdlog::warn("dataset is empty");
-
-    LlamaBackend* backend = nullptr;
-    try { backend = new LlamaBackend(llama_cfg); }
-    catch (const std::exception& e) { spdlog::error("model load error: {}", e.what()); return 1; }
-
-    exp_cfg.name = (subcmd == "fit") ? "calibration-fit-collect" : "calibration-eval-collect";
-    RunResult collected = run_experiment(*backend, rows, exp_cfg);
-    delete backend;
-
-    auto noul_s   = collect_samples(collected.items, Type::Noul);
-    auto choice_s = collect_samples(collected.items, Type::Choice);
-    auto score_s  = collect_samples(collected.items, Type::Score);
-
-    if (subcmd == "fit") {
-        if (output_path.empty()) { spdlog::error("--output is required for fit"); return 1; }
-
-        FitResult fr_noul   = fit_temperature(noul_s);
-        FitResult fr_choice = fit_temperature(choice_s);
-        FitResult fr_score  = fit_temperature(score_s);
-
-        CalibrationArtifact art;
-        art.model_identifier             = model_id.empty() ? llama_cfg.model_path : model_id;
-        art.formulation.layout           = exp_cfg.layout_str();
-        art.formulation.candidate_scheme = exp_cfg.scheme_str();
-        art.formulation.prior_correction = exp_cfg.prior_correction;
-        art.noul_temperature   = fr_noul.converged   ? fr_noul.temperature   : 1.0;
-        art.choice_temperature = fr_choice.converged ? fr_choice.temperature : 1.0;
-        art.score_temperature  = fr_score.converged  ? fr_score.temperature  : 1.0;
-
-        nlohmann::json result = {
-            {"artifact", art.to_json()},
-            {"fit", {
-                {"noul",   {{"n", fr_noul.n_samples},   {"temperature", art.noul_temperature},   {"nll", fr_noul.nll},   {"converged", fr_noul.converged}}},
-                {"choice", {{"n", fr_choice.n_samples}, {"temperature", art.choice_temperature}, {"nll", fr_choice.nll}, {"converged", fr_choice.converged}}},
-                {"score",  {{"n", fr_score.n_samples},  {"temperature", art.score_temperature},  {"nll", fr_score.nll},  {"converged", fr_score.converged}}}
-            }}
-        };
-
-        std::ofstream f(output_path);
-        if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
-        f << art.to_json().dump(2) << "\n";
-        printf("%s\n", result.dump(2).c_str());
-        return 0;
-
-    } else { // evaluate
-        double T_noul   = eval_art.noul_temperature;
-        double T_choice = eval_art.choice_temperature;
-        double T_score  = eval_art.score_temperature;
-
-        CalibrationReport report = build_calibration_report(
-            noul_s, choice_s, score_s, T_noul, T_choice, T_score);
-
-        nlohmann::json result = {
-            {"calibration", eval_art.to_json()},
-            {"results", report.to_json()}
-        };
-
-        std::string output_str = result.dump(2);
-        if (output_path.empty()) {
-            printf("%s\n", output_str.c_str());
-        } else {
-            std::ofstream f(output_path);
-            if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
-            f << output_str << "\n";
-        }
-        return 0;
-    }
-}
-
-// ---------------------------------------------------------------------------
-// model subcommand
-// ---------------------------------------------------------------------------
-
-// Standard candidate tokens for the natural scheme (digits for score, letters for choice)
-static const std::vector<std::string> g_default_candidates = {
-    "Yes", "No", "A", "B", "C", "D", "E", "1", "2", "3", "4", "5"
-};
-
-static int32_t cmd_model_inspect(int32_t argc, char** argv) {
-    LlamaConfig llama_cfg;
-    std::string output_path;
-
-    for (int32_t i = 0; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_model("pjev"); exit(2); }
-            return argv[++i];
-        };
-        if      (a == "--model")           llama_cfg.model_path = next();
-        else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")    llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")        llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--verbose")         llama_cfg.verbose = true;
-        else if (a == "--output")          output_path = next();
-        else if (a == "-h" || a == "--help") { usage_model("pjev"); return 0; }
-        else {
-            spdlog::error("unknown option: {}", a);
-            usage_model("pjev");
-            return 2;
-        }
-    }
-
-    SpdLogShutdown spdlog_shutdown;
-    spdlog::stdout_logger_mt("console");
-    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
-
-    if (llama_cfg.model_path.empty()) {
-        spdlog::error("--model is required");
-        return 1;
-    }
-
-    // File-level identity (no backend yet)
-    ModelIdentity id = ModelIdentity::from_path(llama_cfg.model_path);
-    spdlog::info("hash: {}", id.hash.c_str());
-
-    // Load model (timed)
-    int64_t rss_before = get_rss_bytes();
-    int64_t load_ms    = 0;
-    LlamaBackend* backend = nullptr;
-    {
-        Timer t; t.start();
-        try {
-            backend = new LlamaBackend(llama_cfg);
-        } catch (const std::exception& e) {
-            spdlog::error("model load error: {}", e.what());
-            return 1;
-        }
-        t.stop();
-        load_ms = t.elapsed().count();
-    }
-    int64_t rss_after = get_rss_bytes();
-    spdlog::info("model load: {} ms", load_ms);
-
-    // Fill backend-derived identity
-    id = ModelIdentity::from_path(llama_cfg.model_path, backend);
-    id.pjev_commit      = PJEV_GIT_COMMIT;
-    id.llamacpp_revision = PJEV_LLAMA_REVISION;
-
-    // Candidate compatibility
-    CandidateCompatibility compat = probe_candidates(*backend, g_default_candidates);
-
-    // Smoke test
-    nlohmann::json smoke = nlohmann::json::object();
-    {
-        auto run_smoke = [&](const std::string& type,
-                             const std::vector<std::pair<std::string,std::string>>& opts) {
-            try {
-                DecisionEngine eng(*backend);
-                DecisionInput inp;
-                inp.type    = to_type(type);
-                inp.state   = "Test";
-                inp.question = "Test question";
-                inp.options = opts;
-                DecisionOutput out = eng.decide(inp);
-                smoke[type] = out.ok ? "pass" : ("fail: " + out.error);
-            } catch (const std::exception& e) {
-                smoke[type] = std::string("fail: ") + e.what();
-            }
-        };
-        run_smoke("noul",   {{"true","Yes"},{"false","No"}});
-        run_smoke("choice", {{"A","Option A"},{"B","Option B"},{"C","Option C"},{"D","Option D"}});
-        run_smoke("score",  {{"1","1"},{"2","2"},{"3","3"},{"4","4"},{"5","5"}});
-    }
-
-    delete backend;
-
-    nlohmann::json report = {
-        {"model",                  id.to_json()},
-        {"candidate_compatibility",compat.to_json()},
-        {"performance", {
-            {"model_load_ms",       load_ms},
-            {"rss_before_load",     rss_before},
-            {"rss_post_load_bytes", rss_after}
-        }},
-        {"smoke_test", smoke},
-        {"platform", {
-            {"os",       get_os_name()},
-            {"n_threads", llama_cfg.n_threads}
-        }}
-    };
-
-    std::string out_str = report.dump(2);
-    if (output_path.empty()) {
-        printf("%s\n", out_str.c_str());
-    } else {
-        std::ofstream f(output_path);
-        if (!f) { spdlog::error("cannot open output: {}", output_path.c_str()); return 1; }
-        f << out_str << "\n";
-        spdlog::info("wrote: {}", output_path);
-    }
-    return 0;
-}
-
-static int32_t cmd_model_evaluate(int32_t argc, char** argv) {
-    LlamaConfig      llama_cfg;
-    ExperimentConfig exp_cfg;
-    exp_cfg.collect_corrected_logits = true;
-    std::string input_en;
-    std::string input_ja;
-    std::string calibration_path;
-    bool        fit_calibration = false;
-    std::string output_path;
-
-    for (int32_t i = 0; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_model("pjev"); exit(2); }
-            return argv[++i];
-        };
-        if      (a == "--model")            llama_cfg.model_path = next();
-        else if (a == "--input")            input_en = next();
-        else if (a == "--input-ja")         input_ja = next();
-        else if (a == "--calibration")      calibration_path = next();
-        else if (a == "--fit-calibration")  fit_calibration = true;
-        else if (a == "--output")           output_path = next();
-        else if (a == "--layout")           exp_cfg.layout = parse_layout(next());
-        else if (a == "--scheme")           exp_cfg.scheme = parse_scheme(next());
-        else if (a == "--prior-correction") exp_cfg.prior_correction = true;
-        else if (a == "--threads")          llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")         llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")     llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")         llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--verbose")          llama_cfg.verbose = true;
-        else if (a == "-h" || a == "--help") { usage_model("pjev"); return 0; }
-        else {
-            spdlog::error("unknown option: {}", a);
-            usage_model("pjev");
-            return 2;
-        }
-    }
-
-    SpdLogShutdown spdlog_shutdown;
-    spdlog::stdout_logger_mt("console");
-    spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
-
-    if (llama_cfg.model_path.empty()) { spdlog::error("--model is required"); return 1; }
-    if (input_en.empty())             { spdlog::error("--input is required"); return 1; }
-    if (output_path.empty())          { spdlog::error("--output is required"); return 1; }
-
-    // Load EN dataset
-    std::vector<DatasetRow> rows_en;
-    {
-        std::string err;
-        if (!load_dataset(input_en, rows_en, err)) {
-            spdlog::error("dataset error: {}", err.c_str()); return 1;
-        }
-    }
-
-    // Load JA dataset (optional)
-    std::vector<DatasetRow> rows_ja;
-    if (!input_ja.empty()) {
-        std::string err;
-        if (!load_dataset(input_ja, rows_ja, err)) {
-            spdlog::error("ja dataset error: {}", err.c_str()); return 1;
-        }
-    }
-
-    // Load calibration artifact if provided
-    CalibrationArtifact provided_art;
-    bool has_provided_art = false;
-    if (!calibration_path.empty()) {
-        std::string calib_err;
-        if (!load_calibration_artifact(calibration_path, provided_art, calib_err)) {
-            spdlog::error("calibration error: {}", calib_err.c_str()); return 1;
-        }
-        has_provided_art = true;
-    }
-
-    // Load model (timed)
-    int64_t load_ms = 0;
-    int64_t rss_after = -1;
-    LlamaBackend* backend = nullptr;
-    {
-        Timer t; t.start();
-        try { backend = new LlamaBackend(llama_cfg); }
-        catch (const std::exception& e) {
-            spdlog::error("model load error: {}", e.what()); return 1;
-        }
-        t.stop();
-        load_ms  = t.elapsed().count();
-        rss_after = get_rss_bytes();
-    }
-    spdlog::info("model load: {} ms", load_ms);
-
-    // Build model identity
-    ModelIdentity id = ModelIdentity::from_path(llama_cfg.model_path, backend);
-    id.pjev_commit       = PJEV_GIT_COMMIT;
-    id.llamacpp_revision = PJEV_LLAMA_REVISION;
-
-    // Candidate compatibility
-    CandidateCompatibility compat = probe_candidates(*backend, g_default_candidates);
-
-    // Run EN benchmark (collect corrected logits for calibration)
-    exp_cfg.name = "model-evaluate-en";
-    RunResult en_run = run_experiment(*backend, rows_en, exp_cfg);
-    spdlog::info("EN run: {}/{} ok", en_run.metrics.n_total - en_run.metrics.n_errors, en_run.metrics.n_total);
-
-    // Collect EN calibration samples
-    auto en_noul_s   = collect_samples(en_run.items, Type::Noul);
-    auto en_choice_s = collect_samples(en_run.items, Type::Choice);
-    auto en_score_s  = collect_samples(en_run.items, Type::Score);
-
-    // Determine temperatures
-    double T_noul = 1.0, T_choice = 1.0, T_score = 1.0;
-    CalibrationArtifact fitted_art;
-    fitted_art.model_identifier  = id.gguf_path;
-    fitted_art.formulation.layout           = exp_cfg.layout_str();
-    fitted_art.formulation.candidate_scheme = exp_cfg.scheme_str();
-    fitted_art.formulation.prior_correction = exp_cfg.prior_correction;
-
-    if (has_provided_art) {
-        T_noul   = provided_art.noul_temperature;
-        T_choice = provided_art.choice_temperature;
-        T_score  = provided_art.score_temperature;
-        fitted_art = provided_art;
-    } else if (fit_calibration) {
-        FitResult fr_noul   = fit_temperature(en_noul_s);
-        FitResult fr_choice = fit_temperature(en_choice_s);
-        FitResult fr_score  = fit_temperature(en_score_s);
-        T_noul   = fr_noul.converged   ? fr_noul.temperature   : 1.0;
-        T_choice = fr_choice.converged ? fr_choice.temperature : 1.0;
-        T_score  = fr_score.converged  ? fr_score.temperature  : 1.0;
-        fitted_art.noul_temperature   = T_noul;
-        fitted_art.choice_temperature = T_choice;
-        fitted_art.score_temperature  = T_score;
-        spdlog::info("fitted EN calibration: noul={:.4f} choice={:.4f} score={:.4f}",
-                     T_noul, T_choice, T_score);
-    }
-
-    CalibrationReport en_cal = build_calibration_report(
-        en_noul_s, en_choice_s, en_score_s, T_noul, T_choice, T_score);
-
-    // Run JA benchmark (optional)
-    RunResult ja_run;
-    CalibrationReport ja_cal;
-    MultilingualResult ml_result;
-    bool has_ja = !rows_ja.empty();
-
-    if (has_ja) {
-        ExperimentConfig ja_cfg = exp_cfg;
-        ja_cfg.name = "model-evaluate-ja";
-        ja_run = run_experiment(*backend, rows_ja, ja_cfg);
-        spdlog::info("JA run: {}/{} ok", ja_run.metrics.n_total - ja_run.metrics.n_errors, ja_run.metrics.n_total);
-
-        auto ja_noul_s   = collect_samples(ja_run.items, Type::Noul);
-        auto ja_choice_s = collect_samples(ja_run.items, Type::Choice);
-        auto ja_score_s  = collect_samples(ja_run.items, Type::Score);
-
-        double jT_noul = T_noul, jT_choice = T_choice, jT_score = T_score;
-        if (fit_calibration) {
-            FitResult fjn = fit_temperature(ja_noul_s);
-            FitResult fjc = fit_temperature(ja_choice_s);
-            FitResult fjs = fit_temperature(ja_score_s);
-            jT_noul   = fjn.converged   ? fjn.temperature   : 1.0;
-            jT_choice = fjc.converged   ? fjc.temperature   : 1.0;
-            jT_score  = fjs.converged   ? fjs.temperature   : 1.0;
-        }
-        ja_cal = build_calibration_report(ja_noul_s, ja_choice_s, ja_score_s,
-                                           jT_noul, jT_choice, jT_score);
-        ml_result = compare_runs(en_run, ja_run, "en", "ja", llama_cfg.model_path);
-    }
-
-    delete backend;
-
-    // Collect warm latency samples from EN run
-    std::vector<int64_t> warm_ms;
-    double sum_tokens = 0.0;
-    for (const auto& ir : en_run.items) {
-        if (ir.ok && ir.eval_ms > 0) { warm_ms.push_back(ir.eval_ms); sum_tokens += ir.prompt_token_count; }
-    }
-    PerformanceStats perf = compute_perf_stats(load_ms, rss_after, warm_ms,
-                                                get_os_name(), "", llama_cfg.n_threads);
-    if (!warm_ms.empty()) perf.mean_prompt_tokens = sum_tokens / warm_ms.size();
-
-    // Build ValueProfile
-    ValueProfile vp;
-    vp.version             = 1;
-    vp.pjev_commit         = PJEV_GIT_COMMIT;
-    vp.llamacpp_revision   = PJEV_LLAMA_REVISION;
-    vp.model               = id;
-    vp.frozen_config       = exp_cfg;
-    vp.quality_en          = compute_quality_stats(en_run);
-    vp.calibration_en      = en_cal;
-    vp.candidate_compat    = compat;
-    vp.performance         = perf;
-    if (has_ja) {
-        vp.quality_ja      = compute_quality_stats(ja_run);
-        vp.calibration_ja  = ja_cal;
-        vp.multilingual    = ml_result;
-    }
-    // Embed calibration artifact in compatibility_issues for traceability
-    if (has_provided_art || fit_calibration) {
-        vp.compatibility_issues.push_back(
-            "calibration: " + fitted_art.to_json().dump());
-    }
-
-    // Write output
-    std::ofstream f(output_path);
-    if (!f) { spdlog::error("cannot open output: {}", output_path.c_str()); return 1; }
-    f << vp.to_json().dump(2) << "\n";
-    spdlog::info("wrote: {}", output_path);
-
-    // Print summary
-    fprintf(stdout, "EN choice accuracy: %.4f  noul: %.4f  score MAE: %.4f\n",
-            vp.quality_en.choice.accuracy,
-            vp.quality_en.noul.accuracy,
-            vp.quality_en.score.mae);
-    fprintf(stdout, "EN calibration NLL: %.4f  Brier: %.4f  ECE: %.4f\n",
-            en_cal.choice_calibrated.nll,
-            en_cal.choice_calibrated.brier,
-            en_cal.choice_calibrated.ece);
-    fprintf(stdout, "load: %lld ms  warm p50: %.1f ms  RSS: %lld bytes\n",
-            (long long)load_ms, perf.warm_p50_ms, (long long)rss_after);
-
-    return 0;
-}
-
-static int32_t cmd_model(int32_t argc, char** argv) {
-    if (argc < 1 || std::string(argv[0]) == "-h" || std::string(argv[0]) == "--help") {
-        usage_model("pjev");
-        return (argc < 1) ? 2 : 0;
-    }
-    std::string subcmd = argv[0];
-    argc--; argv++;
-
-    if (subcmd == "inspect")  return cmd_model_inspect(argc, argv);
-    if (subcmd == "evaluate") return cmd_model_evaluate(argc, argv);
-
-    spdlog::error("unknown model subcommand: {}", subcmd);
-    usage_model("pjev");
-    return 2;
 }
 
 // ---------------------------------------------------------------------------
 // benchmark subcommand
 // ---------------------------------------------------------------------------
 
+static bool parse_task_json(const nlohmann::json& j, DecisionInput& in, std::string& err)
+{
+    const nlohmann::json& t = j.contains("input") ? j["input"] : j;
+    try {
+        in = DecisionInput{};
+        in.type     = to_type(t.at("type").get<std::string>());
+        in.state    = t.value("state", "");
+        in.question = t.at("question").get<std::string>();
+        in.domain   = t.value("domain", "");
+        in.family   = t.value("family", "");
+        for (const auto& o : t.at("options")) in.options.push_back({o.at(0).get<std::string>(), o.at(1).get<std::string>()});
+    } catch (const std::exception& e) {
+        err = e.what();
+        return false;
+    }
+    return true;
+}
+
+static std::vector<DecisionInput> builtin_benchmark_tasks(const std::string& state)
+{
+    std::vector<DecisionInput> tasks(3);
+    tasks[0].type     = Type::Noul;
+    tasks[0].state    = state;
+    tasks[0].question = "Does the state describe a benchmark run?";
+    tasks[0].options  = {{"false", ""}, {"true", ""}};
+    tasks[1].type     = Type::Choice;
+    tasks[1].state    = state;
+    tasks[1].question = "Which category best fits the state?";
+    tasks[1].options  = {{"test", "test"}, {"production", "production"}, {"unknown", "unknown"}};
+    tasks[2].type     = Type::Score;
+    tasks[2].state    = state;
+    tasks[2].question = "How clearly does the state describe its purpose?";
+    tasks[2].options  = {{"0", "Not at all"}, {"1", "Barely"}, {"2", "Partly"}, {"3", "Mostly"}, {"4", "Completely"}};
+    return tasks;
+}
+
 static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
-    LlamaConfig  llama_cfg;
-    ServerConfig srv_cfg;
-    int32_t iterations   = 20;
-    int32_t warmup       = 3;
-    int32_t n_questions  = 1;
+    RuntimeArgs rargs;
+    int32_t iterations = 20;
+    int32_t warmup     = 1;
     std::string state_text = "This is a test state for benchmarking.";
+    std::string input_path;
     std::string output_path;
 
     for (int32_t i = 0; i < argc; i++) {
@@ -1873,18 +453,13 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
             if (i + 1 >= argc) { usage_benchmark("pjev"); exit(2); }
             return argv[++i];
         };
-        if      (a == "--model")           llama_cfg.model_path = next();
-        else if (a == "--iterations")      iterations = std::stoi(next());
-        else if (a == "--warmup")          warmup = std::stoi(next());
-        else if (a == "--questions")       n_questions = std::stoi(next());
-        else if (a == "--state")           state_text = next();
-        else if (a == "--output")          output_path = next();
-        else if (a == "--threads")         llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")        llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")    llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")        llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--no-kv-reuse")     srv_cfg.kv_reuse = false;
-        else if (a == "--no-batch-questions") srv_cfg.batch_questions = false;
+        if      (rargs.parse(a, next))       {}
+        else if (consume_deprecated(a, i, argc)) {}
+        else if (a == "--iterations")        iterations = std::stoi(next());
+        else if (a == "--warmup")            warmup = std::stoi(next());
+        else if (a == "--state")             state_text = next();
+        else if (a == "--input")             input_path = next();
+        else if (a == "--output")            output_path = next();
         else if (a == "-h" || a == "--help") { usage_benchmark("pjev"); return 0; }
         else {
             spdlog::error("unknown option: {}", a);
@@ -1893,102 +468,81 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
         }
     }
 
-    if (llama_cfg.model_path.empty()) {
-        spdlog::error("--model is required");
-        return 1;
-    }
-
-    LlamaBackend* backend = nullptr;
-    try {
-        backend = new LlamaBackend(llama_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("model load error: {}", e.what());
-        return 1;
-    }
-
-    PromptConfig prompt_cfg;
-    CalibrationConfig calib_cfg;
-    DecisionEngine* engine = nullptr;
-    try {
-        engine = new DecisionEngine(*backend, prompt_cfg, calib_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("engine init error: {}", e.what());
-        delete backend;
-        return 1;
-    }
-
-    // Build a batch of n_questions noul inputs with the same state
-    auto make_inputs = [&]() {
-        std::vector<DecisionInput> inputs;
-        for (int32_t q = 0; q < n_questions; q++) {
-            DecisionInput inp;
-            inp.type     = Type::Noul;
-            inp.state    = state_text;
-            inp.question = "Is this a benchmark question " + std::to_string(q) + "?";
-            inp.options  = {{"false", ""}, {"true", ""}};
-            inputs.push_back(inp);
+    std::vector<DecisionInput> tasks;
+    if (input_path.empty()) {
+        tasks = builtin_benchmark_tasks(state_text);
+    } else {
+        std::ifstream f(input_path, std::ios::binary);
+        if (!f) { spdlog::error("cannot open input: {}", input_path); return 1; }
+        std::string line, err;
+        size_t line_no = 0;
+        while (std::getline(f, line)) {
+            ++line_no;
+            if (line.empty()) continue;
+            DecisionInput in;
+            nlohmann::json j = nlohmann::json::parse(line, nullptr, false);
+            if (j.is_discarded() || !parse_task_json(j, in, err)) {
+                spdlog::error("{}:{}: invalid task {}", input_path, line_no, err);
+                return 1;
+            }
+            tasks.push_back(std::move(in));
         }
-        return inputs;
-    };
+    }
+    if (tasks.empty()) { spdlog::error("no tasks to benchmark"); return 1; }
 
-    BatchConfig bcfg;
-    bcfg.use_kv_reuse = srv_cfg.kv_reuse;
+    const RuntimeOptions opts = rargs.resolve();
+    const auto t_load = std::chrono::steady_clock::now();
+    std::unique_ptr<RouterRuntime> runtime = load_runtime(opts);
+    if (!runtime) return 1;
+    const double load_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_load).count();
+    DecisionService& service = runtime->service();
 
-    // Warmup
-    for (int32_t i = 0; i < warmup; i++) {
-        auto inputs = make_inputs();
-        if (srv_cfg.batch_questions && n_questions > 1)
-            engine->decide_batch(inputs, bcfg);
-        else
-            for (const auto& inp : inputs) engine->decide(inp);
+    for (int32_t w = 0; w < warmup; w++)
+        for (const auto& t : tasks) service.decide(t);
+
+    std::map<std::string, std::vector<double>> latencies;  // kind -> ms
+    std::map<std::string, std::map<std::string, int>> strategies;
+    int failures = 0;
+    for (int32_t it = 0; it < iterations; it++) {
+        for (const auto& t : tasks) {
+            const auto t0 = std::chrono::steady_clock::now();
+            DecisionOutput out = service.decide(t);
+            const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            const std::string kind = to_string(t.type);
+            latencies[kind].push_back(ms);
+            latencies["all"].push_back(ms);
+            if (!out.ok) { failures++; strategies[kind]["failed:" + out.error_code]++; continue; }
+            strategies[kind][out.routing ? out.routing->strategy + (out.routing->fallback ? " (1-shot fallback)" : "") : "?"]++;
+        }
     }
 
-    // Measure
-    std::vector<int64_t> latencies_us;
-    latencies_us.reserve(iterations);
-    for (int32_t i = 0; i < iterations; i++) {
-        auto inputs = make_inputs();
-        auto t0 = std::chrono::steady_clock::now();
-        if (srv_cfg.batch_questions && n_questions > 1)
-            engine->decide_batch(inputs, bcfg);
-        else
-            for (const auto& inp : inputs) engine->decide(inp);
-        auto t1 = std::chrono::steady_clock::now();
-        latencies_us.push_back(
-            std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count());
-    }
-
-    delete engine;
-    delete backend;
-
-    std::sort(latencies_us.begin(), latencies_us.end());
-    auto percentile = [&](double p) -> double {
-        if (latencies_us.empty()) return 0.0;
-        size_t idx = (size_t)(p / 100.0 * (latencies_us.size() - 1));
-        return latencies_us[idx] / 1000.0;
+    auto stats = [](std::vector<double> v) {
+        std::sort(v.begin(), v.end());
+        auto pct = [&](double p) { return v.empty() ? 0.0 : v[(size_t)(p / 100.0 * (v.size() - 1))]; };
+        double s = 0;
+        for (double x : v) s += x;
+        return nlohmann::json{{"n", v.size()}, {"mean", v.empty() ? 0.0 : s / v.size()}, {"p50", pct(50)},
+                              {"p90", pct(90)}, {"p95", pct(95)}, {"max", v.empty() ? 0.0 : v.back()}};
     };
-
+    nlohmann::json by_kind = nlohmann::json::object();
+    for (const auto& [kind, v] : latencies) by_kind[kind] = stats(v);
     nlohmann::json result = {
         {"config", {
-            {"model",         llama_cfg.model_path},
-            {"iterations",    iterations},
-            {"warmup",        warmup},
-            {"questions",     n_questions},
-            {"threads",       llama_cfg.n_threads},
-            {"ctx_size",      llama_cfg.n_ctx},
-            {"kv_reuse",      srv_cfg.kv_reuse},
-            {"batch_questions", srv_cfg.batch_questions}
+            {"model",           opts.paths.model},
+            {"embedding_model", opts.paths.embedding_model},
+            {"exemplar_db",     opts.paths.exemplar_db},
+            {"routing_policy",  routing::kPolicyName},
+            {"tasks",           tasks.size()},
+            {"input",           input_path.empty() ? "built-in" : input_path},
+            {"iterations",      iterations},
+            {"warmup",          warmup},
+            {"threads",         opts.n_threads},
+            {"ctx_size",        opts.n_ctx}
         }},
-        {"latency_ms", {
-            {"p50",  percentile(50)},
-            {"p90",  percentile(90)},
-            {"p95",  percentile(95)},
-            {"mean", [&]() {
-                double s = 0;
-                for (auto v : latencies_us) s += v;
-                return (latencies_us.empty() ? 0.0 : s / latencies_us.size()) / 1000.0;
-            }()}
-        }}
+        {"load_ms", load_ms},
+        {"latency_ms", by_kind},
+        {"strategies", strategies},
+        {"failures", failures}
     };
 
     std::string out_str = result.dump(2);
@@ -1999,7 +553,7 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
         if (!f) { spdlog::error("cannot open output: {}", output_path); return 1; }
         f << out_str << "\n";
     }
-    return 0;
+    return failures == 0 ? 0 : 1;
 }
 
 static int32_t cmd_benchmark(int32_t argc, char** argv) {
@@ -2019,9 +573,9 @@ static int32_t cmd_benchmark(int32_t argc, char** argv) {
 // ---------------------------------------------------------------------------
 
 static int32_t cmd_diagnostics(int32_t argc, char** argv) {
-    LlamaConfig  llama_cfg;
+    RuntimeArgs rargs;
     bool json_out = false;
-    bool model_explicitly_set = false;
+    bool load = false;
 
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
@@ -2029,12 +583,9 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
             if (i + 1 >= argc) { usage_diagnostics("pjev"); exit(2); }
             return argv[++i];
         };
-        if      (a == "--model")   { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")     llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers") llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")     llama_cfg.main_gpu = std::stoi(next());
+        if      (rargs.parse(a, next)) {}
         else if (a == "--json")         json_out = true;
+        else if (a == "--load")         load = true;
         else if (a == "-h" || a == "--help") { usage_diagnostics("pjev"); return 0; }
         else {
             spdlog::error("unknown option: {}", a);
@@ -2042,14 +593,7 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
             return 2;
         }
     }
-
-    // Resolve model path
-    if (!model_explicitly_set) {
-        std::string exe_dir = get_executable_dir();
-        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
-        if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/bonsai2_2b.gguf";
-    }
+    const RuntimeOptions opts = rargs.resolve();
 
     // CPU detection
     unsigned hw_concurrency = std::thread::hardware_concurrency();
@@ -2063,11 +607,37 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         worker_running = worker_client.get_status(worker_info);
     }
 
-    // Check model file accessibility
-    bool model_accessible = false;
-    {
-        std::ifstream mf(llama_cfg.model_path);
-        model_accessible = mf.good();
+    auto accessible = [](const std::string& p) { std::ifstream f(p); return f.good(); };
+    struct Resource { const char* key; const char* label; std::string path; bool ok; };
+    std::vector<Resource> resources = {
+        {"model",              "model path:      ", opts.paths.model,              accessible(opts.paths.model)},
+        {"embedding_model",    "embedding model: ", opts.paths.embedding_model,    accessible(opts.paths.embedding_model)},
+        {"exemplar_db",        "exemplar db:     ", opts.paths.exemplar_db,        accessible(opts.paths.exemplar_db)},
+        {"exemplar_allowlist", "exemplar allow:  ", opts.paths.exemplar_allowlist, accessible(opts.paths.exemplar_allowlist)},
+    };
+    bool all_found = true;
+    for (const auto& r : resources) all_found = all_found && r.ok;
+
+    // Optional full load
+    nlohmann::json load_report;
+    bool load_ok = true;
+    if (load) {
+        std::string err;
+        const auto t0 = std::chrono::steady_clock::now();
+        std::unique_ptr<RouterRuntime> rt = all_found ? RouterRuntime::load(opts, err) : nullptr;
+        if (!all_found) err = "resources missing";
+        load_ok = rt != nullptr;
+        load_report["ok"] = load_ok;
+        load_report["ms"] = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        if (rt) {
+            load_report["model_name"]            = rt->model_identity().name;
+            load_report["model_sha256"]          = rt->model_identity().sha256;
+            load_report["embedding_fingerprint"] = rt->embedding_fingerprint();
+            load_report["exemplar_rows"]         = rt->exemplar_count();
+            load_report["eligible_exemplars"]    = rt->eligible_exemplars();
+        } else {
+            load_report["error"] = err;
+        }
     }
 
     if (json_out) {
@@ -2078,39 +648,55 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         d["platform"]        = PJEV_PLATFORM;
         d["arch"]            = PJEV_ARCH;
         d["cpu"]["logical_cores"] = (int32_t)hw_concurrency;
-        d["model"]["path"]        = llama_cfg.model_path;
-        d["model"]["accessible"]  = model_accessible;
-        d["runtime"]["n_threads"] = llama_cfg.n_threads;
-        d["runtime"]["n_ctx"]     = llama_cfg.n_ctx;
+        for (const auto& r : resources) {
+            d[r.key]["path"]       = r.path;
+            d[r.key]["accessible"] = r.ok;
+        }
+        d["routing"]["policy"]    = routing::kPolicyName;
+        d["runtime"]["n_threads"] = opts.n_threads;
+        d["runtime"]["n_ctx"]     = opts.n_ctx;
         d["worker"]["running"]    = worker_running;
         if (worker_running) {
             d["worker"]["pid"]            = (int32_t)worker_info.pid;
             d["worker"]["pjev_version"]   = worker_info.pjev_version;
             d["worker"]["model_identity"] = worker_info.model_identity;
         }
+        if (load) d["load"] = load_report;
         printf("%s\n", d.dump(2).c_str());
     } else {
         printf("pjev version:    %s (commit: %s)\n", PJEV_VERSION, PJEV_GIT_COMMIT);
         printf("llama.cpp:       %s\n", PJEV_LLAMA_REVISION);
         printf("platform:        %s-%s\n", PJEV_PLATFORM, PJEV_ARCH);
         printf("cpu logical cores: %u\n", hw_concurrency);
-        printf("model path:      %s (%s)\n",
-               llama_cfg.model_path.c_str(),
-               model_accessible ? "found" : "NOT FOUND");
-        printf("threads:         %d\n", llama_cfg.n_threads);
-        printf("context size:    %d\n", llama_cfg.n_ctx);
+        for (const auto& r : resources) printf("%s%s (%s)\n", r.label, r.path.c_str(), r.ok ? "found" : "NOT FOUND");
+        printf("routing policy:  %s\n", routing::kPolicyName);
+        printf("threads:         %d\n", opts.n_threads);
+        printf("context size:    %d\n", opts.n_ctx);
         if (worker_running) {
             printf("worker:          running (pid %d, model: %s)\n",
                    (int32_t)worker_info.pid, worker_info.model_identity.c_str());
         } else {
             printf("worker:          not running\n");
         }
-        if (!model_accessible) {
-            printf("\naction: model not found at '%s'\n", llama_cfg.model_path.c_str());
-            printf("        use --model PATH or place model.gguf next to the executable\n");
+        if (load) {
+            if (load_ok) {
+                printf("load:            ok (%.0f ms; model %s; embedding fingerprint %s; %lld exemplar rows, %zu eligible)\n",
+                       load_report["ms"].get<double>(), load_report["model_name"].get<std::string>().c_str(),
+                       load_report["embedding_fingerprint"].get<std::string>().c_str(),
+                       (long long)load_report["exemplar_rows"].get<int64_t>(),
+                       load_report["eligible_exemplars"].get<size_t>());
+            } else {
+                printf("load:            FAILED: %s\n", load_report["error"].get<std::string>().c_str());
+            }
+        }
+        for (const auto& r : resources) {
+            if (r.ok) continue;
+            printf("\naction: %s not found at '%s'\n", r.key, r.path.c_str());
+            printf("        pass the path on the command line, set it in pjev.json, or place the file\n");
+            printf("        next to the executable (see README: Runtime resources)\n");
         }
     }
-    return 0;
+    return load_ok ? 0 : 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -2148,240 +734,79 @@ static bool resolve_state(const std::string& state_inline,
     return true;
 }
 
-// Load LlamaBackend + CalibrationConfig + DecisionEngine with shared pattern.
-// On failure prints to stderr and returns false.
-static bool load_engine_for_cli(const LlamaConfig& llama_cfg,
-                                 const std::string& calibration_path,
-                                 std::unique_ptr<LlamaBackend>& backend,
-                                 std::unique_ptr<DecisionEngine>& engine,
-                                 CalibrationConfig& calib_cfg,
-                                 const EnsembleConfig& ensemble_cfg = {})
-{
-    try {
-        backend = std::make_unique<LlamaBackend>(llama_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("model load failed: {}", e.what());
-        return false;
-    }
-
-    if (!calibration_path.empty()) {
-        std::ifstream cf(calibration_path);
-        if (!cf) {
-            spdlog::error("cannot open calibration file: {}", calibration_path);
-            return false;
-        }
-        nlohmann::json cj;
-        try { cf >> cj; } catch (const std::exception& e) {
-            spdlog::error("calibration JSON parse error: {}", e.what());
-            return false;
-        }
-        CalibrationArtifact art;
-        std::string calib_err;
-        if (!CalibrationArtifact::from_json(cj, art, calib_err)) {
-            spdlog::error("calibration artifact: {}", calib_err);
-            return false;
-        }
-        calib_cfg = art.to_config();
-    }
-
-    try {
-        engine = std::make_unique<DecisionEngine>(*backend, PromptConfig{}, calib_cfg, ensemble_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("engine init failed: {}", e.what());
-        return false;
-    }
-    return true;
-}
-
-static int32_t cmd_noul(int32_t argc, char** argv) {
-    LlamaConfig llama_cfg;
-    llama_cfg.model_path = "";
-    std::string question;
-    std::string state_inline;
-    std::string state_file;
-    std::string calibration_path = "models/calibration.json";
-    int32_t idle_timeout_secs = 600;
-    bool json_out = false;
-    bool model_explicitly_set = false;
-    bool direct_mode = false;
-    bool ensemble_binary = true;
-
-    for (int32_t i = 0; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_noul("pjev"); exit(2); }
-            return argv[++i];
-        };
-        if      (a == "--question")      question = next();
-        else if (a == "--state")         state_inline = next();
-        else if (a == "--state-file")    state_file = next();
-        else if (a == "--model")         { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--calibration")   calibration_path = next();
-        else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")  llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")      llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
-        else if (a == "--verbose")       llama_cfg.verbose = true;
-        else if (a == "--json")          json_out = true;
-        else if (a == "--direct")        direct_mode = true;
-        else if (a == "--ensemble")      ensemble_binary = true;
-        else if (a == "-h" || a == "--help") { usage_noul("pjev"); return 0; }
-        else { spdlog::error("unknown option: {}", a); usage_noul("pjev"); return 2; }
-    }
-
-    if (question.empty()) {
-        spdlog::error("--question is required");
-        usage_noul("pjev");
-        return 2;
-    }
-
-    std::string state;
-    if (!resolve_state(state_inline, state_file, state)) return 2;
-
-    if (!model_explicitly_set) {
-        std::string exe_dir = get_executable_dir();
-        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
-        if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/bonsai2_2b.gguf";
-    }
-
+static int32_t cmd_decision(Type type, int32_t argc, char** argv) {
+    RuntimeArgs rargs;
     DecisionInput input;
-    input.type     = Type::Noul;
-    input.state    = state;
-    input.question = question;
-    input.options  = {{"true", ""}, {"false", ""}};
-
-    DecisionOutput out;
-
-    if (!direct_mode) {
-        ClientConfig cli_cfg;
-        cli_cfg.model_path        = llama_cfg.model_path;
-        cli_cfg.calibration_path  = calibration_path;
-        cli_cfg.threads           = llama_cfg.n_threads;
-        cli_cfg.ctx_size          = llama_cfg.n_ctx;
-        cli_cfg.n_gpu_layers      = llama_cfg.n_gpu_layers;
-        cli_cfg.main_gpu          = llama_cfg.main_gpu;
-        cli_cfg.idle_timeout_secs = idle_timeout_secs;
-        try {
-            WorkerClient client(cli_cfg);
-            out = client.decide(input);
-        } catch (const std::exception& e) {
-            spdlog::error("worker decision failed: {}", e.what());
-            return 1;
-        }
-    } else {
-        SpdLogShutdown spdlog_shutdown;
-        spdlog::stdout_logger_mt("console");
-        spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
-
-        std::unique_ptr<LlamaBackend> backend;
-        std::unique_ptr<DecisionEngine> engine;
-        CalibrationConfig calib_cfg;
-        EnsembleConfig ensemble_cfg;
-        if (ensemble_binary) ensemble_cfg.noul_mode = NoulEnsembleMode::BINARY_ORDER;
-        if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg, ensemble_cfg)) return 1;
-
-        try {
-            out = engine->decide(input);
-        } catch (const std::exception& e) {
-            spdlog::error("decision failed: {}", e.what());
-            return 1;
-        }
-    }
-
-    if (!out.ok) {
-        spdlog::error("{}", out.error);
-        return 1;
-    }
-
-    if (json_out) printf("%s\n", format_noul_json(out).c_str());
-    else          printf("%s\n", format_noul_human(out).c_str());
-    return 0;
-}
-
-static int32_t cmd_choice(int32_t argc, char** argv) {
-    LlamaConfig llama_cfg;
-    llama_cfg.model_path = "";
-    std::string question;
+    input.type = type;
     std::string state_inline;
     std::string state_file;
-    std::string calibration_path = "models/calibration.json";
-    std::vector<std::pair<std::string, std::string>> options; // key, desc
     int32_t idle_timeout_secs = 600;
     bool json_out = false;
-    bool model_explicitly_set = false;
     bool direct_mode = false;
 
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_choice("pjev"); exit(2); }
+            if (i + 1 >= argc) { usage_decision("pjev", type); exit(2); }
             return argv[++i];
         };
-        if      (a == "--question")      question = next();
+        if      (rargs.parse(a, next))   {}
+        else if (consume_deprecated(a, i, argc)) {}
+        else if (a == "--question")      input.question = next();
         else if (a == "--state")         state_inline = next();
         else if (a == "--state-file")    state_file = next();
-        else if (a == "--model")         { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--calibration")   calibration_path = next();
-        else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")  llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")      llama_cfg.main_gpu = std::stoi(next());
+        else if (a == "--domain")        input.domain = next();
+        else if (a == "--family")        input.family = next();
         else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
-        else if (a == "--verbose")       llama_cfg.verbose = true;
         else if (a == "--json")          json_out = true;
         else if (a == "--direct")        direct_mode = true;
-        else if (a == "--option") {
+        else if (a == "--option" && type == Type::Choice) {
             std::string val = next();
             auto colon = val.find(':');
-            if (colon != std::string::npos) {
-                options.push_back({val.substr(0, colon), val.substr(colon + 1)});
-            } else {
-                options.push_back({val, ""});
+            if (colon != std::string::npos) input.options.push_back({val.substr(0, colon), val.substr(colon + 1)});
+            else                            input.options.push_back({val, ""});
+        }
+        else if (a == "--level" && type == Type::Score) {
+            input.options.push_back({std::to_string(input.options.size()), next()});
+        }
+        else if (a == "-h" || a == "--help") { usage_decision("pjev", type); return 0; }
+        else { spdlog::error("unknown option: {}", a); usage_decision("pjev", type); return 2; }
+    }
+
+    if (input.question.empty()) {
+        spdlog::error("--question is required");
+        usage_decision("pjev", type);
+        return 2;
+    }
+    if (type == Type::Noul) input.options = {{"true", ""}, {"false", ""}};
+    if (input.options.size() < 2) {
+        spdlog::error("{} requires at least 2 {} values", to_string(type), type == Type::Score ? "--level" : "--option");
+        usage_decision("pjev", type);
+        return 2;
+    }
+    if (!resolve_state(state_inline, state_file, input.state)) return 2;
+
+    const RuntimeOptions opts = rargs.resolve();
+    DecisionOutput out;
+
+    if (!direct_mode) {
+        // A worker that cannot load its resources never starts; report missing files right away.
+        for (const std::string* p : {&opts.paths.model, &opts.paths.embedding_model, &opts.paths.exemplar_db,
+                                     &opts.paths.exemplar_allowlist}) {
+            if (!std::filesystem::is_regular_file(*p)) {
+                spdlog::error("runtime resource not found: {} (see 'pjev diagnostics')", *p);
+                return 1;
             }
         }
-        else if (a == "-h" || a == "--help") { usage_choice("pjev"); return 0; }
-        else { spdlog::error("unknown option: {}", a); usage_choice("pjev"); return 2; }
-    }
-
-    if (question.empty()) {
-        spdlog::error("--question is required");
-        usage_choice("pjev");
-        return 2;
-    }
-    if (options.size() < 2) {
-        spdlog::error("choice requires at least 2 --option values");
-        usage_choice("pjev");
-        return 2;
-    }
-
-    std::string state;
-    if (!resolve_state(state_inline, state_file, state)) return 2;
-
-    if (!model_explicitly_set) {
-        std::string exe_dir = get_executable_dir();
-        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
-        if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/bonsai2_2b.gguf";
-    }
-
-    DecisionInput input;
-    input.type     = Type::Choice;
-    input.state    = state;
-    input.question = question;
-    input.options  = options;
-
-    DecisionOutput out;
-
-    if (!direct_mode) {
         ClientConfig cli_cfg;
-        cli_cfg.model_path        = llama_cfg.model_path;
-        cli_cfg.calibration_path  = calibration_path;
-        cli_cfg.threads           = llama_cfg.n_threads;
-        cli_cfg.ctx_size          = llama_cfg.n_ctx;
-        cli_cfg.n_gpu_layers      = llama_cfg.n_gpu_layers;
-        cli_cfg.main_gpu          = llama_cfg.main_gpu;
+        cli_cfg.paths.model              = absolute_path(opts.paths.model);
+        cli_cfg.paths.embedding_model    = absolute_path(opts.paths.embedding_model);
+        cli_cfg.paths.exemplar_db        = absolute_path(opts.paths.exemplar_db);
+        cli_cfg.paths.exemplar_allowlist = absolute_path(opts.paths.exemplar_allowlist);
+        cli_cfg.threads           = opts.n_threads;
+        cli_cfg.ctx_size          = opts.n_ctx;
+        cli_cfg.n_gpu_layers      = opts.n_gpu_layers;
+        cli_cfg.main_gpu          = opts.main_gpu;
         cli_cfg.idle_timeout_secs = idle_timeout_secs;
         try {
             WorkerClient client(cli_cfg);
@@ -2393,15 +818,12 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
     } else {
         SpdLogShutdown spdlog_shutdown;
         spdlog::stdout_logger_mt("console");
-        spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
+        spdlog::set_level(opts.verbose ? spdlog::level::trace : spdlog::level::warn);
 
-        std::unique_ptr<LlamaBackend> backend;
-        std::unique_ptr<DecisionEngine> engine;
-        CalibrationConfig calib_cfg;
-        if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
-
+        std::unique_ptr<RouterRuntime> runtime = load_runtime(opts);
+        if (!runtime) return 1;
         try {
-            out = engine->decide(input);
+            out = runtime->service().decide(input);
         } catch (const std::exception& e) {
             spdlog::error("decision failed: {}", e.what());
             return 1;
@@ -2409,125 +831,22 @@ static int32_t cmd_choice(int32_t argc, char** argv) {
     }
 
     if (!out.ok) {
-        spdlog::error("{}", out.error);
+        if (out.error_code.empty()) spdlog::error("{}", out.error);
+        else                        spdlog::error("{}: {}", out.error_code, out.error);
         return 1;
     }
 
-    if (json_out) printf("%s\n", format_choice_json(out).c_str());
-    else          printf("%s\n", format_choice_human(out).c_str());
-    return 0;
-}
-
-static int32_t cmd_score(int32_t argc, char** argv) {
-    LlamaConfig llama_cfg;
-    llama_cfg.model_path = "";
-    std::string question;
-    std::string state_inline;
-    std::string state_file;
-    std::string calibration_path = "models/calibration.json";
-    std::vector<std::pair<std::string, std::string>> options; // key (auto "0".."N-1"), desc
-    int32_t idle_timeout_secs = 600;
-    bool json_out = false;
-    bool model_explicitly_set = false;
-    bool direct_mode = false;
-
-    for (int32_t i = 0; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&]() -> std::string {
-            if (i + 1 >= argc) { usage_score("pjev"); exit(2); }
-            return argv[++i];
-        };
-        if      (a == "--question")      question = next();
-        else if (a == "--state")         state_inline = next();
-        else if (a == "--state-file")    state_file = next();
-        else if (a == "--model")         { llama_cfg.model_path = next(); model_explicitly_set = true; }
-        else if (a == "--calibration")   calibration_path = next();
-        else if (a == "--threads")       llama_cfg.n_threads = std::stoi(next());
-        else if (a == "--ctx-size")      llama_cfg.n_ctx = llama_cfg.n_batch = std::stoi(next());
-        else if (a == "--n-gpu-layers")  llama_cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")      llama_cfg.main_gpu = std::stoi(next());
-        else if (a == "--idle-timeout")  idle_timeout_secs = std::stoi(next());
-        else if (a == "--verbose")       llama_cfg.verbose = true;
-        else if (a == "--json")          json_out = true;
-        else if (a == "--direct")        direct_mode = true;
-        else if (a == "--level") {
-            std::string desc = next();
-            options.push_back({std::to_string(options.size()), desc});
-        }
-        else if (a == "-h" || a == "--help") { usage_score("pjev"); return 0; }
-        else { spdlog::error("unknown option: {}", a); usage_score("pjev"); return 2; }
+    switch (type) {
+    case Type::Noul:
+        printf("%s\n", (json_out ? format_noul_json(out) : format_noul_human(out)).c_str());
+        break;
+    case Type::Choice:
+        printf("%s\n", (json_out ? format_choice_json(out) : format_choice_human(out)).c_str());
+        break;
+    default:
+        printf("%s\n", (json_out ? format_score_json(out, input.options) : format_score_human(out)).c_str());
+        break;
     }
-
-    if (question.empty()) {
-        spdlog::error("--question is required");
-        usage_score("pjev");
-        return 2;
-    }
-    if (options.size() < 2) {
-        spdlog::error("score requires at least 2 --level values");
-        usage_score("pjev");
-        return 2;
-    }
-
-    std::string state;
-    if (!resolve_state(state_inline, state_file, state)) return 2;
-
-    if (!model_explicitly_set) {
-        std::string exe_dir = get_executable_dir();
-        std::string resolved = ReleaseConfig::resolve_model("", exe_dir);
-        if (!resolved.empty()) llama_cfg.model_path = resolved;
-        else llama_cfg.model_path = "models/bonsai2_2b.gguf";
-    }
-
-    DecisionInput input;
-    input.type     = Type::Score;
-    input.state    = state;
-    input.question = question;
-    input.options  = options;
-
-    DecisionOutput out;
-
-    if (!direct_mode) {
-        ClientConfig cli_cfg;
-        cli_cfg.model_path        = llama_cfg.model_path;
-        cli_cfg.calibration_path  = calibration_path;
-        cli_cfg.threads           = llama_cfg.n_threads;
-        cli_cfg.ctx_size          = llama_cfg.n_ctx;
-        cli_cfg.n_gpu_layers      = llama_cfg.n_gpu_layers;
-        cli_cfg.main_gpu          = llama_cfg.main_gpu;
-        cli_cfg.idle_timeout_secs = idle_timeout_secs;
-        try {
-            WorkerClient client(cli_cfg);
-            out = client.decide(input);
-        } catch (const std::exception& e) {
-            spdlog::error("worker decision failed: {}", e.what());
-            return 1;
-        }
-    } else {
-        SpdLogShutdown spdlog_shutdown;
-        spdlog::stdout_logger_mt("console");
-        spdlog::set_level(llama_cfg.verbose ? spdlog::level::trace : spdlog::level::warn);
-
-        std::unique_ptr<LlamaBackend> backend;
-        std::unique_ptr<DecisionEngine> engine;
-        CalibrationConfig calib_cfg;
-        if (!load_engine_for_cli(llama_cfg, calibration_path, backend, engine, calib_cfg)) return 1;
-
-        try {
-            out = engine->decide(input);
-        } catch (const std::exception& e) {
-            spdlog::error("decision failed: {}", e.what());
-            return 1;
-        }
-    }
-
-    if (!out.ok) {
-        spdlog::error("{}", out.error);
-        return 1;
-    }
-
-    if (json_out) printf("%s\n", format_score_json(out, options).c_str());
-    else          printf("%s\n", format_score_human(out).c_str());
     return 0;
 }
 
@@ -2595,8 +914,6 @@ static int32_t cmd_stop(int32_t argc, char** argv) {
 
 static int32_t cmd_internal_worker(int32_t argc, char** argv) {
     WorkerConfig cfg;
-    cfg.model_path = "models/bonsai2_2b.gguf";
-    cfg.calibration_path = "models/calibration.json";
     for (int32_t i = 0; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
@@ -2606,22 +923,25 @@ static int32_t cmd_internal_worker(int32_t argc, char** argv) {
             }
             return argv[++i];
         };
-        if      (a == "--model")        cfg.model_path = next();
-        else if (a == "--threads")      cfg.threads = std::stoi(next());
-        else if (a == "--ctx-size")     cfg.ctx_size = std::stoi(next());
-        else if (a == "--n-gpu-layers") cfg.n_gpu_layers = std::stoi(next());
-        else if (a == "--main-gpu")     cfg.main_gpu = std::stoi(next());
-        else if (a == "--calibration")  cfg.calibration_path = next();
-        else if (a == "--idle-timeout") cfg.idle_timeout_secs = std::stoi(next());
-        else if (a == "--max-queued")   cfg.max_queued = std::stoi(next());
+        if      (a == "--model")              cfg.paths.model = next();
+        else if (a == "--embedding-model")    cfg.paths.embedding_model = next();
+        else if (a == "--exemplar-db")        cfg.paths.exemplar_db = next();
+        else if (a == "--exemplar-allowlist") cfg.paths.exemplar_allowlist = next();
+        else if (a == "--threads")            cfg.threads = std::stoi(next());
+        else if (a == "--ctx-size")           cfg.ctx_size = std::stoi(next());
+        else if (a == "--n-gpu-layers")       cfg.n_gpu_layers = std::stoi(next());
+        else if (a == "--main-gpu")           cfg.main_gpu = std::stoi(next());
+        else if (a == "--idle-timeout")       cfg.idle_timeout_secs = std::stoi(next());
+        else if (a == "--max-queued")         cfg.max_queued = std::stoi(next());
         else {
             spdlog::error("unknown option: {}", a);
             return 2;
         }
     }
 
-    if (cfg.model_path.empty()) {
-        spdlog::error("--model is required for internal-worker");
+    if (cfg.paths.model.empty() || cfg.paths.embedding_model.empty() || cfg.paths.exemplar_db.empty() ||
+        cfg.paths.exemplar_allowlist.empty()) {
+        spdlog::error("internal-worker requires --model, --embedding-model, --exemplar-db and --exemplar-allowlist");
         return 1;
     }
 
@@ -2642,13 +962,12 @@ int32_t main(int32_t argc, char** argv) {
 
     std::string cmd = argv[1];
 
-    // If first arg looks like an option (legacy / direct server invocation), treat as "server"
     if (cmd == "noul") {
-        return cmd_noul(argc - 2, argv + 2);
+        return cmd_decision(Type::Noul, argc - 2, argv + 2);
     } else if (cmd == "choice") {
-        return cmd_choice(argc - 2, argv + 2);
+        return cmd_decision(Type::Choice, argc - 2, argv + 2);
     } else if (cmd == "score") {
-        return cmd_score(argc - 2, argv + 2);
+        return cmd_decision(Type::Score, argc - 2, argv + 2);
     } else if (cmd == "status") {
         return cmd_status(argc - 2, argv + 2);
     } else if (cmd == "stop") {
@@ -2661,16 +980,6 @@ int32_t main(int32_t argc, char** argv) {
         printf("pjev %s (commit: %s, llama.cpp: %s, platform: %s-%s)\n",
                PJEV_VERSION, PJEV_GIT_COMMIT, PJEV_LLAMA_REVISION, PJEV_PLATFORM, PJEV_ARCH);
         return 0;
-    } else if (cmd == "run") {
-        return cmd_run(argc - 2, argv + 2);
-    } else if (cmd == "compare") {
-        return cmd_compare(argc - 2, argv + 2);
-    } else if (cmd == "experiment") {
-        return cmd_experiment(argc - 2, argv + 2);
-    } else if (cmd == "calibration") {
-        return cmd_calibration(argc - 2, argv + 2);
-    } else if (cmd == "model") {
-        return cmd_model(argc - 2, argv + 2);
     } else if (cmd == "benchmark") {
         return cmd_benchmark(argc - 2, argv + 2);
     } else if (cmd == "diagnostics") {

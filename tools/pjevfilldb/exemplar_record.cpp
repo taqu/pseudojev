@@ -3,7 +3,9 @@
 #include <cmath>
 
 #include <decision/prompt_strategy.h>
-#include "id_hash.h"
+#include "retrieval/id_hash.h"
+
+using pjev::retrieval::hash_exemplar_id;
 
 namespace pjev
 {
@@ -132,7 +134,8 @@ std::string parse_exemplar(const nlohmann::ordered_json& j, ExemplarRecord& rec)
 
 bool is_eligible(const ExemplarRecord& rec)
 {
-    //return rec.split == "train" && rec.language == "en";
+    // Every English record is stored; which records may be used as demonstrations (the training
+    // split with a one-hot answer) is decided at query time by the exemplar allowlist.
     return rec.language == "en";
 }
 

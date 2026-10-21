@@ -1,8 +1,6 @@
 #include "worker_server.h"
 #include "runtime_dir.h"
-#include "../model/model_identity.h"
 #include <chrono>
-#include <fstream>
 #include "spdlog/spdlog.h"
 
 #ifdef _WIN32
@@ -59,53 +57,22 @@ void WorkerServer::request_shutdown()
 
 int WorkerServer::run()
 {
-    // 1. Load LlamaBackend
-    LlamaConfig llama_cfg;
-    llama_cfg.model_path   = cfg_.model_path;
-    llama_cfg.n_threads    = cfg_.threads;
-    llama_cfg.n_ctx        = cfg_.ctx_size;
-    llama_cfg.n_batch      = cfg_.ctx_size;
-    llama_cfg.verbose      = false;
-
-    try {
-        backend_ = std::make_unique<LlamaBackend>(llama_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("worker: model load failed: {}", e.what());
+    // 1. Load models and the exemplar database
+    RuntimeOptions opts;
+    opts.paths        = cfg_.paths;
+    opts.n_threads    = cfg_.threads;
+    opts.n_ctx        = cfg_.ctx_size;
+    opts.n_gpu_layers = cfg_.n_gpu_layers;
+    opts.main_gpu     = cfg_.main_gpu;
+    std::string err;
+    runtime_ = RouterRuntime::load(opts, err);
+    if (!runtime_) {
+        spdlog::error("worker: {}", err);
         return 1;
     }
 
-    // 2. Load calibration (if configured)
-    CalibrationConfig calib_cfg;
-    if (!cfg_.calibration_path.empty()) {
-        std::ifstream cf(cfg_.calibration_path);
-        if (!cf) {
-            spdlog::error("worker: cannot open calibration: {}", cfg_.calibration_path);
-            return 1;
-        }
-        nlohmann::json cj;
-        try { cf >> cj; } catch (const std::exception& e) {
-            spdlog::error("worker: calibration JSON error: {}", e.what());
-            return 1;
-        }
-        CalibrationArtifact art;
-        std::string err;
-        if (!CalibrationArtifact::from_json(cj, art, err)) {
-            spdlog::error("worker: calibration artifact error: {}", err);
-            return 1;
-        }
-        calib_cfg = art.to_config();
-    }
-
-    // 3. Create DecisionEngine
-    try {
-        engine_ = std::make_unique<DecisionEngine>(*backend_, PromptConfig{}, calib_cfg);
-    } catch (const std::exception& e) {
-        spdlog::error("worker: engine init failed: {}", e.what());
-        return 1;
-    }
-
-    // 4. Build WorkerInfo
-    ModelIdentity mid = ModelIdentity::from_path(cfg_.model_path, backend_.get());
+    // 2. Build WorkerInfo
+    const ModelIdentity& mid = runtime_->model_identity();
     info_.protocol_version = IPC_PROTOCOL_VERSION;
     info_.pjev_version     = PJEV_VERSION;
 #ifdef _WIN32
@@ -113,11 +80,11 @@ int WorkerServer::run()
 #else
     info_.pid = (int32_t)getpid();
 #endif
-    info_.model_identity = mid.name.empty() ? cfg_.model_path : mid.name;
-    info_.config_hash    = make_config_hash(cfg_.model_path);
+    info_.model_identity = mid.name.empty() ? cfg_.paths.model : mid.name;
+    info_.config_hash    = make_config_hash(cfg_.paths, cfg_.threads, cfg_.ctx_size);
     info_.start_time_us  = get_now_us();
 
-    // 5. Create ILocalServer and bind
+    // 3. Create ILocalServer and bind
     auto server = make_local_server();
     const std::string& endpoint = get_worker_endpoint();
     if (!server->bind(endpoint)) {
@@ -127,10 +94,10 @@ int WorkerServer::run()
 
     update_activity();
 
-    // 6. Log ready
+    // 4. Log ready
     spdlog::info("pjev worker ready pid={} endpoint={}", info_.pid, endpoint);
 
-    // 7. Main loop
+    // 5. Main loop
     while (!shutdown_requested_.load()) {
         auto conn = server->accept(1000); // 1-second timeout
         if (conn) {
@@ -146,7 +113,7 @@ int WorkerServer::run()
         }
     }
 
-    // 8. Cleanup
+    // 6. Cleanup
     server->close();
 
     spdlog::info("worker shutdown");
@@ -183,6 +150,8 @@ void WorkerServer::handle_connection(std::unique_ptr<ILocalConn> conn)
     spdlog::info("worker: request type={}", type);
     if (type == "decide") {
         handle_decide(*conn, req);
+    } else if (type == "ping") {
+        handle_ping(*conn);
     } else if (type == "shutdown") {
         handle_shutdown(*conn);
     } else {
@@ -213,7 +182,7 @@ bool WorkerServer::handle_decide(ILocalConn& conn, const nlohmann::json& req)
     DecisionOutput out;
     try {
         std::lock_guard<std::mutex> lk(engine_mutex_);
-        out = engine_->decide(input);
+        out = runtime_->service().decide(input);
     } catch (const std::exception& e) {
         active_requests_.fetch_sub(1);
         nlohmann::json resp = {{"ok", false}, {"error", std::string("decide: ") + e.what()}};

@@ -1,7 +1,5 @@
 #pragma once
-#include "../decision/decision_engine.h"
-#include "../inference/llama_backend.h"
-#include "../calibration/calibration.h"
+#include "../routing/router_runtime.h"
 #include "ipc_protocol.h"
 #include "local_transport.h"
 #include <atomic>
@@ -12,15 +10,16 @@
 namespace pjev {
 
 struct WorkerConfig {
-    std::string model_path;
-    std::string calibration_path;
+    RuntimePaths paths;
     int threads = 8;
     int ctx_size = 4096;
+    int n_gpu_layers = 0;
+    int main_gpu = 0;
     int idle_timeout_secs = 600; // 10 minutes default
     int max_queued = 8;
 };
 
-// WorkerServer: loads model, runs IPC listener, handles requests.
+// WorkerServer: loads the runtime (models + exemplar database), runs the IPC listener, handles requests.
 // Call run() to block until shutdown.
 class WorkerServer {
 public:
@@ -38,8 +37,7 @@ private:
     WorkerConfig  cfg_;
     WorkerInfo    info_;
 
-    std::unique_ptr<LlamaBackend>   backend_;
-    std::unique_ptr<DecisionEngine> engine_;
+    std::unique_ptr<RouterRuntime> runtime_;
 
     std::mutex              engine_mutex_; // serialize inference
     std::atomic<bool>       shutdown_requested_{false};

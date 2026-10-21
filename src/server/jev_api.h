@@ -7,7 +7,7 @@
 
 namespace pjev {
 
-class DecisionEngine;
+class DecisionService;
 
 enum class Type
 {
@@ -31,16 +31,18 @@ namespace ErrorCode {
     constexpr const char* INTERNAL_ERROR        = "internal_error";
     constexpr const char* SERVER_BUSY           = "server_busy";
     constexpr const char* CONTEXT_TOO_LONG      = "context_too_long";
+    // The exemplar bank holds no eligible exemplar for the task (e.g. a score scale whose level count
+    // has no training exemplars).
+    constexpr const char* NO_ELIGIBLE_EXEMPLAR  = "no_eligible_exemplar";
 }
 
 class JevApiHandler {
 public:
     // max_queued: reject with server_busy if this many requests are already active.
-    JevApiHandler(DecisionEngine& engine,
+    // Questions of a request are decided one after another through `service`.
+    JevApiHandler(DecisionService& service,
                   const std::string& model_name = "pseudojev",
-                  int max_queued = 8,
-                  bool kv_reuse = true,
-                  bool batch_questions = true);
+                  int max_queued = 8);
 
     // Parse Jev request, run inference, return Jev response.
     // Sets status_out to HTTP status and response_out to JSON body.
@@ -49,14 +51,12 @@ public:
                 std::string& response_out);
 
 private:
-    DecisionEngine&        engine_;
+    DecisionService&       service_;
     std::string            model_name_;
     std::mutex             mutex_;
     std::atomic<int>       active_{0};
     int                    max_queued_;
     std::atomic<uint64_t>  req_counter_{0};
-    bool                   kv_reuse_;
-    bool                   batch_questions_;
 };
 
 } // namespace pjev

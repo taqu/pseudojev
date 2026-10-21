@@ -29,6 +29,8 @@ namespace pjev
 ClientConfig::ClientConfig()
     : threads(8)
     , ctx_size(4096)
+    , n_gpu_layers(0)
+    , main_gpu(0)
     , idle_timeout_secs(600)
     , startup_timeout_ms(30000)
     , request_timeout_ms(120000)
@@ -44,8 +46,8 @@ WorkerClient::WorkerClient(const ClientConfig& cfg)
 
 bool WorkerClient::is_compatible(const WorkerInfo& info) const
 {
-    const std::string& expected = make_config_hash(cfg_.model_path);
-    return info.config_hash == expected && info.protocol_version == IPC_PROTOCOL_VERSION;
+    return info.config_hash == make_config_hash(cfg_.paths, cfg_.threads, cfg_.ctx_size) &&
+           info.protocol_version == IPC_PROTOCOL_VERSION;
 }
 
 std::string WorkerClient::get_exe_path() const
@@ -71,13 +73,6 @@ std::string WorkerClient::get_exe_path() const
 #endif
 }
 
-std::unique_ptr<ILocalConn> WorkerClient::try_connect_compatible()
-{
-    const std::string& endpoint = get_worker_endpoint();
-    std::unique_ptr<ILocalConn> conn = make_local_client(endpoint, 2000);
-    return conn;
-}
-
 bool WorkerClient::spawn_worker()
 {
     std::string exe = get_exe_path();
@@ -85,20 +80,27 @@ bool WorkerClient::spawn_worker()
         return false;
 
     // Build argument list
-    // pjev internal-worker --model PATH --threads N --ctx-size N [--calibration FILE] [--idle-timeout N]
+    // pjev internal-worker --model PATH --embedding-model PATH --exemplar-db PATH --exemplar-allowlist PATH
+    //                      --threads N --ctx-size N --n-gpu-layers N --main-gpu N --idle-timeout N
     std::vector<std::string> args;
     args.push_back(exe);
     args.push_back("internal-worker");
     args.push_back("--model");
-    args.push_back(cfg_.model_path);
+    args.push_back(cfg_.paths.model);
+    args.push_back("--embedding-model");
+    args.push_back(cfg_.paths.embedding_model);
+    args.push_back("--exemplar-db");
+    args.push_back(cfg_.paths.exemplar_db);
+    args.push_back("--exemplar-allowlist");
+    args.push_back(cfg_.paths.exemplar_allowlist);
     args.push_back("--threads");
     args.push_back(std::to_string(cfg_.threads));
     args.push_back("--ctx-size");
     args.push_back(std::to_string(cfg_.ctx_size));
-    if(!cfg_.calibration_path.empty()) {
-        args.push_back("--calibration");
-        args.push_back(cfg_.calibration_path);
-    }
+    args.push_back("--n-gpu-layers");
+    args.push_back(std::to_string(cfg_.n_gpu_layers));
+    args.push_back("--main-gpu");
+    args.push_back(std::to_string(cfg_.main_gpu));
     args.push_back("--idle-timeout");
     args.push_back(std::to_string(cfg_.idle_timeout_secs));
 
@@ -205,33 +207,15 @@ std::unique_ptr<ILocalConn> WorkerClient::wait_for_worker(int32_t timeout_ms)
     return nullptr;
 }
 
-bool WorkerClient::validate_compatibility(std::unique_ptr<ILocalConn>& conn)
+void WorkerClient::wait_for_endpoint_free(int32_t timeout_ms)
 {
-    // Send ping
-    nlohmann::json ping = {{"type", "ping"}, {"protocol_version", IPC_PROTOCOL_VERSION}};
-    if(!conn->send_frame(ping.dump()))
-        return false;
-
-    std::string resp_str;
-    if(!conn->recv_frame(resp_str, 5000))
-        return false;
-
-    nlohmann::json resp;
-    try {
-        resp = nlohmann::json::parse(resp_str);
-    } catch(...) {
-        return false;
+    const std::string& endpoint = get_worker_endpoint();
+    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    while(std::chrono::steady_clock::now() < deadline) {
+        if(!make_local_client(endpoint, 0))
+            return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-
-    if(resp.value("type", "") != "pong")
-        return false;
-    if(!resp.contains("info"))
-        return false;
-
-    WorkerInfo info = ipc_worker_info_from_json(resp["info"]);
-    if(!is_compatible(info))
-        return false;
-    return true;
 }
 
 void WorkerClient::clean_stale_endpoint()
@@ -253,32 +237,27 @@ DecisionOutput WorkerClient::decide(const DecisionInput& input)
     std::string response;
 
     for(int32_t i = 0; i < cfg_.retry_count; ++i) {
-        // Try connecting to existing worker
-        std::unique_ptr<ILocalConn> conn = try_connect_compatible();
-        if(conn){
-            conn = nullptr;
+        // The worker serves one connection at a time, so the status check and the request use separate
+        // connections. A worker with another configuration is replaced.
+        WorkerInfo info;
+        bool running = get_status(info);
+        if(running && !is_compatible(info)) {
+            stop_worker();
+            wait_for_endpoint_free(cfg_.startup_timeout_ms);
+            running = false;
         }
-
+        if(!running && !spawn_worker()) {
+            throw std::runtime_error("pjev worker: failed to spawn worker process");
+        }
+        std::unique_ptr<ILocalConn> conn = wait_for_worker(cfg_.startup_timeout_ms);
         if(!conn) {
-            // No compatible worker — spawn one
-            if(!spawn_worker()) {
-                throw std::runtime_error("pjev worker: failed to spawn worker process");
-            }
-            // Wait for it to become available
-            conn = wait_for_worker(cfg_.startup_timeout_ms);
-            if(!conn) {
-                throw std::runtime_error("pjev worker: worker did not start in time");
-            }
+            throw std::runtime_error("pjev worker: worker did not start in time (run 'pjev diagnostics' or retry with --direct)");
         }
 
         // Send decide request
-        if(!conn->send_frame(requestJson)) {
+        if(!conn->send_frame(requestJson) || !conn->recv_frame(response, cfg_.request_timeout_ms)) {
             // Broken connection — retry
-            clean_stale_endpoint();
-            continue;
-        }
-
-        if(!conn->recv_frame(response, cfg_.request_timeout_ms)) {
+            response.clear();
             clean_stale_endpoint();
             continue;
         }

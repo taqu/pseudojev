@@ -7,8 +7,9 @@ namespace pjev
 void initialize_strings();
 
 // Returns path for worker's IPC endpoint.
-// Unix: socket path like /tmp/pjev-{uid}-worker-v1.sock
-// Windows: named pipe like \\.\pipe\pjev-{username}-worker-v1
+// The name carries IPC_PROTOCOL_VERSION (N below).
+// Unix: socket path like /tmp/pjev-{uid}/worker-vN.sock
+// Windows: named pipe like \\.\pipe\pjev-{username}-worker-vN
 const std::string& get_worker_endpoint();
 
 // Returns path to a lock file (Unix only, empty on Windows)

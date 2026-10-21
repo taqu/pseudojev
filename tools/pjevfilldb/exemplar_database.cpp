@@ -4,8 +4,8 @@
 #include <cstdio>
 #include <string>
 
-#include "lz4_utils.h"
-#include "vec_autoext.h"
+#include "retrieval/lz4_utils.h"
+#include "retrieval/vec_autoext.h"
 
 namespace pjev
 {
