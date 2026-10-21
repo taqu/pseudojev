@@ -1,6 +1,13 @@
+// The checks below use assert(); keep them active in Release builds too.
+#undef NDEBUG
+#include <cassert>
 #include "decision/decision_engine.h"
 #include "decision/prompt_strategy.h"
 #include "mock_backend.h"
+
+// Batch / KV-reuse equivalence is defined for single-order decisions (the default config enables ensembles).
+static const pjev::EnsembleConfig kSingleOrder{pjev::NoulEnsembleMode::NONE, pjev::ChoiceEnsembleMode::NONE,
+                                               pjev::ScoreEnsembleMode::NONE};
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -141,7 +148,7 @@ static void test_prefix_info() {
 
 static void test_batch_equivalence() {
     MockBackend backend;
-    pjev::DecisionEngine engine(backend);
+    pjev::DecisionEngine engine(backend, pjev::PromptConfig{}, pjev::CalibrationConfig{}, kSingleOrder);
 
     const std::string state = "Shared state for all questions.";
     std::vector<pjev::DecisionInput> inputs = {
@@ -179,7 +186,7 @@ static void test_batch_equivalence() {
 
 static void test_batch_isolation() {
     RecordingMockBackend backend;
-    pjev::DecisionEngine engine(backend);
+    pjev::DecisionEngine engine(backend, pjev::PromptConfig{}, pjev::CalibrationConfig{}, kSingleOrder);
 
     const std::string state = "Shared state text.";
     std::vector<pjev::DecisionInput> inputs = {
@@ -221,7 +228,7 @@ static void test_batch_isolation() {
 
 static void test_batch_fallback_mixed() {
     MockBackend backend;
-    pjev::DecisionEngine engine(backend);
+    pjev::DecisionEngine engine(backend, pjev::PromptConfig{}, pjev::CalibrationConfig{}, kSingleOrder);
 
     const std::string state = "Shared state.";
     std::vector<pjev::DecisionInput> inputs = {
@@ -249,7 +256,7 @@ static void test_batch_fallback_mixed() {
 
 static void test_batch_single() {
     MockBackend backend;
-    pjev::DecisionEngine engine(backend);
+    pjev::DecisionEngine engine(backend, pjev::PromptConfig{}, pjev::CalibrationConfig{}, kSingleOrder);
 
     pjev::DecisionInput inp = make_noul_input("Some state.", "Single question?");
 
@@ -272,7 +279,7 @@ static void test_batch_single() {
 
 static void test_batch_kv_reuse_disabled() {
     MockBackend backend;
-    pjev::DecisionEngine engine(backend);
+    pjev::DecisionEngine engine(backend, pjev::PromptConfig{}, pjev::CalibrationConfig{}, kSingleOrder);
 
     const std::string state = "State for disabled reuse test.";
     std::vector<pjev::DecisionInput> inputs = {
