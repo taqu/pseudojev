@@ -4,6 +4,7 @@
 #include "exemplar_database.h"
 #include "embedding/embedding.h"
 #include "inference/llama_instance.h"
+#include "routing/router_runtime.h"
 
 #include <cstdio>
 #include <cmath>
@@ -68,8 +69,8 @@ extern void register_sqlite_vec_autoext();
 
 int main()
 {
-    if(!std::ifstream(MODEL_PATH).good()) {
-        printf("SKIP: model not found at %s — skipping integration test\n", MODEL_PATH);
+    if(!std::ifstream(MODEL_PATH).good() || is_lfs_pointer(MODEL_PATH)) {
+        printf("SKIP: model not found (or a Git LFS pointer) at %s — skipping integration test\n", MODEL_PATH);
         return 0;
     }
 

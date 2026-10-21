@@ -21,6 +21,10 @@ struct RuntimeOptions {
     bool    verbose      = false;
 };
 
+// True when `path` holds a Git LFS pointer instead of the file content (repository checked out
+// without Git LFS).
+bool is_lfs_pointer(const std::string& path);
+
 // Owns the models, the exemplar database and the decision path built on them. Loaded once per process
 // (CLI --direct invocation, background worker, HTTP server) and shared by all of its decisions.
 class RouterRuntime

@@ -1,6 +1,7 @@
 #include "router_runtime.h"
 
 #include <filesystem>
+#include <fstream>
 
 #include "embedding/embedding.h"
 #include "inference/llama_backend.h"
@@ -23,7 +24,18 @@ public:
 private:
     Embedding& e_;
 };
+} // namespace
 
+bool is_lfs_pointer(const std::string& path)
+{
+    std::ifstream f(path, std::ios::binary);
+    char head[24] = {};
+    f.read(head, sizeof(head));
+    return std::string(head, static_cast<size_t>(f.gcount())).rfind("version https://git-lfs", 0) == 0;
+}
+
+namespace
+{
 bool require_file(const std::string& what, const std::string& path, std::string& err)
 {
     std::error_code ec;
@@ -33,6 +45,10 @@ bool require_file(const std::string& what, const std::string& path, std::string&
     }
     if (!std::filesystem::is_regular_file(path, ec)) {
         err = what + " not found: " + path;
+        return false;
+    }
+    if (is_lfs_pointer(path)) {
+        err = what + " " + path + " is a Git LFS pointer, not the file itself (run: git lfs pull)";
         return false;
     }
     return true;

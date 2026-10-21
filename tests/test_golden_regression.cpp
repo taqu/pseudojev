@@ -90,8 +90,8 @@ int main()
 
     for (const std::string* p : std::initializer_list<const std::string*>{&data_path, &opts.paths.model, &opts.paths.embedding_model, &opts.paths.exemplar_db,
                                  &opts.paths.exemplar_allowlist}) {
-        if (!std::filesystem::is_regular_file(*p)) {
-            printf("SKIP: %s not found (golden regression needs the runtime resources)\n", p->c_str());
+        if (!std::filesystem::is_regular_file(*p) || is_lfs_pointer(*p)) {
+            printf("SKIP: %s not found or a Git LFS pointer (golden regression needs the runtime resources)\n", p->c_str());
             return 77;
         }
     }

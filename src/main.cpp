@@ -607,13 +607,17 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         worker_running = worker_client.get_status(worker_info);
     }
 
-    auto accessible = [](const std::string& p) { std::ifstream f(p); return f.good(); };
-    struct Resource { const char* key; const char* label; std::string path; bool ok; };
+    struct Resource { const char* key; const char* label; std::string path; bool ok; bool lfs_pointer; };
+    auto resource = [](const char* key, const char* label, const std::string& p) {
+        const bool found = std::ifstream(p).good();
+        const bool lfs = found && is_lfs_pointer(p);
+        return Resource{key, label, p, found && !lfs, lfs};
+    };
     std::vector<Resource> resources = {
-        {"model",              "model path:      ", opts.paths.model,              accessible(opts.paths.model)},
-        {"embedding_model",    "embedding model: ", opts.paths.embedding_model,    accessible(opts.paths.embedding_model)},
-        {"exemplar_db",        "exemplar db:     ", opts.paths.exemplar_db,        accessible(opts.paths.exemplar_db)},
-        {"exemplar_allowlist", "exemplar allow:  ", opts.paths.exemplar_allowlist, accessible(opts.paths.exemplar_allowlist)},
+        resource("model",              "model path:      ", opts.paths.model),
+        resource("embedding_model",    "embedding model: ", opts.paths.embedding_model),
+        resource("exemplar_db",        "exemplar db:     ", opts.paths.exemplar_db),
+        resource("exemplar_allowlist", "exemplar allow:  ", opts.paths.exemplar_allowlist),
     };
     bool all_found = true;
     for (const auto& r : resources) all_found = all_found && r.ok;
@@ -651,6 +655,7 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         for (const auto& r : resources) {
             d[r.key]["path"]       = r.path;
             d[r.key]["accessible"] = r.ok;
+            if (r.lfs_pointer) d[r.key]["lfs_pointer"] = true;
         }
         d["routing"]["policy"]    = routing::kPolicyName;
         d["runtime"]["n_threads"] = opts.n_threads;
@@ -668,7 +673,8 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         printf("llama.cpp:       %s\n", PJEV_LLAMA_REVISION);
         printf("platform:        %s-%s\n", PJEV_PLATFORM, PJEV_ARCH);
         printf("cpu logical cores: %u\n", hw_concurrency);
-        for (const auto& r : resources) printf("%s%s (%s)\n", r.label, r.path.c_str(), r.ok ? "found" : "NOT FOUND");
+        for (const auto& r : resources)
+            printf("%s%s (%s)\n", r.label, r.path.c_str(), r.ok ? "found" : r.lfs_pointer ? "Git LFS pointer" : "NOT FOUND");
         printf("routing policy:  %s\n", routing::kPolicyName);
         printf("threads:         %d\n", opts.n_threads);
         printf("context size:    %d\n", opts.n_ctx);
@@ -691,6 +697,10 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         }
         for (const auto& r : resources) {
             if (r.ok) continue;
+            if (r.lfs_pointer) {
+                printf("\naction: %s '%s' is a Git LFS pointer; fetch the file with: git lfs pull\n", r.key, r.path.c_str());
+                continue;
+            }
             printf("\naction: %s not found at '%s'\n", r.key, r.path.c_str());
             printf("        pass the path on the command line, set it in pjev.json, or place the file\n");
             printf("        next to the executable (see README: Runtime resources)\n");
@@ -793,8 +803,8 @@ static int32_t cmd_decision(Type type, int32_t argc, char** argv) {
         // A worker that cannot load its resources never starts; report missing files right away.
         for (const std::string* p : {&opts.paths.model, &opts.paths.embedding_model, &opts.paths.exemplar_db,
                                      &opts.paths.exemplar_allowlist}) {
-            if (!std::filesystem::is_regular_file(*p)) {
-                spdlog::error("runtime resource not found: {} (see 'pjev diagnostics')", *p);
+            if (!std::filesystem::is_regular_file(*p) || is_lfs_pointer(*p)) {
+                spdlog::error("runtime resource missing or not fetched: {} (see 'pjev diagnostics')", *p);
                 return 1;
             }
         }
