@@ -185,7 +185,7 @@ install(FILES
     models/examplar.db
     models/examplar-allowlist.txt
     models/nomic-embed-text-v1.5.gguf
-    DESTINATION ./models COMPONENT runtime)
+    DESTINATION . COMPONENT runtime)
 
 # CPack — release archive generation
 set(CPACK_PACKAGE_NAME "pjev")
