@@ -161,20 +161,21 @@ target_compile_definitions(pjev PRIVATE ${PJEV_BUILD_DEFINITIONS})
 target_link_libraries(pjev PRIVATE pjev-runtime)
 set_target_properties(pjev PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
-install(TARGETS pjev RUNTIME DESTINATION .)
+install(TARGETS pjev RUNTIME DESTINATION . COMPONENT runtime)
 install(FILES
     LICENSE
     README.md
     release/pjev.json
     release/THIRD-PARTY-NOTICES.md
-    DESTINATION .)
+    DESTINATION . COMPONENT runtime)
 
 # CPack — release archive generation
 set(CPACK_PACKAGE_NAME "pjev")
 set(CPACK_PACKAGE_VERSION "${PJEV_VERSION}")
 set(CPACK_PACKAGE_FILE_NAME "pjev-${PJEV_VERSION}-${PJEV_PLATFORM}-${PJEV_ARCH}")
 set(CPACK_STRIP_FILES TRUE)
-set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${CMAKE_PROJECT_NAME};ALL;/")
+# Only the runtime component: llama.cpp's own install rules (headers, static libraries) stay out.
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${CMAKE_PROJECT_NAME};runtime;/")
 include(CPack)
 
 if (PJEV_BUILD_TOOLS)
