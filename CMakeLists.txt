@@ -163,11 +163,29 @@ set_target_properties(pjev PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CUR
 
 install(TARGETS pjev RUNTIME DESTINATION . COMPONENT runtime)
 install(FILES
+    release/pjev.json
+    DESTINATION . COMPONENT runtime)
+install(FILES
     LICENSE
     README.md
-    release/pjev.json
     release/THIRD-PARTY-NOTICES.md
-    DESTINATION . COMPONENT runtime)
+    models/LICENSE-bonsai.txt
+    models/LICENSE-nomic-embed-text.txt
+    #docs/Open-Jev-v1.1
+    DESTINATION ./docs COMPONENT runtime)
+install(FILES
+    docs/OpenJevData-140k/LICENSE.txt
+    DESTINATION ./docs/OpenJevData-140k COMPONENT runtime)
+install(FILES
+    docs/Open-Jev-v1.1/LICENSE-CODE-MIT.txt
+    docs/Open-Jev-v1.1/LICENSE-DATA.md
+    DESTINATION ./docs/Open-Jev-v1.1 COMPONENT runtime)
+install(FILES
+    models/bonsai2_2b.gguf
+    models/examplar.db
+    models/examplar-allowlist.txt
+    models/nomic-embed-text-v1.5.gguf
+    DESTINATION ./models COMPONENT runtime)
 
 # CPack — release archive generation
 set(CPACK_PACKAGE_NAME "pjev")
