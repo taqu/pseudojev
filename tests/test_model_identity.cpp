@@ -1,8 +1,6 @@
-// Unit tests for model identity: SHA-256, candidate token probing, ModelIdentity fields.
-// No real model files are used; a mock backend is constructed directly.
+// Unit tests for model identity: SHA-256 and ModelIdentity fields. No real model files are used.
 
 #include "model/model_identity.h"
-#include "inference/backend.h"
 
 #include <cstdio>
 #include <string>
@@ -16,28 +14,6 @@ static int g_failures = 0;
     if (!(cond)) { fprintf(stderr, "FAIL: %s\n", msg); g_failures++; } \
     else         { printf("pass: %s\n", msg); } \
 } while(0)
-
-// ---------------------------------------------------------------------------
-// Mock backend: each candidate character tokenises to its ASCII code (single token)
-// except multi-char strings -> multi-token
-// ---------------------------------------------------------------------------
-struct MockBackend : public pjev::ILlamaBackend {
-    std::vector<int> tokenize(const std::string& text,
-                              bool, bool) const override {
-        // 1-char strings → single token (ascii code)
-        // multi-char strings → one token per character
-        std::vector<int> r;
-        for (char c : text) r.push_back((int)(unsigned char)c);
-        return r;
-    }
-    int vocab_size() const override { return 256; }
-    std::string token_to_piece(int id) const override { return std::string(1, (char)id); }
-    const float* eval_tokens(const std::vector<int>&) override {
-        static float logits[256] = {};
-        return logits;
-    }
-    // metadata defaults are inherited (return "" / 0)
-};
 
 // ---------------------------------------------------------------------------
 // SHA-256 tests
@@ -58,36 +34,6 @@ static void test_sha256()
     // Different inputs → different output
     CHECK(sha256_data("a") != sha256_data("b"),
           "sha256 distinct inputs produce distinct hashes");
-}
-
-// ---------------------------------------------------------------------------
-// CandidateCompatibility tests
-// ---------------------------------------------------------------------------
-static void test_candidate_compat()
-{
-    MockBackend mb;
-
-    // Single-char candidates → single token (length 1 string → 1 token)
-    auto cc1 = pjev::probe_candidates(mb, {"A", "B", "C", "D"});
-    CHECK(cc1.all_single_token,   "ABCD: all single-token");
-    CHECK(cc1.records.size() == 4, "ABCD: 4 records");
-    CHECK(cc1.records[0].single_token, "A: single_token=true");
-    CHECK(cc1.records[0].token_count == 1, "A: token_count=1");
-    CHECK(cc1.records[0].token_id == (int)'A', "A: token_id == ascii('A')");
-    CHECK(cc1.issues.empty(), "ABCD: no issues");
-
-    // Multi-char string → multi-token
-    auto cc2 = pjev::probe_candidates(mb, {"Yes", "No"});
-    CHECK(!cc2.all_single_token, "Yes/No: not all single-token");
-    CHECK(!cc2.issues.empty(),   "Yes/No: issues reported");
-    CHECK(!cc2.records[0].single_token, "Yes: single_token=false");
-    CHECK(cc2.records[0].token_count == 3, "Yes: token_count=3");
-
-    // to_json round-trip
-    auto j = cc1.to_json();
-    CHECK(j.contains("all_single_token"), "compat json: all_single_token field");
-    CHECK(j.contains("records"),          "compat json: records field");
-    CHECK(j["all_single_token"].get<bool>(), "compat json: all_single_token=true");
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +62,6 @@ static void test_model_identity()
 int main()
 {
     test_sha256();
-    test_candidate_compat();
     test_model_identity();
 
     if (g_failures == 0) {

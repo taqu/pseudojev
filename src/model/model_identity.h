@@ -38,26 +38,5 @@ struct ModelIdentity
     nlohmann::json to_json() const;
 };
 
-struct CandidateTokenRecord
-{
-    std::string text;
-    int         token_id    = -1;
-    int         token_count = 0;
-    bool        single_token = false;
-};
-
-struct CandidateCompatibility
-{
-    bool all_single_token = false;
-    std::vector<CandidateTokenRecord> records;
-    std::vector<std::string> issues;
-
-    nlohmann::json to_json() const;
-};
-
-// Check whether each candidate text tokenises to a single token.
-CandidateCompatibility probe_candidates(ILlamaBackend& backend,
-                                         const std::vector<std::string>& candidates);
-
 } // namespace pjev
 #endif // INC_PJEV_MODEL_IDENTITY_H_

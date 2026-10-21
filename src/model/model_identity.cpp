@@ -236,49 +236,6 @@ nlohmann::json ModelIdentity::to_json() const
 }
 
 // ---------------------------------------------------------------------------
-
-CandidateCompatibility probe_candidates(ILlamaBackend& backend,
-                                         const std::vector<std::string>& candidates)
-{
-    CandidateCompatibility cc;
-    bool all_ok = true;
-    for (const auto& text : candidates) {
-        CandidateTokenRecord rec;
-        rec.text = text;
-        auto toks = backend.tokenize(text, false, false);
-        rec.token_count  = (int)toks.size();
-        rec.single_token = (rec.token_count == 1);
-        rec.token_id     = rec.single_token ? toks[0] : -1;
-        if (!rec.single_token) {
-            cc.issues.push_back("\"" + text + "\" tokenises to " +
-                                std::to_string(rec.token_count) + " tokens (not single-token)");
-            all_ok = false;
-        }
-        cc.records.push_back(rec);
-    }
-    cc.all_single_token = all_ok;
-    return cc;
-}
-
-nlohmann::json CandidateCompatibility::to_json() const
-{
-    nlohmann::json recs = nlohmann::json::array();
-    for (const auto& r : records) {
-        recs.push_back({
-            {"text",         r.text},
-            {"token_id",     r.token_id},
-            {"token_count",  r.token_count},
-            {"single_token", r.single_token}
-        });
-    }
-    return {
-        {"all_single_token", all_single_token},
-        {"records",          recs},
-        {"issues",           issues}
-    };
-}
-
-// ---------------------------------------------------------------------------
 // Platform utilities (declared in util/platform.h)
 // ---------------------------------------------------------------------------
 
