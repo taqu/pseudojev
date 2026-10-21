@@ -28,8 +28,10 @@ void PjevHttpServer::configure(const ServerConfig& cfg) {
     impl_->svr.set_read_timeout (cfg.read_timeout_secs, 0);
     impl_->svr.set_write_timeout(cfg.read_timeout_secs, 0);
     impl_->svr.set_payload_max_length(cfg.request_body_limit);
-    // Return structured JSON for HTTP-layer errors (404, 405, 413, etc.)
+    // Return structured JSON for HTTP-layer errors (404, 405, 413, etc.). httplib calls this for every
+    // status >= 400; responses that already carry a body (the API's own structured errors) are kept.
     impl_->svr.set_error_handler([](const httplib::Request& req, httplib::Response& res) {
+        if (!res.body.empty()) return;
         std::string code, msg;
         if      (res.status == 413) { code = "request_too_large";     msg = "Request body exceeds the maximum allowed size"; }
         else if (res.status == 404) { code = "not_found";             msg = "Unknown endpoint: " + req.path; }

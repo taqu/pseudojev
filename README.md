@@ -189,7 +189,8 @@ Request:
 }
 ```
 
-`domain` and `family` are optional. Questions are decided one after another.
+`domain` and `family` are optional. Questions are decided one after another. Send the body with
+`Content-Type: application/json` (the HTTP library limits form-encoded bodies to 8 KiB).
 
 Response:
 
@@ -228,6 +229,7 @@ with exit code 1 (CLI; exit code 2 is a usage error).
 | `no_eligible_exemplar` | 422 | The exemplar bank has no eligible exemplar for the task — for `score`, no training exemplar with that number of levels (the bank has 3-, 4- and 5-level scales) |
 | `inference_error` | 500 | Embedding, database, payload or inference-backend failure |
 | `server_busy` | 503 | More than `--max-queued` requests in flight |
+| `request_too_large` / `not_found` / `method_not_allowed` | 413 / 404 / 405 | HTTP-layer errors (no `request_id`) |
 
 Fallback behaviour: for `choice`, if fewer than two eligible exemplars exist or the 2-shot prompt does
 not fit the context, the decision uses the nearest exemplar alone (nearest 1-shot), as validated in R4.
