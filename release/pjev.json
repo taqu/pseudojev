@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "pjev_version": "0.9.0",
+  "default_model": "model.gguf",
+  "embedding_model": "nomic-embed-text-v1.5.gguf",
+  "exemplar_db": "examplar.db",
+  "exemplar_allowlist": "examplar-allowlist.txt",
+  "threads": -1,
+  "context_size": 4096
+}

@@ -1,32 +1,68 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# Build outputs
+build/
+bin/
+tests/bin/
+
+# Compiled artifacts
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+*.pdb
+*.lib
+*.a
+*.obj
+*.o
 
-# Test binary, built with `go test -c`
+# CMake generated
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+_CPack_Packages/
+install_manifest.txt
+
+# Release packages (produced by cpack / scripts)
+*.tar.gz
+*.tgz
+
+# bin model files (large; obtain separately per README)
+*.bin
+
+# Worker runtime artifacts
+/tmp/pjev-*/
+*.sock
+
+# Go artifacts (legacy)
 *.test
-
-# Code coverage profiles and other test artifacts
 *.out
 coverage.*
-*.coverprofile
-profile.cov
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
 go.work
 go.work.sum
 
-# env file
+# Environment / secrets
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+*.user
+*.suo
+.vs/
+
+# Phase 0 experiment
+phase0/phase0
+
+# Benchmark / research outputs
+benchmark_results/
+experiment_results/
+*.jsonl
+
+# Test fixtures (golden regression references)
+!tests/data/*.jsonl
+
+# SQLite sidecar files created when the exemplar database is opened
+*.db-shm
+*.db-wal
