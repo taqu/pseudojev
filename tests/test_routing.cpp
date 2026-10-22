@@ -1,6 +1,7 @@
 // Unit tests for task-aware routing (no model, no database): kNN voting and label mapping, task
-// mapping, the neighbour rule, per-kind dispatch, fallbacks and error codes, and the API path.
+// mapping, the neighbour rule, per-kind dispatch, the zero-shot fallback and error codes, and the API path.
 
+#include "calibration/calibration.h"
 #include "decision/decision_engine.h"
 #include "decision/decision_service.h"
 #include "mock_backend.h"
@@ -11,6 +12,7 @@
 #include "routing/task_router.h"
 #include "server/jev_api.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <map>
@@ -22,6 +24,7 @@
 using namespace pjev;
 using namespace pjev::routing;
 using retrieval::ExemplarPayload;
+using retrieval::LoadResult;
 using retrieval::SearchHit;
 using json = nlohmann::ordered_json;
 
@@ -53,7 +56,9 @@ struct FakeIndex : public retrieval::IExemplarIndex {
     std::map<int64_t, ExemplarPayload> rows;
     std::set<int64_t> allowed;
     std::vector<SearchHit> top1, topk;  // returned for top_k == 1 / top_k > 1
+    std::set<int64_t> undecodable;      // load() -> Invalid (corrupt payload)
     bool fail_search = false;
+    bool fail_load = false;             // load() -> Failed (database error)
     mutable int searches_top1 = 0, searches_topk = 0, loads = 0;
     mutable std::vector<std::pair<std::string, int>> filters;  // (kind, levels) per search
 
@@ -71,12 +76,14 @@ struct FakeIndex : public retrieval::IExemplarIndex {
         }
         return true;
     }
-    bool load(int64_t id, ExemplarPayload& out, std::string& err) const override {
+    LoadResult load(int64_t id, ExemplarPayload& out, std::string& err) const override {
         loads++;
+        if (fail_load) { err = "exemplar read failed: database disk image is malformed"; return LoadResult::Failed; }
+        if (undecodable.count(id)) { err = "exemplar state_lz4: corrupt frame"; return LoadResult::Invalid; }
         auto it = rows.find(id);
-        if (it == rows.end()) { err = "exemplar not found"; return false; }
+        if (it == rows.end()) { err = "exemplar not found"; return LoadResult::Invalid; }
         out = it->second;
-        return true;
+        return LoadResult::Ok;
     }
     bool is_allowed(int64_t id) const override { return allowed.count(id) > 0; }
 
@@ -91,15 +98,26 @@ class RecordingBackend : public MockBackend {
 public:
     int evals = 0;
     size_t max_tokens = 1u << 30;
+    bool fail = false;    // every evaluation throws a backend error unrelated to the context
+    bool varied = false;  // letter logits depend on the prompt length (instead of one fixed winner)
     std::vector<std::string> prompts;
     const float* eval_tokens(const std::vector<int>& tokens) override {
+        if (fail) throw std::runtime_error("llama_decode failed");
         if (tokens.size() > max_tokens) throw std::runtime_error("prompt too long (" + std::to_string(tokens.size()) + " tokens)");
         evals++;
         std::string text;
         for (int t : tokens) text += t >= 1000 ? std::string(1, (char)(t - 1000)) : token_to_piece(t);
         prompts.push_back(text);
+        if (varied) {
+            varied_logits_.assign(600, 0.0f);
+            for (size_t i = 0; i < 20; ++i) varied_logits_[65 + i] = static_cast<float>((tokens.size() * (i + 3)) % 11) * 0.75f;
+            return varied_logits_.data();
+        }
         return MockBackend::eval_tokens(tokens);
     }
+
+private:
+    std::vector<float> varied_logits_;
 };
 
 static ExemplarPayload payload(int64_t id, const std::string& kind, const std::string& question,
@@ -318,24 +336,52 @@ static void test_neighbour_list()
     CHECK(near(n[1].similarity, estimated_cosine(83, 768)) && n[1].hamming == 83, "neighbours: similarity from hamming");
     CHECK(idx.loads == 5, "neighbours: stops loading once enough are picked");
 
+    CHECK(nl.offered() == 5 && nl.rejected() == 2, "neighbours: offered / rejected counts");
+
+    // Invalid candidates are skipped (never counted); the next valid one is taken.
+    auto skipped = [&](FakeIndex& idx2, const RetrievalTask& q, int64_t bad_id, const char* msg) {
+        idx2.add(payload(500, q.kind, "valid", q.kind == "noul" ? std::vector<std::string>{"no", "yes"}
+                                               : q.kind == "score" ? q.options : std::vector<std::string>{"a", "b"}, 0));
+        NeighbourList l(q, idx2, 768);
+        std::string e;
+        const bool ok = l.extend({{bad_id, 10}, {500, 11}}, 2, e);
+        CHECK(ok && l.neighbours().size() == 1 && l.neighbours()[0].id == 500 && l.rejected() == 1, msg);
+    };
     FakeIndex bad;
     bad.add(payload(7, "noul", "q", {"no", "yes"}, 0));  // wrong kind for a choice query
-    NeighbourList nl2(t.retrieval, bad, 768);
-    CHECK(!nl2.extend({{7, 10}}, 1, err) && err.find("not eligible") != std::string::npos, "neighbours: eligibility re-checked");
+    skipped(bad, t.retrieval, 7, "neighbours: wrong kind skipped");
     FakeIndex notallowed;
     notallowed.add(payload(8, "choice", "q", {"a", "b"}, 0), false);
-    NeighbourList nl3(t.retrieval, notallowed, 768);
-    CHECK(!nl3.extend({{8, 10}}, 1, err), "neighbours: allowlist re-checked");
+    skipped(notallowed, t.retrieval, 8, "neighbours: not in the allowlist skipped");
     FakeIndex missing;
-    NeighbourList nl4(t.retrieval, missing, 768);
-    CHECK(!nl4.extend({{9, 10}}, 1, err) && err.find("not found") != std::string::npos, "neighbours: payload error propagates");
+    skipped(missing, t.retrieval, 9, "neighbours: missing record skipped");
+    FakeIndex corrupt;
+    corrupt.add(payload(6, "choice", "q", {"a", "b"}, 0));
+    corrupt.undecodable.insert(6);
+    skipped(corrupt, t.retrieval, 6, "neighbours: undecodable record skipped");
+    FakeIndex soft;
+    soft.add(payload(5, "choice", "q", {"a", "b"}, -1));
+    skipped(soft, t.retrieval, 5, "neighbours: no one-hot answer skipped");
 
     RoutedTask s;
     route_task(score_input(5), s, err);
     FakeIndex lv;
     lv.add(payload(10, "score", "q", {"a", "b", "c"}, 0));  // 3 levels for a 5-level query
-    NeighbourList nl5(s.retrieval, lv, 768);
-    CHECK(!nl5.extend({{10, 10}}, 1, err), "neighbours: score level count re-checked");
+    skipped(lv, s.retrieval, 10, "neighbours: score level count re-checked");
+    FakeIndex unmapped;
+    ExemplarPayload odd = payload(11, "score", "q", {"a", "b", "c", "d", "e"}, 0);
+    odd.options.pop_back();  // 5 levels stored with 4 options: the answer cannot map onto the query
+    unmapped.add(odd);
+    skipped(unmapped, s.retrieval, 11, "neighbours: score answer without a level mapping skipped");
+    NeighbourList sl(s.retrieval, lv, 768);
+    CHECK(sl.extend({{500, 10}}, 1, err) && sl.neighbours()[0].label == 0, "neighbours: score label mapped");
+
+    FakeIndex dberr;
+    dberr.add(payload(12, "choice", "q", {"a", "b"}, 0));
+    dberr.fail_load = true;
+    NeighbourList nl6(t.retrieval, dberr, 768);
+    CHECK(!nl6.extend({{12, 10}}, 1, err) && err.find("malformed") != std::string::npos,
+          "neighbours: database failure propagates");
 }
 
 // ---------------------------------------------------------------------------
@@ -367,6 +413,8 @@ static void test_choice_route()
     DecisionOutput out = f.router.decide(choice_input());
     CHECK(out.ok, "choice: ok");
     CHECK(out.routing && out.routing->strategy == kNearest2Shot && !out.routing->fallback, "choice: nearest 2-shot");
+    CHECK(out.routing->requested_strategy == kNearest2Shot && out.routing->fallback_reason.empty() &&
+          out.routing->required_exemplars == 2 && out.routing->valid_exemplars == 2, "choice: routing diagnostics");
     CHECK(out.routing->demonstration_ids == std::vector<int64_t>({12, 11}), "choice: order A = second-nearest, nearest");
     CHECK(out.routing->neighbour_ids == std::vector<int64_t>({11, 12}), "choice: rank 1 is the top-1 search result");
     CHECK(f.index.searches_top1 == 1 && f.index.searches_topk == 1, "choice: top-1 and top-K searches");
@@ -389,17 +437,62 @@ static void test_choice_route()
           "choice: deterministic");
 }
 
+// The S1 zero-shot answer for `in`, computed by a separate engine with the production configuration.
+static DecisionOutput s1_reference(const DecisionInput& in, std::string& prompt, char winner)
+{
+    RecordingBackend b;
+    b.set_winner(winner);
+    DecisionEngine e(b, PromptConfig{Layout::AUTO, Scheme::LETTERS}, CalibrationConfig{},
+                     EnsembleConfig{NoulEnsembleMode::NONE, ChoiceEnsembleMode::NONE, ScoreEnsembleMode::NONE});
+    RoutedTask t;
+    std::string err;
+    route_task(in, t, err);
+    DecisionOutput out = e.decide(t.decision);
+    prompt = b.prompts.empty() ? "" : b.prompts.back();
+    // Back to the caller's candidate order, as the router reports it.
+    DecisionOutput r = out;
+    for (size_t c = 0; c < t.to_caller.size(); ++c) {
+        const size_t to = static_cast<size_t>(t.to_caller[c]);
+        r.probs[to] = out.probs[c];
+        r.raw_logits[to] = out.raw_logits[c];
+    }
+    r.selected = t.to_caller[static_cast<size_t>(out.selected)];
+    return r;
+}
+
+// out is a zero-shot fallback from `requested`, equal to S1 for `in`.
+static void check_zero_shot(const DecisionOutput& out, const RecordingBackend& backend, const DecisionInput& in,
+                            const char* requested, const char* reason, int valid, int required, char winner,
+                            const std::string& what)
+{
+    CHECK(out.ok && out.routing && out.routing->strategy == kZeroShot && out.routing->fallback,
+          (what + ": S1 zero-shot").c_str());
+    CHECK(out.routing && out.routing->requested_strategy == requested && out.routing->fallback_reason == reason &&
+          out.routing->valid_exemplars == valid && out.routing->required_exemplars == required &&
+          out.routing->demonstration_ids.empty(), (what + ": routing diagnostics").c_str());
+    std::string s1_prompt;
+    const DecisionOutput s1 = s1_reference(in, s1_prompt, winner);
+    CHECK(backend.evals == 1 && !backend.prompts.empty() && backend.prompts.back() == s1_prompt,
+          (what + ": one evaluation of the S1 prompt").c_str());
+    CHECK(out.selected == s1.selected && out.probs == s1.probs && out.raw_logits == s1.raw_logits &&
+          out.prompt_token_count == s1.prompt_token_count, (what + ": prediction equals S1").c_str());
+}
+
 static void test_choice_fallbacks()
 {
-    {   // Only one neighbour -> 1-shot with the nearest
+    for (int valid = 0; valid < 2; ++valid) {  // 0 or 1 valid exemplar -> zero-shot, never 1-shot
         Fixture f;
+        f.backend.set_winner('B');
         f.index.add(payload(21, "choice", "ONLY-Q", {"a", "b"}, 0));
-        f.index.top1 = {{21, 70}};
-        f.index.topk = {{21, 70}};
+        if (valid == 1) {
+            f.index.top1 = {{21, 70}};
+            f.index.topk = {{21, 70}};
+        }
         DecisionOutput out = f.router.decide(choice_input());
-        CHECK(out.ok && out.routing->fallback && out.routing->demonstration_ids == std::vector<int64_t>({21}),
-              "choice fallback: fewer than two neighbours -> nearest 1-shot");
-        CHECK(f.backend.evals == 1, "choice fallback: one evaluation");
+        check_zero_shot(out, f.backend, choice_input(), kNearest2Shot,
+                        valid == 0 ? kReasonNoExemplar : kReasonInsufficientExemplars, valid, 2, 'B',
+                        "choice with " + std::to_string(valid) + " valid exemplar(s)");
+        CHECK(f.backend.prompts.back().find("ONLY-Q") == std::string::npos, "choice fallback: no demonstration in the prompt");
     }
     {   // 2-shot exceeds the context -> 1-shot
         Fixture f;
@@ -419,8 +512,9 @@ static void test_choice_fallbacks()
             f.backend.max_tokens = static_cast<size_t>(e.decide_with_demonstration(t.decision, d).prompt_token_count);
         }
         DecisionOutput out = f.router.decide(choice_input());
-        CHECK(out.ok && out.routing->fallback && out.routing->demonstration_ids == std::vector<int64_t>({31}),
-              "choice fallback: 2-shot over the context -> nearest 1-shot");
+        CHECK(out.ok && out.routing->fallback && out.routing->demonstration_ids == std::vector<int64_t>({31}) &&
+              out.routing->strategy == kNearest1Shot && out.routing->fallback_reason == kReasonContextLimit,
+              "choice fallback: 2-shot over the context -> nearest 1-shot (R4)");
         f.backend.max_tokens = 10;
         out = f.router.decide(choice_input());
         CHECK(!out.ok && out.error_code == ErrorCode::CONTEXT_TOO_LONG, "choice: 1-shot over the context -> context_too_long");
@@ -460,6 +554,20 @@ static void test_noul_route()
     DecisionOutput o2 = g.router.decide(noul_input(false));
     CHECK(o2.ok && o2.routing->demonstration_ids == std::vector<int64_t>({52}) && g.index.searches_topk == 1,
           "noul: query content skipped, top-K consulted");
+
+    // No valid exemplar -> zero-shot.
+    Fixture z;
+    z.backend.set_winner('B');
+    check_zero_shot(z.router.decide(noul_input(true)), z.backend, noul_input(true), kNearest1Shot, kReasonNoExemplar,
+                    0, 1, 'B', "noul with 0 valid exemplars");
+    // Only the query itself in the bank -> zero-shot.
+    Fixture q;
+    q.backend.set_winner('A');
+    q.index.add(payload(51, "noul", t.retrieval.question, {"no", "yes"}, 1, json(t.retrieval.state_text)));
+    q.index.top1 = {{51, 0}};
+    q.index.topk = {{51, 0}};
+    check_zero_shot(q.router.decide(noul_input(false)), q.backend, noul_input(false), kNearest1Shot,
+                    kReasonInsufficientExemplars, 0, 1, 'A', "noul with only the query in the bank");
 }
 
 static void test_score_route()
@@ -494,11 +602,87 @@ static void test_score_route()
     CHECK(near(out.expected_score, ev) && out.probs[2] == 0.0, "score: expected level; level 2 (6th neighbour) has no vote");
     CHECK(out.keys.size() == 5 && out.keys[0] == "0", "score: level keys");
 
-    Fixture none;
-    DecisionOutput miss = none.router.decide(score_input(7));
-    CHECK(!miss.ok && miss.error_code == ErrorCode::NO_ELIGIBLE_EXEMPLAR &&
-          miss.error.find("score with 7 levels") != std::string::npos, "score: no eligible exemplar -> no_eligible_exemplar");
-    CHECK(none.backend.evals == 0, "score: no fallback inference");
+    CHECK(out.routing->valid_exemplars == 5 && out.routing->required_exemplars == 5 && !out.routing->fallback,
+          "score: routing diagnostics");
+
+    // 0-4 valid exemplars -> zero-shot, never kNN with k < 5.
+    for (int valid = 0; valid < 5; ++valid) {
+        Fixture g;
+        g.backend.set_winner('C');
+        for (int i = 0; i < valid; ++i) {
+            g.index.add(payload(60 + i, "score", "S" + std::to_string(i), {"l0", "l1", "l2", "l3", "l4"}, labels[i]));
+            g.index.topk.push_back({60 + i, ham[i]});
+        }
+        if (valid > 0) g.index.top1 = {{60, 70}};
+        check_zero_shot(g.router.decide(score_input(5)), g.backend, score_input(5), kKnn5,
+                        valid == 0 ? kReasonNoExemplar : kReasonInsufficientExemplars, valid, 5, 'C',
+                        "score with " + std::to_string(valid) + " valid exemplar(s)");
+    }
+    Fixture none;  // no 7-level scale in the bank
+    none.backend.set_winner('G');
+    check_zero_shot(none.router.decide(score_input(7)), none.backend, score_input(7), kKnn5, kReasonNoExemplar, 0, 5,
+                    'G', "score with an unknown level count");
+}
+
+// Invalid or duplicated exemplars never make up the required count.
+static void test_invalid_exemplars()
+{
+    {   // choice: the second hit duplicates the first's content -> one valid exemplar -> zero-shot
+        Fixture f;
+        f.index.add(payload(101, "choice", "SAME-Q", {"a", "b"}, 0));
+        f.index.add(payload(102, "choice", "SAME-Q", {"a", "b"}, 1));
+        f.index.top1 = {{101, 50}};
+        f.index.topk = {{101, 50}, {102, 51}};
+        DecisionOutput out = f.router.decide(choice_input());
+        check_zero_shot(out, f.backend, choice_input(), kNearest2Shot, kReasonInsufficientExemplars, 1, 2, 'A',
+                        "choice with a duplicated exemplar");
+        CHECK(out.routing->rejected_exemplars == 1, "choice duplicate: counted as rejected");
+    }
+    {   // choice: the same ID twice -> zero-shot
+        Fixture f;
+        f.index.add(payload(103, "choice", "Q", {"a", "b"}, 0));
+        f.index.top1 = {{103, 50}};
+        f.index.topk = {{103, 50}, {103, 50}};
+        check_zero_shot(f.router.decide(choice_input()), f.backend, choice_input(), kNearest2Shot,
+                        kReasonInsufficientExemplars, 1, 2, 'A', "choice with a repeated ID");
+    }
+    {   // score: one of five is undecodable, one has no one-hot answer, one is not allowlisted -> zero-shot
+        Fixture f;
+        for (int i = 0; i < 5; ++i) {
+            f.index.add(payload(110 + i, "score", "S" + std::to_string(i), {"l0", "l1", "l2", "l3", "l4"}, i),
+                        i != 4);
+            f.index.topk.push_back({110 + i, 70.0 + i});
+        }
+        f.index.undecodable.insert(111);
+        f.index.rows[112].answer_index = -1;
+        f.index.top1 = {{110, 70}};
+        DecisionOutput out = f.router.decide(score_input(5));
+        check_zero_shot(out, f.backend, score_input(5), kKnn5, kReasonInsufficientExemplars, 2, 5, 'A',
+                        "score with invalid exemplars");
+        CHECK(out.routing->rejected_exemplars == 3 && out.routing->neighbour_ids == std::vector<int64_t>({110, 113}),
+              "score invalid: only valid exemplars listed");
+    }
+    {   // score: an invalid exemplar is replaced by the next valid one in rank order -> kNN-5
+        Fixture f;
+        for (int i = 0; i < 6; ++i) {
+            f.index.add(payload(120 + i, "score", "S" + std::to_string(i), {"l0", "l1", "l2", "l3", "l4"}, i % 5));
+            f.index.topk.push_back({120 + i, 70.0 + i});
+        }
+        f.index.undecodable.insert(122);
+        f.index.top1 = {{120, 70}};
+        DecisionOutput out = f.router.decide(score_input(5));
+        CHECK(out.ok && out.routing->strategy == kKnn5 && !out.routing->fallback && f.backend.evals == 0 &&
+              out.routing->neighbour_ids == std::vector<int64_t>({120, 121, 123, 124, 125}) &&
+              out.routing->rejected_exemplars == 1, "score: invalid exemplar skipped, next valid one votes");
+    }
+    {   // noul: the only hit is returned by the search but not in the allowlist -> zero-shot
+        Fixture f;
+        f.index.add(payload(130, "noul", "N", {"no", "yes"}, 0), false);
+        f.index.top1 = {{130, 10}};
+        f.index.topk = {{130, 10}};
+        check_zero_shot(f.router.decide(noul_input(false)), f.backend, noul_input(false), kNearest1Shot,
+                        kReasonInsufficientExemplars, 0, 1, 'A', "noul with an ineligible exemplar");
+    }
 }
 
 static void test_router_errors()
@@ -518,11 +702,43 @@ static void test_router_errors()
     }
     {
         Fixture f;
-        f.index.top1 = {{99, 10}};  // not loadable
-        f.index.allowed.insert(99);
+        f.index.add(payload(99, "noul", "N", {"no", "yes"}, 0));
+        f.index.top1 = {{99, 10}};
+        f.index.fail_load = true;
         DecisionOutput out = f.router.decide(noul_input(false));
-        CHECK(!out.ok && out.error_code == ErrorCode::INFERENCE_ERROR, "errors: payload failure -> inference_error");
-        CHECK(f.backend.evals == 0, "errors: no answer after a payload failure");
+        CHECK(!out.ok && out.error_code == ErrorCode::INFERENCE_ERROR && out.error.find("malformed") != std::string::npos,
+              "errors: database read failure -> inference_error");
+        CHECK(f.backend.evals == 0, "errors: no zero-shot answer after a database failure");
+    }
+    {
+        Fixture f;
+        f.index.fail_search = true;
+        DecisionOutput out = f.router.decide(score_input(5));
+        CHECK(!out.ok && out.error_code == ErrorCode::INFERENCE_ERROR && f.backend.evals == 0,
+              "errors: score search failure -> inference_error, no zero-shot answer");
+    }
+    {   // Backend failure on the normal path is not turned into a fallback.
+        Fixture f;
+        f.index.add(payload(97, "choice", "A-Q", {"a", "b"}, 0));
+        f.index.add(payload(98, "choice", "B-Q", {"a", "b"}, 1));
+        f.index.top1 = {{97, 10}};
+        f.index.topk = {{97, 10}, {98, 11}};
+        f.backend.fail = true;
+        DecisionOutput out = f.router.decide(choice_input());
+        CHECK(!out.ok && out.error_code == ErrorCode::INFERENCE_ERROR && out.routing &&
+              out.routing->strategy == kNearest2Shot && !out.routing->fallback,
+              "errors: inference failure on 2-shot -> inference_error, no fallback");
+    }
+    {   // A failing fallback reports through the usual error codes.
+        Fixture f;
+        f.backend.fail = true;
+        DecisionOutput out = f.router.decide(noul_input(false));
+        CHECK(!out.ok && out.error_code == ErrorCode::INFERENCE_ERROR && out.routing &&
+              out.routing->strategy == kZeroShot, "errors: zero-shot inference failure -> inference_error");
+        f.backend.fail = false;
+        f.backend.max_tokens = 3;
+        out = f.router.decide(noul_input(false));
+        CHECK(!out.ok && out.error_code == ErrorCode::CONTEXT_TOO_LONG, "errors: zero-shot over the context -> context_too_long");
     }
     {
         Fixture f;
@@ -537,10 +753,190 @@ static void test_router_errors()
         CHECK(f.embedder.texts.empty(), "errors: nothing embedded for invalid requests");
     }
     {
-        Fixture f;  // empty bank
+        Fixture f;  // empty bank: not an error
         DecisionOutput out = f.router.decide(choice_input());
-        CHECK(!out.ok && out.error_code == ErrorCode::NO_ELIGIBLE_EXEMPLAR && f.backend.evals == 0,
-              "errors: empty retrieval -> no_eligible_exemplar, no answer");
+        CHECK(out.ok && out.routing->strategy == kZeroShot, "errors: empty retrieval -> zero-shot, not an error");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Calibration (R5)
+// ---------------------------------------------------------------------------
+
+// The supplied parameters, for the production (letters) formulation.
+static CalibrationArtifact letters_calibration(bool prior_correction)
+{
+    CalibrationArtifact a;
+    a.formulation        = {"auto", "letters", prior_correction};
+    a.choice_temperature = 2.046567219106836;
+    a.choice_prior_alpha = 0.9999999999999999;
+    a.noul_temperature   = 99.99999952490862;
+    a.noul_prior_alpha   = 0.0;
+    a.score_temperature  = 11.960309669703673;
+    a.score_prior_alpha  = 1.0999999999999999;
+    return a;
+}
+
+static const EnsembleConfig kSingleOrder{NoulEnsembleMode::NONE, ChoiceEnsembleMode::NONE, ScoreEnsembleMode::NONE};
+
+struct CalibratedFixture {
+    RecordingBackend backend;
+    DecisionEngine engine;
+    FakeEmbedder embedder;
+    FakeIndex index;
+    TaskRouter router;
+    explicit CalibratedFixture(const CalibrationLoad& c)
+        : engine(backend, PromptConfig{Layout::AUTO, Scheme::LETTERS}, c.config(), kSingleOrder)
+        , router(engine, embedder, index, c.prior_correction()) { backend.varied = true; }
+};
+
+static CalibrationLoad enabled(bool prior_correction)
+{
+    CalibrationLoad c;
+    c.state    = CalibrationState::Enabled;
+    c.artifact = letters_calibration(prior_correction);
+    return c;
+}
+
+// Blank-prompt prior of the existing implementation (a separate engine on an identical backend).
+static std::vector<float> reference_prior(Type type, int n)
+{
+    RecordingBackend b;
+    b.varied = true;
+    DecisionEngine e(b, PromptConfig{Layout::AUTO, Scheme::LETTERS}, CalibrationConfig{}, kSingleOrder);
+    return e.compute_blank_logits(type, n);
+}
+
+// out (candidates in decision order) follows the existing calibration: prior correction with alpha,
+// then the temperature softmax with T.
+static void check_calibrated(const DecisionOutput& out, const std::vector<float>& prior, double alpha, double T,
+                             const std::string& what)
+{
+    CHECK(out.ok && out.raw_logits.size() == prior.size() && out.corrected_logits.size() == prior.size(),
+          (what + ": logits reported").c_str());
+    if (!out.ok || out.raw_logits.size() != prior.size()) return;
+    std::vector<float> corrected = out.raw_logits;
+    for (size_t i = 0; i < corrected.size(); ++i) corrected[i] -= (float)(alpha * (double)prior[i]);
+    std::vector<double> probs;
+    temperature_softmax(corrected, T, probs);
+    CHECK(out.corrected_logits == corrected, (what + ": prior correction = raw - alpha * prior").c_str());
+    CHECK(out.probs == probs, (what + ": probabilities = temperature softmax of the corrected logits").c_str());
+    const auto best = std::max_element(probs.begin(), probs.end()) - probs.begin();
+    CHECK(out.selected == best, (what + ": prediction = calibrated argmax").c_str());
+}
+
+static void test_calibration_llm_paths()
+{
+    const CalibrationArtifact a = letters_calibration(true);
+    {   // choice: nearest 2-shot with the choice parameters
+        CalibratedFixture f(enabled(true));
+        f.index.add(payload(11, "choice", "NEAREST-Q", {"a", "b"}, 1));
+        f.index.add(payload(12, "choice", "SECOND-Q", {"a", "b", "c"}, 2));
+        f.index.top1 = {{11, 80}};
+        f.index.topk = {{11, 80}, {12, 81}};
+        DecisionOutput out = f.router.decide(choice_input());
+        CHECK(out.routing && out.routing->strategy == kNearest2Shot, "calibration: choice stays nearest 2-shot");
+        check_calibrated(out, reference_prior(Type::Choice, 3), a.choice_prior_alpha, a.choice_temperature,
+                         "calibration: choice 2-shot");
+    }
+    {   // noul: nearest 1-shot with the noul parameters (caller order = decision order)
+        CalibratedFixture f(enabled(true));
+        f.index.add(payload(41, "noul", "NEAREST-Q", {"no", "yes"}, 1));
+        f.index.top1 = {{41, 60}};
+        DecisionOutput out = f.router.decide(noul_input(false));
+        CHECK(out.routing && out.routing->strategy == kNearest1Shot, "calibration: noul stays nearest 1-shot");
+        check_calibrated(out, reference_prior(Type::Noul, 2), a.noul_prior_alpha, a.noul_temperature,
+                         "calibration: noul 1-shot");
+        CHECK(out.p_true == out.probs[1], "calibration: noul p_true is the calibrated true probability");
+    }
+    // Zero-shot fallback: each kind with its own parameters; score with the score LLM parameters.
+    struct ZeroShot { DecisionInput in; Type type; double alpha, T; const char* what; };
+    const ZeroShot cases[] = {
+        {choice_input(), Type::Choice, a.choice_prior_alpha, a.choice_temperature, "calibration: choice zero-shot"},
+        {noul_input(false), Type::Noul, a.noul_prior_alpha, a.noul_temperature, "calibration: noul zero-shot"},
+        {score_input(5), Type::Score, a.score_prior_alpha, a.score_temperature, "calibration: score zero-shot"},
+    };
+    for (const auto& c : cases) {
+        CalibratedFixture f(enabled(true));
+        DecisionOutput out = f.router.decide(c.in);
+        CHECK(out.routing && out.routing->strategy == kZeroShot, (std::string(c.what) + " is the fallback").c_str());
+        check_calibrated(out, reference_prior(c.type, static_cast<int>(c.in.options.size())), c.alpha, c.T, c.what);
+    }
+    {   // score zero-shot: expected level from the calibrated probabilities
+        CalibratedFixture f(enabled(true));
+        DecisionOutput out = f.router.decide(score_input(4));
+        double ev = 0;
+        for (size_t i = 0; i < out.probs.size(); ++i) ev += i * out.probs[i];
+        CHECK(out.ok && near(out.expected_score, ev), "calibration: score zero-shot expected level from calibrated probabilities");
+    }
+    {   // without prior correction in the artifact: temperature only
+        CalibratedFixture f(enabled(false));
+        DecisionOutput out = f.router.decide(choice_input());
+        check_calibrated(out, std::vector<float>(3, 0.0f), 0.0, a.choice_temperature, "calibration: temperature only");
+        CHECK(f.backend.evals == 1, "calibration: no blank-prompt evaluation without prior correction");
+    }
+}
+
+static void test_calibration_knn_unchanged()
+{
+    auto fill = [](FakeIndex& idx) {
+        const int labels[5] = {4, 1, 1, 4, 0};
+        const double ham[5] = {70, 71, 71, 75, 76};
+        for (int i = 0; i < 5; ++i) {
+            idx.add(payload(60 + i, "score", "S" + std::to_string(i), {"l0", "l1", "l2", "l3", "l4"}, labels[i]));
+            idx.topk.push_back({60 + i, ham[i]});
+        }
+        idx.top1 = {{60, 70}};
+    };
+    Fixture plain;
+    fill(plain.index);
+    CalibratedFixture cal(enabled(true));
+    fill(cal.index);
+    const DecisionOutput a = plain.router.decide(score_input(5));
+    const DecisionOutput b = cal.router.decide(score_input(5));
+    CHECK(b.ok && b.routing->strategy == kKnn5, "calibration: score stays weighted kNN-5");
+    CHECK(a.selected == b.selected && a.probs == b.probs && a.raw_probs == b.raw_probs && a.expected_score == b.expected_score,
+          "calibration: kNN-5 votes and probabilities unchanged");
+    CHECK(cal.backend.evals == 0, "calibration: kNN-5 evaluates nothing (no prior, no temperature)");
+}
+
+static void test_calibration_reuse()
+{
+    CalibratedFixture f(enabled(true));
+    f.router.decide(choice_input());
+    CHECK(f.backend.evals == 2, "calibration reuse: first choice decision computes the prior once");
+    f.router.decide(choice_input());
+    f.router.decide(choice_input());
+    CHECK(f.backend.evals == 4, "calibration reuse: later decisions reuse the cached prior");
+    DecisionInput two = choice_input();
+    two.options.resize(2);
+    f.router.decide(two);
+    CHECK(f.backend.evals == 6, "calibration reuse: one prior per candidate count");
+    f.router.decide(noul_input(false));
+    f.router.decide(noul_input(true));
+    CHECK(f.backend.evals == 9, "calibration reuse: one prior per kind");
+}
+
+static void test_calibration_disabled()
+{
+    // Disabled, missing and incompatible calibration all give the uncalibrated (R4) decision.
+    for (CalibrationState st : {CalibrationState::Disabled, CalibrationState::Missing, CalibrationState::Incompatible}) {
+        CalibrationLoad c;
+        c.state    = st;
+        c.artifact = letters_calibration(true);
+        CalibratedFixture f(c);
+        f.backend.varied = false;
+        Fixture plain;
+        plain.index.add(payload(11, "choice", "NEAREST-Q", {"a", "b"}, 1));
+        plain.index.add(payload(12, "choice", "SECOND-Q", {"a", "b"}, 0));
+        plain.index.top1 = {{11, 80}};
+        plain.index.topk = {{11, 80}, {12, 81}};
+        f.index = plain.index;
+        const DecisionOutput a = plain.router.decide(choice_input());
+        const DecisionOutput b = f.router.decide(choice_input());
+        const std::string what = std::string("calibration ") + to_string(st) + ": uncalibrated decision";
+        CHECK(b.ok && a.probs == b.probs && a.selected == b.selected && a.corrected_logits == b.corrected_logits &&
+              f.backend.prompts == plain.backend.prompts && f.backend.evals == 1, what.c_str());
     }
 }
 
@@ -567,7 +963,9 @@ static void test_api()
     handler.handle(R"({"state":"s","questions":{"q":{"type":"score","instructions":"Rate","criteria":["a","b","c","d","e","f"]}}})",
                    status, body);
     r = json::parse(body);
-    CHECK(status == 422 && r["error"]["code"] == "no_eligible_exemplar", "api: no eligible exemplar -> 422");
+    CHECK(status == 200 && r["answers"]["q"]["probabilities"].size() == 6, "api: no eligible exemplar -> zero-shot answer");
+    CHECK(r.dump().find("zero_shot") == std::string::npos && r.dump().find("fallback") == std::string::npos,
+          "api: routing diagnostics are not exposed");
 
     f.embedder.fail = true;
     handler.handle(R"({"state":"s","questions":{"q":{"type":"noul","instructions":"Is it?"}}})", status, body);
@@ -597,7 +995,12 @@ int main()
     test_choice_fallbacks();
     test_noul_route();
     test_score_route();
+    test_invalid_exemplars();
     test_router_errors();
+    test_calibration_llm_paths();
+    test_calibration_knn_unchanged();
+    test_calibration_reuse();
+    test_calibration_disabled();
     test_api();
 
     if (g_failures == 0) {

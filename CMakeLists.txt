@@ -96,6 +96,9 @@ set(PJEV_BUILD_DEFINITIONS
 add_library(pjev-core STATIC
     src/util/platform.cpp
     src/calibration/calibration.cpp
+    src/calibration/calibration_fit.cpp
+    src/calibration/calibration_generator.cpp
+    src/calibration/calibration_metrics.cpp
     src/decision/prompt_strategy.cpp
     src/decision/decision_engine.cpp
     src/retrieval/embedding_text.cpp
@@ -186,6 +189,10 @@ install(FILES
     models/examplar-allowlist.txt
     models/nomic-embed-text-v1.5.gguf
     DESTINATION . COMPONENT runtime)
+# Default calibration artifact (read at start-up when present).
+install(FILES
+    models/calibration.json
+    DESTINATION . COMPONENT runtime OPTIONAL)
 
 # CPack — release archive generation
 set(CPACK_PACKAGE_NAME "pjev")

@@ -14,7 +14,9 @@
 #define PJEV_LLAMA_REVISION "unknown"
 #endif
 
+#include "calibration/calibration_generator.h"
 #include "model/model_identity.h"
+#include "retrieval/exemplar_store.h"
 #include "util/platform.h"
 #include "decision/decision_service.h"
 #include "routing/router_runtime.h"
@@ -54,6 +56,8 @@ static const char* kResourceOptionsHelp =
     "  --embedding-model PATH     query embedding model (.gguf)\n"
     "  --exemplar-db PATH         exemplar database (read-only)\n"
     "  --exemplar-allowlist PATH  eligible exemplar IDs\n"
+    "  --calibration PATH         calibration artifact (default: calibration.json; uncalibrated if absent)\n"
+    "  --no-calibration           decide uncalibrated (R4 reference behaviour)\n"
     "  --threads N                CPU threads (default: physical cores)\n"
     "  --ctx-size N               context size (default: 4096)\n"
     "  --n-gpu-layers N           number of layers to offload to GPU (default: 0)\n"
@@ -153,6 +157,7 @@ static void usage(const char* prog) {
         "utilities:\n"
         "  diagnostics  runtime info, resource paths, CPU, worker state  (--json for reports)\n"
         "  benchmark    measure decision latency\n"
+        "  calibrate    generate calibration.json for the inference model\n"
         "  --version    print version and exit\n"
         "\n"
         "run '%s <command> --help' for command-specific options\n"
@@ -181,7 +186,7 @@ struct SpdLogShutdown {
 static bool consume_deprecated(const std::string& a, int32_t& i, int32_t argc)
 {
     static const std::map<std::string, bool> kDeprecated = {
-        {"--calibration", true}, {"--layout", true}, {"--scheme", true}, {"--questions", true},
+        {"--layout", true}, {"--scheme", true}, {"--questions", true},
         {"--ensemble", false}, {"--no-kv-reuse", false}, {"--no-batch-questions", false}};
     auto it = kDeprecated.find(a);
     if (it == kDeprecated.end()) return false;
@@ -193,6 +198,7 @@ static bool consume_deprecated(const std::string& a, int32_t& i, int32_t argc)
 
 struct RuntimeArgs {
     RuntimePaths explicit_paths;
+    bool    no_calibration = false;
     int32_t threads      = -1;
     int32_t ctx_size     = -1;
     int32_t n_gpu_layers = 0;
@@ -207,6 +213,8 @@ struct RuntimeArgs {
         else if (a == "--embedding-model")    explicit_paths.embedding_model = next();
         else if (a == "--exemplar-db")        explicit_paths.exemplar_db = next();
         else if (a == "--exemplar-allowlist") explicit_paths.exemplar_allowlist = next();
+        else if (a == "--calibration")        explicit_paths.calibration = next();
+        else if (a == "--no-calibration")     no_calibration = true;
         else if (a == "--threads")            threads = std::stoi(next());
         else if (a == "--ctx-size")           ctx_size = std::stoi(next());
         else if (a == "--n-gpu-layers")       n_gpu_layers = std::stoi(next());
@@ -217,13 +225,17 @@ struct RuntimeArgs {
     }
 
     // Resolves paths (flags > pjev.json > next to the executable > models/) and the thread / context
-    // defaults (flags > pjev.json > built-in).
+    // defaults (flags > pjev.json > built-in). A calibration path set by flag or pjev.json must exist;
+    // the default one may be absent (decisions are then uncalibrated).
     RuntimeOptions resolve() const {
         const std::string exe_dir = get_executable_dir();
         ReleaseConfig rc;
         const bool have_cfg = ReleaseConfig::load_adjacent(exe_dir, rc);
         RuntimeOptions o;
         o.paths        = ReleaseConfig::resolve_runtime_paths(explicit_paths, exe_dir);
+        if (no_calibration) o.paths.calibration.clear();
+        o.calibration_required = !no_calibration &&
+                                 (!explicit_paths.calibration.empty() || (have_cfg && !rc.calibration.empty()));
         o.n_threads    = threads > 0 ? threads : (have_cfg && rc.threads > 0 ? rc.threads : get_physical_core_count());
         o.n_ctx        = ctx_size > 0 ? ctx_size : (have_cfg && rc.context_size > 0 ? rc.context_size : 4096);
         o.n_gpu_layers = n_gpu_layers;
@@ -356,6 +368,7 @@ static int32_t cmd_server(int32_t argc, char** argv) {
         v["llamacpp_revision"] = PJEV_LLAMA_REVISION;
         v["model"]             = model_id_for_health;
         v["routing_policy"]    = routing::kPolicyName;
+        v["calibration"]       = to_string(runtime->calibration().state);
         status = 200;
         body   = v.dump();
     });
@@ -369,6 +382,8 @@ static int32_t cmd_server(int32_t argc, char** argv) {
     spdlog::info("pjev {} (commit: {}, llama.cpp: {})", PJEV_VERSION, PJEV_GIT_COMMIT, PJEV_LLAMA_REVISION);
     spdlog::info("model: {} ({})", model_id_for_health, opts.paths.model);
     spdlog::info("routing policy: {}", routing::kPolicyName);
+    spdlog::info("calibration: {}{}", to_string(runtime->calibration().state),
+                 opts.paths.calibration.empty() ? "" : " (" + opts.paths.calibration + ")");
     spdlog::info("embedding model: {} (fingerprint {})", opts.paths.embedding_model, runtime->embedding_fingerprint());
     spdlog::info("exemplars: {} ({} rows, {} eligible)", opts.paths.exemplar_db, runtime->exemplar_count(),
                  runtime->eligible_exemplars());
@@ -512,7 +527,7 @@ static int32_t cmd_benchmark_latency(int32_t argc, char** argv) {
             latencies[kind].push_back(ms);
             latencies["all"].push_back(ms);
             if (!out.ok) { failures++; strategies[kind]["failed:" + out.error_code]++; continue; }
-            strategies[kind][out.routing ? out.routing->strategy + (out.routing->fallback ? " (1-shot fallback)" : "") : "?"]++;
+            strategies[kind][out.routing ? out.routing->strategy + (out.routing->fallback ? " (fallback: " + out.routing->fallback_reason + ")" : "") : "?"]++;
         }
     }
 
@@ -626,6 +641,8 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
     nlohmann::json load_report;
     bool load_ok = true;
     if (load) {
+        // The runtime logs while loading (calibration state, warnings); keep stdout for the JSON.
+        if (json_out) spdlog::set_default_logger(spdlog::stderr_logger_mt("diagnostics"));
         std::string err;
         const auto t0 = std::chrono::steady_clock::now();
         std::unique_ptr<RouterRuntime> rt = all_found ? RouterRuntime::load(opts, err) : nullptr;
@@ -639,6 +656,8 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
             load_report["embedding_fingerprint"] = rt->embedding_fingerprint();
             load_report["exemplar_rows"]         = rt->exemplar_count();
             load_report["eligible_exemplars"]    = rt->eligible_exemplars();
+            load_report["calibration"]           = to_string(rt->calibration().state);
+            if (!rt->calibration().message.empty()) load_report["calibration_message"] = rt->calibration().message;
         } else {
             load_report["error"] = err;
         }
@@ -658,6 +677,8 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
             if (r.lfs_pointer) d[r.key]["lfs_pointer"] = true;
         }
         d["routing"]["policy"]    = routing::kPolicyName;
+        d["calibration"]["path"]  = opts.paths.calibration;
+        d["calibration"]["found"] = !opts.paths.calibration.empty() && std::ifstream(opts.paths.calibration).good();
         d["runtime"]["n_threads"] = opts.n_threads;
         d["runtime"]["n_ctx"]     = opts.n_ctx;
         d["worker"]["running"]    = worker_running;
@@ -676,6 +697,11 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
         for (const auto& r : resources)
             printf("%s%s (%s)\n", r.label, r.path.c_str(), r.ok ? "found" : r.lfs_pointer ? "Git LFS pointer" : "NOT FOUND");
         printf("routing policy:  %s\n", routing::kPolicyName);
+        if (opts.paths.calibration.empty())
+            printf("calibration:     disabled\n");
+        else
+            printf("calibration:     %s (%s)\n", opts.paths.calibration.c_str(),
+                   std::ifstream(opts.paths.calibration).good() ? "found" : "not found: decisions are uncalibrated");
         printf("threads:         %d\n", opts.n_threads);
         printf("context size:    %d\n", opts.n_ctx);
         if (worker_running) {
@@ -691,6 +717,9 @@ static int32_t cmd_diagnostics(int32_t argc, char** argv) {
                        load_report["embedding_fingerprint"].get<std::string>().c_str(),
                        (long long)load_report["exemplar_rows"].get<int64_t>(),
                        load_report["eligible_exemplars"].get<size_t>());
+                printf("calibration:     %s%s%s\n", load_report["calibration"].get<std::string>().c_str(),
+                       load_report.contains("calibration_message") ? ": " : "",
+                       load_report.value("calibration_message", "").c_str());
             } else {
                 printf("load:            FAILED: %s\n", load_report["error"].get<std::string>().c_str());
             }
@@ -813,6 +842,8 @@ static int32_t cmd_decision(Type type, int32_t argc, char** argv) {
         cli_cfg.paths.embedding_model    = absolute_path(opts.paths.embedding_model);
         cli_cfg.paths.exemplar_db        = absolute_path(opts.paths.exemplar_db);
         cli_cfg.paths.exemplar_allowlist = absolute_path(opts.paths.exemplar_allowlist);
+        if (!opts.paths.calibration.empty()) cli_cfg.paths.calibration = absolute_path(opts.paths.calibration);
+        cli_cfg.calibration_required     = opts.calibration_required;
         cli_cfg.threads           = opts.n_threads;
         cli_cfg.ctx_size          = opts.n_ctx;
         cli_cfg.n_gpu_layers      = opts.n_gpu_layers;
@@ -888,6 +919,7 @@ static int32_t cmd_status(int32_t argc, char** argv) {
             printf("  version:          %s\n",  info.pjev_version.c_str());
             printf("  model_identity:   %s\n",  info.model_identity.c_str());
             printf("  config_hash:      %s\n",  info.config_hash.c_str());
+            printf("  calibration:      %s\n",  info.calibration.c_str());
         }
         return 0;
     } else {
@@ -918,6 +950,160 @@ static int32_t cmd_stop(int32_t argc, char** argv) {
 }
 
 // ---------------------------------------------------------------------------
+// calibrate subcommand
+// ---------------------------------------------------------------------------
+
+static void usage_calibrate(const char* prog) {
+    fprintf(stderr,
+        "usage: %s calibrate [options]\n"
+        "  Generates a model-specific calibration.json from the exemplar database: the production decision\n"
+        "  path's uncalibrated candidate logits on held-out training exemplars, temperature and prior\n"
+        "  correction fitted per task kind, checked on a validation partition, written atomically.\n"
+        "  --model PATH               inference model to calibrate (.gguf)\n"
+        "  --database PATH            exemplar database, opened read-only (default: examplar.db)\n"
+        "  --output PATH              calibration file to write (default: the file the runtime loads,\n"
+        "                             calibration.json; models/calibration.json in a checkout)\n"
+        "  --seed N                   sampling and partition seed (default: %llu)\n"
+        "  --max-samples N            maximum calibration queries per task kind (default: %d)\n"
+        "  --validation-ratio R       fraction of query groups held out for validation (default: %.2f)\n"
+        "  --batch-size N             queries per processing batch and progress report (default: %d)\n"
+        "  --threads N                CPU threads (default: physical cores)\n"
+        "  --verbose                  one line per query\n"
+        "  --embedding-model PATH     query embedding model (.gguf)\n"
+        "  --exemplar-allowlist PATH  training-split exemplar IDs\n"
+        "  --ctx-size N               context size (default: 4096, as at runtime)\n"
+        "  --n-gpu-layers N           number of layers to offload to GPU (default: 0)\n"
+        "  --main-gpu N               GPU device index to use as main GPU (default: 0)\n"
+        "\n"
+        "Needs at least %d fitting and %d validation samples per task kind. An existing output file is\n"
+        "replaced only by a calibration that passes validation; a report is written next to it\n"
+        "(<output>.report.json, or <output>.failed-report.json when validation rejects the result).\n",
+        prog, (unsigned long long)calibration::kDefaultSeed, calibration::kDefaultMaxSamples,
+        calibration::kDefaultValidationRatio, calibration::kDefaultBatchSize, calibration::kMinFitSamples,
+        calibration::kMinValidationSamples);
+}
+
+static int32_t cmd_calibrate(int32_t argc, char** argv) {
+    RuntimeArgs rargs;
+    calibration::GeneratorOptions gopts;
+    std::string output;
+
+    for (int32_t i = 0; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&]() -> std::string {
+            if (i + 1 >= argc) { usage_calibrate("pjev"); exit(2); }
+            return argv[++i];
+        };
+        try {
+            if      (a == "--database")         rargs.explicit_paths.exemplar_db = next();
+            else if (a == "--output")           output = next();
+            else if (a == "--seed")             gopts.seed = std::stoull(next());
+            else if (a == "--max-samples")      gopts.max_samples = std::stoi(next());
+            else if (a == "--validation-ratio") gopts.validation_ratio = std::stod(next());
+            else if (a == "--batch-size")       gopts.batch_size = std::stoi(next());
+            else if (a == "--verbose")          gopts.verbose = true;
+            else if (a == "--calibration" || a == "--no-calibration") {
+                spdlog::error("{}: calibrate never reads a calibration file (use --output for the file to write)", a);
+                return 2;
+            }
+            else if (a == "-h" || a == "--help") { usage_calibrate("pjev"); return 0; }
+            else if (rargs.parse(a, next)) {}
+            else {
+                spdlog::error("unknown option: {}", a);
+                usage_calibrate("pjev");
+                return 2;
+            }
+        } catch (const std::exception&) {
+            spdlog::error("invalid value for {}", a);
+            return 2;
+        }
+    }
+    std::string err;
+    if (!gopts.validate(err)) { spdlog::error("{}", err); return 2; }
+
+    // Model execution exactly as at runtime, but uncalibrated: the raw logits are what is fitted.
+    RuntimeOptions opts = rargs.resolve();
+    if (output.empty()) output = opts.paths.calibration;
+    opts.paths.calibration.clear();
+    opts.calibration_required = false;
+    opts.verbose = false;
+
+    fprintf(stderr, "[calibrate] model %s\n[calibrate] database %s (read-only)\n[calibrate] output %s\n",
+            opts.paths.model.c_str(), opts.paths.exemplar_db.c_str(), output.c_str());
+    fprintf(stderr, "[calibrate] stage: load\n");
+    const std::string db_sha_before = sha256_file(opts.paths.exemplar_db);
+    std::unique_ptr<RouterRuntime> runtime = load_runtime(opts);
+    if (!runtime) return 1;
+    const ModelIdentity mid = runtime->model_identity();
+    retrieval::ExemplarStore& store = runtime->exemplar_store();
+
+    calibration::GenerateRequest req;
+    req.output_path  = output;
+    req.model_sha256 = mid.sha256;
+    req.options      = gopts;
+    req.provenance   = {
+        {"pjev_version", PJEV_VERSION},
+        {"pjev_commit", PJEV_GIT_COMMIT},
+        {"llamacpp_revision", PJEV_LLAMA_REVISION},
+        {"model", {{"path", absolute_path(opts.paths.model)}, {"name", mid.name}, {"sha256", mid.sha256},
+                   {"size_bytes", mid.size_bytes}, {"architecture", mid.architecture},
+                   {"quantization", mid.quantization}}},
+        {"database", {{"path", absolute_path(opts.paths.exemplar_db)}, {"sha256", db_sha_before},
+                      {"schema_version", store.info("schema_version")}, {"rows", runtime->exemplar_count()},
+                      {"embedding_fingerprint", store.info("embedding_fingerprint")}}},
+        {"allowlist", {{"path", absolute_path(opts.paths.exemplar_allowlist)},
+                       {"sha256", sha256_file(opts.paths.exemplar_allowlist)}, {"ids", runtime->eligible_exemplars()}}},
+        {"embedding_model", {{"path", absolute_path(opts.paths.embedding_model)},
+                             {"fingerprint", runtime->embedding_fingerprint()}}},
+        {"runtime", {{"n_ctx", opts.n_ctx}, {"n_threads", opts.n_threads}, {"n_gpu_layers", opts.n_gpu_layers}}},
+    };
+
+    const auto t0 = std::chrono::steady_clock::now();
+    auto progress = [&](const calibration::Progress& p) {
+        if (p.stage != "collect") { fprintf(stderr, "[calibrate] stage: %s\n", p.stage.c_str()); return; }
+        const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        std::string kinds;
+        for (const auto& [t, c] : p.by_kind)
+            kinds += std::string(kinds.empty() ? "" : ", ") + to_string(t) + " " + std::to_string(c.first) + "/" +
+                     std::to_string(c.second);
+        fprintf(stderr, "[calibrate] collect %zu/%zu (%s); accepted %zu, rejected %zu; %.0fs elapsed\n", p.processed,
+                p.total, kinds.c_str(), p.accepted, p.rejected, s);
+    };
+    calibration::GenerateOutcome res = calibration::generate_calibration(store, runtime->router(), runtime->engine(), req,
+                                                                         progress);
+    runtime.reset();
+
+    // The database is opened read-only; confirm it is byte-identical after the run.
+    const bool db_unchanged = sha256_file(opts.paths.exemplar_db) == db_sha_before;
+    if (!db_unchanged) fprintf(stderr, "[calibrate] error: the exemplar database changed during the run\n");
+
+    if (res.report.is_object() && res.report.contains("kinds")) {
+        printf("%-7s %-12s %-11s %6s  %-17s %-17s %-17s %-17s\n", "kind", "temperature", "prior_alpha", "n_val",
+               "accuracy", "nll", "brier", "ece");
+        for (const char* k : {"choice", "noul", "score"}) {
+            const auto& kj = res.report["kinds"][k];
+            const auto& v  = kj["validation"];
+            auto pair = [&](const char* m) {
+                char buf[64];
+                snprintf(buf, sizeof buf, "%.4f -> %.4f", v["uncalibrated"][m].get<double>(), v["calibrated"][m].get<double>());
+                return std::string(buf);
+            };
+            printf("%-7s %-12.6g %-11.4g %6d  %-17s %-17s %-17s %-17s\n", k, kj["parameters"]["temperature"].get<double>(),
+                   kj["parameters"]["prior_alpha"].get<double>(), v["uncalibrated"]["n"].get<int>(), pair("accuracy").c_str(),
+                   pair("nll").c_str(), pair("brier").c_str(), pair("ece").c_str());
+        }
+    }
+    for (const auto& w : res.warnings) fprintf(stderr, "[calibrate] warning: %s\n", w.c_str());
+    if (!res.report_path.empty()) printf("report: %s\n", res.report_path.c_str());
+    if (!res.ok) {
+        spdlog::error("calibration failed: {}", res.error);
+        return 1;
+    }
+    printf("calibration written: %s (model sha256 %s)\n", output.c_str(), mid.sha256.c_str());
+    return db_unchanged ? 0 : 1;
+}
+
+// ---------------------------------------------------------------------------
 // internal-worker subcommand (hidden)
 // ---------------------------------------------------------------------------
 
@@ -936,6 +1122,9 @@ static int32_t cmd_internal_worker(int32_t argc, char** argv) {
         else if (a == "--embedding-model")    cfg.paths.embedding_model = next();
         else if (a == "--exemplar-db")        cfg.paths.exemplar_db = next();
         else if (a == "--exemplar-allowlist") cfg.paths.exemplar_allowlist = next();
+        else if (a == "--calibration")        cfg.paths.calibration = next();
+        else if (a == "--calibration-required") cfg.calibration_required = true;
+        else if (a == "--no-calibration")     cfg.paths.calibration.clear();
         else if (a == "--threads")            cfg.threads = std::stoi(next());
         else if (a == "--ctx-size")           cfg.ctx_size = std::stoi(next());
         else if (a == "--n-gpu-layers")       cfg.n_gpu_layers = std::stoi(next());
@@ -993,6 +1182,8 @@ int32_t main(int32_t argc, char** argv) {
         return cmd_benchmark(argc - 2, argv + 2);
     } else if (cmd == "diagnostics") {
         return cmd_diagnostics(argc - 2, argv + 2);
+    } else if (cmd == "calibrate") {
+        return cmd_calibrate(argc - 2, argv + 2);
     } else if (cmd == "-h" || cmd == "--help") {
         usage(argv[0]);
         return 0;

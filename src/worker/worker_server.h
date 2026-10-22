@@ -10,7 +10,8 @@
 namespace pjev {
 
 struct WorkerConfig {
-    RuntimePaths paths;
+    RuntimePaths paths;  // paths.calibration empty = calibration disabled
+    bool calibration_required = false;
     int threads = 8;
     int ctx_size = 4096;
     int n_gpu_layers = 0;

@@ -11,6 +11,7 @@ struct RuntimePaths {
     std::string embedding_model;     // query embedding model (GGUF); must match the exemplar database
     std::string exemplar_db;         // exemplar database (SQLite, schema 4), opened read-only
     std::string exemplar_allowlist;  // eligible exemplar IDs (see retrieval/exemplar_allowlist.h)
+    std::string calibration;         // calibration artifact (JSON); empty = calibration disabled
 };
 
 // Default file names of the runtime resources, looked up next to the executable and, as a development
@@ -20,6 +21,7 @@ constexpr const char* kDefaultDevModelFile           = "bonsai2_2b.gguf";
 constexpr const char* kDefaultEmbeddingModelFile     = "nomic-embed-text-v1.5.gguf";
 constexpr const char* kDefaultExemplarDbFile         = "examplar.db";
 constexpr const char* kDefaultExemplarAllowlistFile  = "examplar-allowlist.txt";
+constexpr const char* kDefaultCalibrationFile        = "calibration.json";
 
 // Optional pjev.json next to the executable. Unknown keys are ignored.
 struct ReleaseConfig {
@@ -29,6 +31,7 @@ struct ReleaseConfig {
     std::string embedding_model;       // empty = not set
     std::string exemplar_db;           // empty = not set
     std::string exemplar_allowlist;    // empty = not set
+    std::string calibration;           // empty = not set
     int         threads        = -1;   // -1 = not set (use CLI default)
     int         context_size   = -1;   // -1 = not set
 

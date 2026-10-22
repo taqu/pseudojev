@@ -27,7 +27,8 @@
 namespace pjev
 {
 ClientConfig::ClientConfig()
-    : threads(8)
+    : calibration_required(false)
+    , threads(8)
     , ctx_size(4096)
     , n_gpu_layers(0)
     , main_gpu(0)
@@ -93,6 +94,14 @@ bool WorkerClient::spawn_worker()
     args.push_back(cfg_.paths.exemplar_db);
     args.push_back("--exemplar-allowlist");
     args.push_back(cfg_.paths.exemplar_allowlist);
+    if(cfg_.paths.calibration.empty()) {
+        args.push_back("--no-calibration");
+    } else {
+        args.push_back("--calibration");
+        args.push_back(cfg_.paths.calibration);
+        if(cfg_.calibration_required)
+            args.push_back("--calibration-required");
+    }
     args.push_back("--threads");
     args.push_back(std::to_string(cfg_.threads));
     args.push_back("--ctx-size");

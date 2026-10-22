@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "exemplar_allowlist.h"
@@ -33,6 +34,23 @@ struct ExemplarPayload {
     int                      number_of_levels = 0;  // score only
 };
 
+// Row metadata of one stored exemplar (no payload), as listed by ExemplarStore::scan.
+struct ExemplarRow {
+    int64_t     id               = 0;
+    int64_t     group_id         = 0;   // protected group: related variants of one source task
+    std::string kind;
+    int         number_of_levels = 0;
+    bool        one_hot          = false;  // answer_index is set
+    std::string domain;
+    std::string family;
+};
+
+// Outcome of loading one exemplar.
+//   Invalid - the record is missing or cannot be decoded (corrupt LZ4 frame, malformed payload); the
+//             exemplar is unusable but the database is.
+//   Failed  - the database itself failed (SQLite error); not specific to the exemplar.
+enum class LoadResult { Ok, Invalid, Failed };
+
 // What task routing needs from the exemplar bank (an interface so routing can be tested without a
 // database).
 class IExemplarIndex
@@ -49,8 +67,8 @@ public:
                         std::vector<SearchHit>&   out,
                         std::string&              err) const = 0;
 
-    // Load and decompress one exemplar. False on a missing row, corrupt LZ4 frame or malformed payload.
-    virtual bool load(int64_t id, ExemplarPayload& out, std::string& err) const = 0;
+    // Load and decompress one exemplar (see LoadResult); err describes any failure.
+    virtual LoadResult load(int64_t id, ExemplarPayload& out, std::string& err) const = 0;
 
     // Whether the exemplar is in the allowlist.
     virtual bool is_allowed(int64_t id) const = 0;
@@ -83,14 +101,22 @@ public:
     int64_t example_count() const;
     size_t  allowlist_size() const { return allow_.size(); }
 
+    // Every row's metadata in rowid order. False on a database failure.
+    bool scan(std::vector<ExemplarRow>& out, std::string& err) const;
+
+    // Rows held out of retrieval in addition to the allowlist (calibration queries' groups): never
+    // returned by search() and not is_allowed(). Replaces any earlier set.
+    void set_held_out(std::unordered_set<int64_t> ids) { held_out_ = std::move(ids); }
+    size_t held_out_size() const { return held_out_.size(); }
+
     bool search(const std::string&        kind,
                 int                       number_of_levels,
                 const std::vector<float>& embedding,
                 int                       top_k,
                 std::vector<SearchHit>&   out,
                 std::string&              err) const override;
-    bool load(int64_t id, ExemplarPayload& out, std::string& err) const override;
-    bool is_allowed(int64_t id) const override { return allow_.count(id) > 0; }
+    LoadResult load(int64_t id, ExemplarPayload& out, std::string& err) const override;
+    bool is_allowed(int64_t id) const override { return allow_.count(id) > 0 && held_out_.count(id) == 0; }
 
 private:
     struct Candidate {
@@ -106,6 +132,7 @@ private:
     sqlite3_stmt*     stmt_id_      = nullptr;
     sqlite3_stmt*     stmt_payload_ = nullptr;
     ExemplarAllowlist allow_;
+    std::unordered_set<int64_t> held_out_;
 };
 
 } // namespace retrieval

@@ -106,6 +106,7 @@ nlohmann::json ipc_worker_info_to_json(const WorkerInfo& info)
     j["pid"]              = info.pid;
     j["model_identity"]   = info.model_identity;
     j["config_hash"]      = info.config_hash;
+    j["calibration"]      = info.calibration;
     j["start_time_us"]    = info.start_time_us;
     return j;
 }
@@ -118,6 +119,7 @@ WorkerInfo ipc_worker_info_from_json(const nlohmann::json& j)
     info.pid              = j.value("pid", 0);
     info.model_identity   = j.value("model_identity", "");
     info.config_hash      = j.value("config_hash", "");
+    info.calibration      = j.value("calibration", "");
     info.start_time_us    = j.value("start_time_us", (int64_t)0);
     return info;
 }
@@ -125,7 +127,7 @@ WorkerInfo ipc_worker_info_from_json(const nlohmann::json& j)
 std::string make_config_hash(const RuntimePaths& paths, int threads, int ctx_size)
 {
     return paths.model + "|" + std::to_string(threads) + "|" + std::to_string(ctx_size) + "|" +
-           paths.embedding_model + "|" + paths.exemplar_db + "|" + paths.exemplar_allowlist;
+           paths.embedding_model + "|" + paths.exemplar_db + "|" + paths.exemplar_allowlist + "|" + paths.calibration;
 }
 
 } // namespace pjev

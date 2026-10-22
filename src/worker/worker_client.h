@@ -12,6 +12,7 @@ struct ClientConfig
 {
     ClientConfig();
     RuntimePaths paths;   // absolute paths, so workers started from other directories compare equal
+    bool calibration_required;  // paths.calibration configured explicitly
     int32_t threads;
     int32_t ctx_size;
     int32_t n_gpu_layers;

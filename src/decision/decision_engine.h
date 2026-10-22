@@ -66,8 +66,13 @@ struct DecisionOutput
 
     // Task routing trace (only populated by TaskRouter).
     struct RoutingDiag {
-        std::string strategy;                // "nearest_2shot" | "nearest_1shot" | "knn_5"
-        bool fallback = false;               // nearest_2shot answered by its 1-shot fallback
+        std::string requested_strategy;      // by the policy: "nearest_2shot" | "nearest_1shot" | "knn_5"
+        std::string strategy;                // executed: the requested one, "zero_shot" or (choice) "nearest_1shot"
+        bool fallback = false;               // strategy != requested_strategy
+        std::string fallback_reason;         // a task_policy.h kReason* constant when fallback
+        int32_t required_exemplars = 0;      // valid exemplars the requested strategy needs
+        int32_t valid_exemplars = 0;         // valid exemplars found (at most required_exemplars)
+        int32_t rejected_exemplars = 0;      // search results not used: invalid, ineligible, duplicate or the query
         std::vector<int64_t> demonstration_ids; // exemplars in prompt order (LLM strategies)
         std::vector<int64_t> neighbour_ids;  // neighbour list, rank order
         std::vector<double>  neighbour_hamming;
@@ -154,6 +159,11 @@ public:
     // Not thread-safe. External callers must serialize access.
     // Dispatches to decide_noul_ensemble when ensemble mode is BINARY_ORDER and type=="noul".
     DecisionOutput decide(const DecisionInput& input);
+
+    // S1 zero-shot: the single-order prompt without demonstrations, scored by candidate logits. Never
+    // dispatches to an ensemble (decide() with every ensemble mode NONE).
+    // Not thread-safe. Callers must serialize access.
+    DecisionOutput decide_zero_shot(const DecisionInput& input);
 
     // Process multiple questions, reusing the shared-state KV prefix when possible.
     // Falls back to sequential decide() calls if prefix reuse is not applicable.
