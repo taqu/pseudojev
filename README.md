@@ -29,6 +29,10 @@ embedded with `nomic-embed-text-v1.5` and matched against the exemplar database 
 on binary vectors. Only exemplars of the same kind (for `score`: the same number of levels) from the
 training split are eligible. Ties are broken by database row order, so decisions are deterministic.
 
+Each strategy needs its full number of valid exemplars: 2 for `choice`, 1 for `noul`, 5 for `score`.
+When fewer are found, the task is decided zero-shot instead (S1: the question alone, scored by
+candidate logits; 1 evaluation). See [Fallback behaviour](#fallback-behaviour).
+
 This policy was selected in the R4 evaluation: 56.75% overall accuracy on the held-out partition
 (choice 45.13%, noul 90.62%, score 35.79%), versus 55.05% for nearest 1-shot everywhere and 44.69%
 for zero-shot. These figures describe that benchmark only; accuracy on other tasks will differ.
@@ -56,6 +60,7 @@ for zero-shot. These figures describe that benchmark only; accuracy on other tas
 | Embedding model (nomic-embed-text-v1.5, GGUF) | `nomic-embed-text-v1.5.gguf` | `--embedding-model` | `embedding_model` |
 | Exemplar database (SQLite) | `examplar.db` | `--exemplar-db` | `exemplar_db` |
 | Exemplar allowlist (text) | `examplar-allowlist.txt` | `--exemplar-allowlist` | `exemplar_allowlist` |
+| Calibration artifact (JSON, optional) | `calibration.json` | `--calibration` / `--no-calibration` | `calibration` |
 
 They are included in the release archive.
 They are also stored in this repository under `models/` with Git LFS:
@@ -91,6 +96,120 @@ validated.
 
 `pjev diagnostics` shows the resolved paths; `pjev diagnostics --load` also loads everything and
 checks compatibility.
+
+### Calibration
+
+The calibration artifact (`models/calibration.json` in a checkout, `calibration.json` next to the
+executable in a release) is read once at start-up, with no flag needed. It holds per-kind
+temperatures and prior-correction alphas, applied exactly as stored by the existing calibration
+implementation: prior correction (candidate logits − alpha × blank-prompt candidate logits, one blank
+prompt per kind and candidate count), then temperature scaling. It applies to every decision that
+scores candidate logits — `choice` nearest 2-shot, `noul` nearest 1-shot and the zero-shot fallback
+of all kinds (`score` zero-shot uses `score_temperature` / `score_prior_alpha`). Weighted kNN-5 votes
+for `score` are never calibrated.
+
+| Situation | Behaviour |
+|---|---|
+| Default file absent | Warning; decisions are uncalibrated |
+| Valid artifact for the production formulation | Calibration enabled |
+| Artifact fitted for another formulation (`candidate_scheme`, `layout`) | **Error logged; not applied**; decisions are uncalibrated |
+| Artifact fitted for another inference model (its `model` SHA-256 differs from the loaded GGUF, or is not a SHA-256) | **Error logged; not applied**; decisions are uncalibrated |
+| Malformed or unsupported file (JSON, version, method, missing or invalid formulation / parameters, temperature ≤ 0, alpha < 0) | Configuration error; pjev does not start |
+| Path set with `--calibration` or `pjev.json` but absent | Configuration error |
+| `--no-calibration` | Uncalibrated (the R4 reference behaviour) |
+
+The production formulation is `layout: auto`, `candidate_scheme: letters` (the validated R4 prompt).
+**The supplied `models/calibration.json` was fitted for `candidate_scheme: natural`** and is therefore
+reported as incompatible and not applied: release decisions are uncalibrated until a calibration is
+generated for the model with [`pjev calibrate`](#generating-a-calibration-pjev-calibrate). The state is
+shown by `/version` (`calibration`), `pjev status`, `pjev diagnostics --load` and the start-up log.
+The R4 accuracy figures describe uncalibrated decisions.
+
+An artifact's `model` is the SHA-256 of the GGUF file it was fitted for. It is checked when the
+runtime loads the model; an empty `model` (artifacts from earlier releases) is not checked.
+
+#### Generating a calibration (`pjev calibrate`)
+
+Calibration is model-specific: temperatures and prior alphas fitted for one GGUF file say nothing
+about another. Regenerate the calibration whenever the inference model changes:
+
+```bash
+pjev calibrate \
+  --model models/my-model.gguf \
+  --database models/examplar.db \
+  --output models/calibration.json
+```
+
+It needs the inference model, the embedding model, `examplar.db` and `examplar-allowlist.txt` (the
+same resources as decisions; no existing calibration file). With no options it calibrates the default
+model and writes the file the runtime loads by default (`models/calibration.json` in a checkout,
+`calibration.json` next to the executable in a release).
+
+| Option | Description |
+|---|---|
+| `--model PATH` | Inference model to calibrate |
+| `--database PATH` | Exemplar database, opened read-only (default `examplar.db`) |
+| `--output PATH` | Calibration file to write (default: the runtime's calibration path) |
+| `--seed N` | Seed of the query sampling and the fitting / validation partition (default 1) |
+| `--max-samples N` | Maximum calibration queries **per task kind** (default 1000) |
+| `--validation-ratio R` | Fraction of query groups held out for validation (default 0.2) |
+| `--batch-size N` | Queries per processing batch and progress report (default 32). Inference itself is one prompt at a time, as at runtime. |
+| `--threads N` | CPU threads (default: physical cores) |
+| `--verbose` | One line per query (path, prompt tokens, correct candidate, argmax) |
+| `--embedding-model`, `--exemplar-allowlist`, `--ctx-size`, `--n-gpu-layers`, `--main-gpu` | As for decisions; the context size defaults to the runtime's |
+
+What it does:
+
+1. **Queries and leakage prevention.** Calibration queries are training-split exemplars (the
+   allowlist) with exactly one correct answer that maps to one candidate; validation, test and
+   external rows are never used. Each candidate query is decoded and built as the request a client
+   would send; rows that cannot be (undecodable payload, ambiguous answer, invalid options, …) are
+   rejected with a recorded reason. Queries are drawn by protected group (`group_id`, the variants of
+   one source task) in seeded order, one per task kind per group, and **every row of a selected group is
+   removed from the retrieval pool**, so no query is answered with itself or a sibling variant as a
+   demonstration. A group belongs wholly to fitting or to validation. Exemplars with the query's content
+   are excluded as at runtime. The database records no scenario family beyond `group_id`
+   (`groups.source` is the source dataset), so no coarser grouping is enforced.
+2. **Logits.** Each query runs through the production decision path, uncalibrated: `choice` nearest
+   2-shot (order A) and `noul` nearest 1-shot through the task router, with its zero-shot fallback
+   when the pool lacks exemplars; `score` through S1 zero-shot, the LLM path its parameters apply to
+   (kNN-5 votes are never calibrated). The raw candidate logits, the correct candidate index and the
+   executed path (primary or fallback, with the reason) are recorded for every query.
+3. **Fit.** Per task kind, on the fitting queries only: prior alpha on a grid (0–2, step 0.1) and
+   temperature by golden-section search on log T (0.01–100), minimizing negative log-likelihood of
+   `softmax((logits − alpha × blank-prompt logits) / T)` — exactly what the runtime applies. Results on
+   a search bound are reported.
+4. **Validation.** Uncalibrated and calibrated metrics on the validation queries, per task kind and
+   per executed path: accuracy, NLL, Brier score, ECE (15 bins, with reliability bins), mean maximum
+   probability, and mean confidence on correct and incorrect predictions. **The calibration is
+   accepted only if it does not increase validation NLL for any task kind.** Accuracy, Brier or ECE
+   regressions are reported as warnings.
+5. **Output.** `calibration.json` (version 1, the production formulation, the model's SHA-256) is
+   written to a temporary file, read back through the production loader for this model, and then
+   atomically renamed over the output. A report is written next to it (`calibration.report.json`):
+   model, database and allowlist SHA-256, seed, partition, counts by task kind (eligible, examined,
+   rejected by reason, processed, accepted), fitted parameters, metrics and per-query logits (no task
+   text).
+
+Calibration adjusts probabilities. Prior correction also shifts candidate logits, so it can change
+which candidate wins; calibration does not necessarily improve accuracy, and lower confidence alone is
+not better calibration — compare the validation NLL, Brier score and ECE in the report.
+
+Errors (exit code 1; an existing calibration file is never replaced and no partial file is left):
+
+| Situation | Result |
+|---|---|
+| Fewer than 50 fitting or 20 validation samples for a task kind | `insufficient calibration data`; nothing written. There is no reduced-data mode. |
+| Every fitting sample of a kind has the same correct candidate, or the logits never differ | `degenerate … data`; nothing written |
+| The fit does not converge to finite parameters within bounds | `invalid … optimization result`; nothing written |
+| Validation NLL increases for a task kind | `calibration rejected`; only `calibration.failed-report.json` is written |
+| Database, model or inference failure | Reported; nothing written |
+
+Resources: the same memory as a decision process (both models plus the database); one LLM evaluation
+per query (prompts of a few hundred to about 2,000 tokens) plus one blank prompt per task kind and
+candidate count. On a 24-core desktop CPU (i9-13900, CPU only) with the default model, the default 3,000 queries take
+about 25 minutes. The database is opened read-only; `pjev calibrate` also confirms it is
+byte-identical after the run.
 
 ### Database setup
 
@@ -156,8 +275,9 @@ pjev score --state-file essay.json --question "How many of the four requirements
   --level "None" --level "One" --level "Two" --level "Three" --level "All four" --json
 ```
 
-Flags of earlier releases that configured the decision (`--calibration`, `--ensemble`, `--layout`,
-`--scheme`, `--no-kv-reuse`, `--no-batch-questions`) are accepted and ignored with a warning.
+Flags of earlier releases that configured the decision (`--ensemble`, `--layout`, `--scheme`,
+`--no-kv-reuse`, `--no-batch-questions`) are accepted and ignored with a warning. `--calibration PATH`
+selects the calibration artifact again (see [Calibration](#calibration)).
 
 ---
 
@@ -170,7 +290,7 @@ pjev serve --port 8080
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/health` | `{"status":"ok","state":"ready","model":…}` once the runtime is loaded |
-| `GET` | `/version` | pjev version, commit, llama.cpp revision, model, `routing_policy` |
+| `GET` | `/version` | pjev version, commit, llama.cpp revision, model, `routing_policy`, `calibration` (`enabled` / `incompatible` / `missing` / `disabled`) |
 | `POST` | `/v1/systemone` | Jev-compatible decision API |
 
 Request:
@@ -226,14 +346,36 @@ with exit code 1 (CLI; exit code 2 is a usage error).
 | `invalid_request` | 400 | Missing / invalid fields, limits exceeded, invalid candidates |
 | `context_too_long` | 400 | The task does not fit the inference context (4096 tokens) or the embedding model's context (2048 tokens) |
 | `unsupported_primitive` | 422 | Unknown question type |
-| `no_eligible_exemplar` | 422 | The exemplar bank has no eligible exemplar for the task — for `score`, no training exemplar with that number of levels (the bank has 3-, 4- and 5-level scales) |
-| `inference_error` | 500 | Embedding, database, payload or inference-backend failure |
+| `no_eligible_exemplar` | 422 | Reserved; no longer returned (tasks without enough exemplars are decided zero-shot) |
+| `inference_error` | 500 | Embedding, database or inference-backend failure |
 | `server_busy` | 503 | More than `--max-queued` requests in flight |
 | `request_too_large` / `not_found` / `method_not_allowed` | 413 / 404 / 405 | HTTP-layer errors (no `request_id`) |
 
-Fallback behaviour: for `choice`, if fewer than two eligible exemplars exist or the 2-shot prompt does
-not fit the context, the decision uses the nearest exemplar alone (nearest 1-shot), as validated in R4.
-There are no other fallbacks: pjev never substitutes a different strategy or an arbitrary answer.
+### Fallback behaviour
+
+| Task kind | Strategy | Valid exemplars required | With fewer |
+|---|---|---:|---|
+| `choice` | Nearest 2-shot, order A | 2 | S1 zero-shot |
+| `noul` | Nearest 1-shot | 1 | S1 zero-shot |
+| `score` | Weighted kNN-5 | 5 | S1 zero-shot |
+
+A strategy is never run with fewer exemplars (no 1-shot `choice`, no kNN with k < 5), and missing
+exemplars are never filled with arbitrary ones. An exemplar counts only if it is in the database and
+the training allowlist, has a one-hot answer, has the task's kind (and for `score` its number of
+levels), is not the query itself or a duplicate of another selected exemplar, loads and decodes, and
+(for `score`) its answer maps onto the query's levels. Invalid exemplars are skipped in rank order
+within the top-10 search. The zero-shot fallback is the original S1 path (same prompt, candidate
+mapping and candidate-logit scoring); its result has the same response format as any other decision.
+
+One fallback from R4 is kept: for `choice` with two valid exemplars, if the 2-shot prompt does not fit
+the context, the decision uses the nearest exemplar alone (nearest 1-shot).
+
+Fallback applies only to missing or invalid exemplars. Embedding, database and inference-backend
+failures, invalid requests and context overflows keep their error codes; a failing zero-shot decision
+reports through the same codes. The requested and executed strategy, the valid / required exemplar
+counts and the fallback reason are kept in the decision's routing diagnostics (debug log,
+`pjev benchmark latency`), not in API or CLI output.
+
 Missing or incompatible resources stop the server, the worker or the CLI at startup with a message
 naming the resource.
 
@@ -265,6 +407,7 @@ Use `--direct` to run in-process (each invocation loads the models, a few second
   "embedding_model": "nomic-embed-text-v1.5.gguf",
   "exemplar_db": "examplar.db",
   "exemplar_allowlist": "examplar-allowlist.txt",
+  "calibration": "calibration.json",
   "threads": -1,
   "context_size": 4096
 }
@@ -313,7 +456,11 @@ ctest --test-dir build -C Release --output-on-failure
 
 - Unit tests (no model files): prompt construction, decision engine, task routing (dispatch, kNN
   voting, label mapping, fallbacks, errors), exemplar store (allowlist, search, LZ4, corrupt input),
-  API, CLI formatting, worker protocol, configuration.
+  calibration (loading, fitting, metrics, partitioning, atomic output), API, CLI formatting, worker
+  protocol, configuration.
+- `test_calibrate`: `pjev calibrate` generation end to end on a fixture database with a mock model
+  (partitioning and leakage, inference paths, determinism, loader and model identity, read-only
+  database, atomic replacement, insufficient / degenerate data, validation rejection).
 - `test_golden_regression` (label `integration`): replays 24 tasks recorded from the validated R4 run
   (`tests/data/golden_r4.jsonl`) and requires identical exemplars, prompt token counts, candidate
   logits, vote shares and predictions. It needs the four runtime resources and is reported as skipped
@@ -352,7 +499,8 @@ pjev … --direct ────────────────────�
 ```
 
 Source layout: `src/routing` (policy, task mapping, kNN, router, runtime), `src/retrieval` (exemplar
-store, allowlist, embedding text), `src/decision` (prompt strategy, decision engine), `src/server`,
+store, allowlist, embedding text), `src/decision` (prompt strategy, decision engine), `src/calibration`
+(loading, fitting, metrics, `pjev calibrate` generation), `src/server`,
 `src/worker`, `src/cli`, `src/distribution`; `tools/pjevfilldb` builds the database.
 
 ---
@@ -361,8 +509,8 @@ store, allowlist, embedding text), `src/decision` (prompt strategy, decision eng
 
 - Validated on English tasks from the Open-Jev distribution; behaviour on other languages or task
   families not represented in the exemplar bank is not measured.
-- `score` supports the level counts present in the bank (3, 4 and 5 levels); other scales return
-  `no_eligible_exemplar`.
+- `score` uses kNN only for the level counts present in the bank (3, 4 and 5 levels); other scales
+  are decided zero-shot, whose accuracy was lower in R4 (44.69% overall for zero-shot).
 - Decisions run one at a time; each LLM decision evaluates its prompt from an empty KV cache.
 - The first decision after start-up is slower (cold caches); see `pjev benchmark latency`.
 - Binaries are unsigned; macOS Gatekeeper / Windows SmartScreen may warn.

@@ -37,6 +37,7 @@ bool ReleaseConfig::from_file(const std::string& path, ReleaseConfig& out, std::
         if (j.contains("embedding_model"))    out.embedding_model    = j["embedding_model"].get<std::string>();
         if (j.contains("exemplar_db"))        out.exemplar_db        = j["exemplar_db"].get<std::string>();
         if (j.contains("exemplar_allowlist")) out.exemplar_allowlist = j["exemplar_allowlist"].get<std::string>();
+        if (j.contains("calibration"))        out.calibration        = j["calibration"].get<std::string>();
         if (j.contains("threads"))            out.threads            = j["threads"].get<int>();
         if (j.contains("context_size"))       out.context_size       = j["context_size"].get<int>();
     } catch (const std::exception& e) {
@@ -62,6 +63,7 @@ nlohmann::json ReleaseConfig::to_json() const {
         {"embedding_model",    embedding_model},
         {"exemplar_db",        exemplar_db},
         {"exemplar_allowlist", exemplar_allowlist},
+        {"calibration",        calibration},
         {"threads",            threads},
         {"context_size",       context_size}
     };
@@ -107,6 +109,7 @@ RuntimePaths ReleaseConfig::resolve_runtime_paths(const RuntimePaths& explicit_p
     p.embedding_model    = resolve(explicit_paths.embedding_model, rc.embedding_model, kDefaultEmbeddingModelFile);
     p.exemplar_db        = resolve(explicit_paths.exemplar_db, rc.exemplar_db, kDefaultExemplarDbFile);
     p.exemplar_allowlist = resolve(explicit_paths.exemplar_allowlist, rc.exemplar_allowlist, kDefaultExemplarAllowlistFile);
+    p.calibration        = resolve(explicit_paths.calibration, rc.calibration, kDefaultCalibrationFile);
     return p;
 }
 

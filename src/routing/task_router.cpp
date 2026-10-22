@@ -90,18 +90,28 @@ bool NeighbourList::extend(const std::vector<retrieval::SearchHit>& hits, size_t
         if (picked_.size() >= need) break;
         if (std::find(offered_ids_.begin(), offered_ids_.end(), h.id) != offered_ids_.end()) continue;
         offered_ids_.push_back(h.id);
+        // An unusable exemplar is skipped: it does not count towards the strategy's neighbours.
+        auto reject = [&](const std::string& why) {
+            spdlog::debug("routing: exemplar {} skipped: {}", retrieval::format_exemplar_id(h.id), why);
+        };
 
         Neighbour n;
-        if (!index_.load(h.id, n.payload, err)) return false;
-        if (!build_demonstration(n.payload, n.demo, err)) {
-            err = "exemplar " + retrieval::format_exemplar_id(h.id) + ": " + err;
+        std::string why;
+        const retrieval::LoadResult loaded = index_.load(h.id, n.payload, why);
+        if (loaded == retrieval::LoadResult::Failed) {
+            err = std::move(why);
             return false;
         }
+        if (loaded != retrieval::LoadResult::Ok) { reject(why); continue; }
+        if (!build_demonstration(n.payload, n.demo, why)) { reject(why); continue; }
         const bool eligible = index_.is_allowed(n.payload.id) && n.payload.kind == task_.kind &&
                               (task_.kind != "score" || n.payload.number_of_levels == task_.number_of_levels);
-        if (!eligible) {
-            err = "exemplar " + retrieval::format_exemplar_id(h.id) + " returned by the search is not eligible";
-            return false;
+        if (!eligible) { reject("not eligible for the task"); continue; }
+        if (task_.kind == "score") {
+            const LabelMap m = map_label(task_.kind, task_.options, task_.option_to_candidate, n.payload.kind,
+                                         n.payload.options, n.payload.answer_index);
+            if (m.status != MapStatus::Ok) { reject("answer does not map onto the query's levels"); continue; }
+            n.label = m.candidate;
         }
         const uint64_t ck = content_key(n.payload.kind, n.payload.question, state_text(n.payload.state),
                                         n.payload.options);
@@ -120,9 +130,29 @@ bool NeighbourList::extend(const std::vector<retrieval::SearchHit>& hits, size_t
 // Router
 // ---------------------------------------------------------------------------
 
-TaskRouter::TaskRouter(DecisionEngine& engine, ITextEmbedder& embedder, const retrieval::IExemplarIndex& index)
-    : engine_(engine), embedder_(embedder), index_(index)
+TaskRouter::TaskRouter(DecisionEngine& engine, ITextEmbedder& embedder, const retrieval::IExemplarIndex& index,
+                       bool prior_correction)
+    : engine_(engine), embedder_(embedder), index_(index), prior_correction_(prior_correction)
 {}
+
+bool TaskRouter::attach_prior(RoutedTask& task, DecisionOutput& out)
+{
+    if (!prior_correction_) return true;
+    DecisionInput& in = task.decision;
+    const auto key = std::make_pair(in.type, in.options.size());
+    auto it = priors_.find(key);
+    if (it == priors_.end()) {
+        std::vector<float> prior = engine_.compute_blank_logits(in.type, static_cast<int>(in.options.size()));
+        if (prior.size() != in.options.size()) {
+            out = failure(ErrorCode::INFERENCE_ERROR, "calibration prior: blank-prompt logits could not be computed");
+            return false;
+        }
+        it = priors_.emplace(key, std::move(prior)).first;
+    }
+    in.prior_correction = true;
+    in.prior_logits     = it->second;
+    return true;
+}
 
 DecisionOutput TaskRouter::decide(const DecisionInput& input)
 {
@@ -135,22 +165,64 @@ DecisionOutput TaskRouter::decide(const DecisionInput& input)
         return out;
     }
 
-    DecisionOutput out;
+    DecisionOutput::RoutingDiag diag;
     switch (task.decision.type) {
-    case Type::Choice: out = decide_nearest_2shot(task); break;
-    case Type::Noul:   out = decide_nearest_1shot(task); break;
-    case Type::Score:  out = decide_weighted_knn5(task); break;
-    default:           out = failure(ErrorCode::UNSUPPORTED_PRIMITIVE, "unsupported decision type"); break;
+    case Type::Choice: diag.requested_strategy = kNearest2Shot; diag.required_exemplars = kNearest2ShotExemplars; break;
+    case Type::Noul:   diag.requested_strategy = kNearest1Shot; diag.required_exemplars = kNearest1ShotExemplars; break;
+    case Type::Score:  diag.requested_strategy = kKnn5;         diag.required_exemplars = kKnn5Exemplars;         break;
+    default: {
+        DecisionOutput out = failure(ErrorCode::UNSUPPORTED_PRIMITIVE, "unsupported decision type");
+        to_caller_order(out, task, input);
+        return out;
     }
+    }
+    const size_t required = static_cast<size_t>(diag.required_exemplars);
+
+    DecisionOutput r;
+    NeighbourList list(task.retrieval, index_, embedder_.dimension());
+    if (!retrieve(task, required, list, r)) {
+        to_caller_order(r, task, input);
+        return r;
+    }
+    const std::vector<Neighbour>& nb = list.neighbours();
+    diag.strategy           = diag.requested_strategy;
+    diag.valid_exemplars    = static_cast<int32_t>(nb.size());
+    diag.rejected_exemplars = static_cast<int32_t>(list.rejected());
+    record_neighbours(diag, nb);
+
+    DecisionOutput out;
+    const bool zero_shot = nb.size() < required;
+    if (zero_shot) {
+        diag.strategy        = kZeroShot;
+        diag.fallback        = true;
+        diag.fallback_reason = list.offered() == 0 ? kReasonNoExemplar : kReasonInsufficientExemplars;
+    }
+    // Calibration prior for LLM decisions only: kNN-5 votes are never calibrated.
+    const bool llm = zero_shot || task.decision.type != Type::Score;
+    if (!llm || attach_prior(task, out)) {
+        if (zero_shot) {
+            out = decide_zero_shot(task);
+        } else {
+            switch (task.decision.type) {
+            case Type::Choice: out = decide_nearest_2shot(task, nb, diag); break;
+            case Type::Noul:   out = decide_nearest_1shot(task, nb, diag); break;
+            default:           out = decide_weighted_knn5(task, nb, diag); break;
+            }
+        }
+    }
+    out.retrieval_us += r.retrieval_us;
+    out.routing = std::move(diag);
     to_caller_order(out, task, input);
-    if (out.ok && out.routing) {
-        spdlog::debug("routing: {} -> {}{} (selected {})", task.retrieval.kind, out.routing->strategy,
-                      out.routing->fallback ? " [1-shot fallback]" : "", out.selected);
-    }
+    const auto& d = *out.routing;
+    if (spdlog::should_log(spdlog::level::debug))
+        spdlog::debug("routing: {} -> {}{} (valid exemplars {}/{}, rejected {}; {})", task.retrieval.kind, d.strategy,
+                      d.fallback ? " [fallback from " + d.requested_strategy + ": " + d.fallback_reason + "]" : "",
+                      d.valid_exemplars, d.required_exemplars, d.rejected_exemplars,
+                      out.ok ? "selected " + std::to_string(out.selected) : "failed: " + out.error_code);
     return out;
 }
 
-bool TaskRouter::retrieve(const RoutedTask& task, size_t need, std::vector<Neighbour>& neighbours, DecisionOutput& out)
+bool TaskRouter::retrieve(const RoutedTask& task, size_t need, NeighbourList& list, DecisionOutput& out)
 {
     const int64_t t0 = now_us();
     const RetrievalTask& q = task.retrieval;
@@ -167,7 +239,6 @@ bool TaskRouter::retrieve(const RoutedTask& task, size_t need, std::vector<Neigh
     }
 
     std::string err;
-    NeighbourList list(q, index_, embedder_.dimension());
     // Rank 1: R1's top-1 search.
     std::vector<retrieval::SearchHit> hits;
     if (!index_.search(q.kind, q.number_of_levels, embedding, 1, hits, err)) return fail(ErrorCode::INFERENCE_ERROR, err);
@@ -178,100 +249,71 @@ bool TaskRouter::retrieve(const RoutedTask& task, size_t need, std::vector<Neigh
             return fail(ErrorCode::INFERENCE_ERROR, err);
         if (!list.extend(hits, need, err)) return fail(ErrorCode::INFERENCE_ERROR, err);
     }
-    if (list.neighbours().empty()) {
-        std::string what = q.kind;
-        if (q.kind == "score") what += " with " + std::to_string(q.number_of_levels) + " levels";
-        return fail(ErrorCode::NO_ELIGIBLE_EXEMPLAR, "no eligible exemplar for " + what);
-    }
-    neighbours = list.neighbours();
     out.retrieval_us = now_us() - t0;
     return true;
 }
 
-DecisionOutput TaskRouter::decide_nearest_2shot(const RoutedTask& task)
+DecisionOutput TaskRouter::decide_nearest_2shot(const RoutedTask& task, const std::vector<Neighbour>& nb,
+                                                DecisionOutput::RoutingDiag& diag)
 {
-    DecisionOutput r;
-    std::vector<Neighbour> nb;
-    if (!retrieve(task, 2, nb, r)) return r;
-
-    DecisionOutput::RoutingDiag diag;
-    diag.strategy = kNearest2Shot;
-    record_neighbours(diag, nb);
-
-    DecisionOutput out;
-    if (nb.size() >= 2) {
-        // Order A: second-nearest, nearest, query.
-        out = engine_.decide_with_demonstrations(task.decision, {nb[1].demo, nb[0].demo});
-        diag.demonstration_ids = {nb[1].id, nb[0].id};
-    }
-    // Validated fallback: fewer than two neighbours, or the 2-shot prompt exceeds the context.
-    if (nb.size() < 2 || (!out.ok && is_context_limit(out))) {
+    // Order A: second-nearest, nearest, query.
+    DecisionOutput out = engine_.decide_with_demonstrations(task.decision, {nb[1].demo, nb[0].demo});
+    diag.demonstration_ids = {nb[1].id, nb[0].id};
+    // Validated R4 fallback: the 2-shot prompt exceeds the context -> the nearest exemplar alone.
+    if (!out.ok && is_context_limit(out)) {
         out = engine_.decide_with_demonstration(task.decision, nb[0].demo);
-        diag.fallback = true;
+        diag.strategy          = kNearest1Shot;
+        diag.fallback          = true;
+        diag.fallback_reason   = kReasonContextLimit;
         diag.demonstration_ids = {nb[0].id};
     }
     classify_engine_error(out);
-    out.retrieval_us = r.retrieval_us;
-    out.routing = std::move(diag);
     return out;
 }
 
-DecisionOutput TaskRouter::decide_nearest_1shot(const RoutedTask& task)
+DecisionOutput TaskRouter::decide_nearest_1shot(const RoutedTask& task, const std::vector<Neighbour>& nb,
+                                                DecisionOutput::RoutingDiag& diag)
 {
-    DecisionOutput r;
-    std::vector<Neighbour> nb;
-    if (!retrieve(task, 1, nb, r)) return r;
-
     DecisionOutput out = engine_.decide_with_demonstration(task.decision, nb[0].demo);
-    classify_engine_error(out);
-    out.retrieval_us = r.retrieval_us;
-    DecisionOutput::RoutingDiag diag;
-    diag.strategy = kNearest1Shot;
     diag.demonstration_ids = {nb[0].id};
-    record_neighbours(diag, nb);
-    out.routing = std::move(diag);
+    classify_engine_error(out);
     return out;
 }
 
-DecisionOutput TaskRouter::decide_weighted_knn5(const RoutedTask& task)
+DecisionOutput TaskRouter::decide_weighted_knn5(const RoutedTask& task, const std::vector<Neighbour>& nb,
+                                                DecisionOutput::RoutingDiag& diag)
 {
-    DecisionOutput out;
-    std::vector<Neighbour> nb;
-    if (!retrieve(task, kKnnK, nb, out)) return out;
-
     const int64_t t0 = now_us();
-    const RetrievalTask& q = task.retrieval;
-    DecisionOutput::RoutingDiag diag;
-    diag.strategy = kKnn5;
-    record_neighbours(diag, nb);
     std::vector<VoteInput> votes;
     for (const auto& n : nb) {
-        const LabelMap m = map_label(q.kind, q.options, q.option_to_candidate, n.payload.kind, n.payload.options,
-                                     n.payload.answer_index);
-        const int label = m.status == MapStatus::Ok ? m.candidate : -1;
-        votes.push_back({label, n.similarity});
-        diag.neighbour_labels.push_back(label);
+        votes.push_back({n.label, n.similarity});
+        diag.neighbour_labels.push_back(n.label);
     }
     const VoteResult v = vote(votes, kKnnK, kKnnTau);
-    const int64_t retrieval_us = out.retrieval_us + (now_us() - t0);
-    if (!v.ok) {
-        out = failure(ErrorCode::NO_ELIGIBLE_EXEMPLAR, "no neighbour answer maps onto the query's levels");
-        out.retrieval_us = retrieval_us;
-        out.routing = std::move(diag);
+    if (!v.ok) {  // not expected: NeighbourList validated every neighbour's label
+        DecisionOutput out = failure(ErrorCode::INFERENCE_ERROR, "kNN vote failed");
+        out.retrieval_us = now_us() - t0;
         return out;
     }
 
     // Probabilities are the normalised vote weights; the prediction is the vote winner.
     const size_t n = task.decision.options.size();
-    out = DecisionOutput{};
+    DecisionOutput out;
     out.ok = true;
     out.selected = v.label;
     out.probs.assign(n, 0.0);
     for (size_t i = 0; i < n && i < v.weight.size(); ++i) out.probs[i] = v.weight[i] / v.total_weight;
     out.raw_probs = out.probs;
     for (size_t i = 0; i < n; ++i) out.expected_score += static_cast<double>(i) * out.probs[i];
-    out.retrieval_us = retrieval_us;
-    out.routing = std::move(diag);
+    out.retrieval_us = now_us() - t0;
+    return out;
+}
+
+// The existing S1 path (prompt, candidate mapping and candidate-logit scoring of decide_zero_shot).
+DecisionOutput TaskRouter::decide_zero_shot(const RoutedTask& task)
+{
+    DecisionOutput out = engine_.decide_zero_shot(task.decision);
+    classify_engine_error(out);
     return out;
 }
 

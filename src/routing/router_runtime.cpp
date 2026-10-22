@@ -7,6 +7,8 @@
 #include "inference/llama_backend.h"
 #include "inference/llama_instance.h"
 #include "retrieval/exemplar_store.h"
+#include "spdlog/spdlog.h"
+#include "task_policy.h"
 #include "task_router.h"
 
 namespace pjev
@@ -76,6 +78,21 @@ DecisionService& RouterRuntime::service()
     return *impl_->router;
 }
 
+routing::TaskRouter& RouterRuntime::router()
+{
+    return *impl_->router;
+}
+
+DecisionEngine& RouterRuntime::engine()
+{
+    return *impl_->engine;
+}
+
+retrieval::ExemplarStore& RouterRuntime::exemplar_store()
+{
+    return impl_->store;
+}
+
 std::unique_ptr<RouterRuntime> RouterRuntime::load(const RuntimeOptions& opts, std::string& err)
 {
     const RuntimePaths& p = opts.paths;
@@ -91,6 +108,12 @@ std::unique_ptr<RouterRuntime> RouterRuntime::load(const RuntimeOptions& opts, s
 
     std::unique_ptr<RouterRuntime> rt(new RouterRuntime());
     Impl& m = *rt->impl_;
+
+    // Calibration first: a configuration error stops start-up before any model loads.
+    CalibrationFormulation active;
+    active.layout           = routing::kFormulationLayout;
+    active.candidate_scheme = routing::kFormulationCandidateScheme;
+    if (!load_calibration(p.calibration, opts.calibration_required, active, rt->calibration_, err)) return nullptr;
 
     if (!m.store.open(p.exemplar_db, p.exemplar_allowlist, err)) return nullptr;
     rt->exemplar_count_     = m.store.example_count();
@@ -126,8 +149,21 @@ std::unique_ptr<RouterRuntime> RouterRuntime::load(const RuntimeOptions& opts, s
     }
     rt->model_identity_ = ModelIdentity::from_path(p.model, m.backend.get());
 
-    // Validated decision configuration: letter candidates, automatic layout, one candidate order,
-    // no calibration, no prior correction.
+    // The artifact's model identity is checked against the loaded model before anything is applied.
+    const bool model_verified = check_calibration_model(rt->calibration_, rt->model_identity_.sha256);
+    switch (rt->calibration_.state) {
+    case CalibrationState::Disabled:     spdlog::info("calibration: disabled"); break;
+    case CalibrationState::Missing:      spdlog::warn("{}", rt->calibration_.message); break;
+    case CalibrationState::Incompatible: spdlog::error("{}", rt->calibration_.message); break;
+    case CalibrationState::Enabled:
+        spdlog::info("calibration: enabled ({}; prior correction {}; model {})", p.calibration,
+                     rt->calibration_.prior_correction() ? "on" : "off",
+                     model_verified ? "verified" : "not recorded in the artifact");
+        break;
+    }
+
+    // Validated decision configuration: letter candidates, automatic layout, one candidate order;
+    // calibration (temperature, prior correction) only from a compatible artifact.
     PromptConfig prompt_cfg;
     prompt_cfg.layout = Layout::AUTO;
     prompt_cfg.scheme = Scheme::LETTERS;
@@ -136,12 +172,13 @@ std::unique_ptr<RouterRuntime> RouterRuntime::load(const RuntimeOptions& opts, s
     ensemble.choice_mode = ChoiceEnsembleMode::NONE;
     ensemble.score_mode  = ScoreEnsembleMode::NONE;
     try {
-        m.engine = std::make_unique<DecisionEngine>(*m.backend, prompt_cfg, CalibrationConfig{}, ensemble);
+        m.engine = std::make_unique<DecisionEngine>(*m.backend, prompt_cfg, rt->calibration_.config(), ensemble);
     } catch (const std::exception& e) {
         err = std::string("decision engine init failed: ") + e.what();
         return nullptr;
     }
-    m.router = std::make_unique<routing::TaskRouter>(*m.engine, *m.encoder, m.store);
+    m.router = std::make_unique<routing::TaskRouter>(*m.engine, *m.encoder, m.store,
+                                                     rt->calibration_.prior_correction());
     return rt;
 }
 

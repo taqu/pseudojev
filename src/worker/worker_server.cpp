@@ -60,6 +60,7 @@ int WorkerServer::run()
     // 1. Load models and the exemplar database
     RuntimeOptions opts;
     opts.paths        = cfg_.paths;
+    opts.calibration_required = cfg_.calibration_required;
     opts.n_threads    = cfg_.threads;
     opts.n_ctx        = cfg_.ctx_size;
     opts.n_gpu_layers = cfg_.n_gpu_layers;
@@ -82,6 +83,7 @@ int WorkerServer::run()
 #endif
     info_.model_identity = mid.name.empty() ? cfg_.paths.model : mid.name;
     info_.config_hash    = make_config_hash(cfg_.paths, cfg_.threads, cfg_.ctx_size);
+    info_.calibration    = to_string(runtime_->calibration().state);
     info_.start_time_us  = get_now_us();
 
     // 3. Create ILocalServer and bind

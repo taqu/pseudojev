@@ -1,0 +1,18 @@
+{
+  "formulation": {
+    "candidate_scheme": "natural",
+    "layout": "auto",
+    "prior_correction": true
+  },
+  "method": "temperature",
+  "model": "",
+  "parameters": {
+    "choice_prior_alpha": 0.9999999999999999,
+    "choice_temperature": 2.046567219106836,
+    "noul_prior_alpha": 0.0,
+    "noul_temperature": 99.99999952490862,
+    "score_prior_alpha": 1.0999999999999999,
+    "score_temperature": 11.960309669703673
+  },
+  "version": 1
+}

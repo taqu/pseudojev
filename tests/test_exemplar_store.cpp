@@ -203,16 +203,16 @@ static void test_load(const std::string& db, const std::string& allow)
     std::string err;
     s.open(db, allow, err);
     ExemplarPayload p;
-    CHECK(s.load(hash_exemplar_id("c1"), p, err), "load: ok");
+    CHECK(s.load(hash_exemplar_id("c1"), p, err) == LoadResult::Ok, "load: ok");
     CHECK(p.kind == "choice" && p.question == "Question c1" && p.options == std::vector<std::string>({"a", "b"}) &&
           p.answer_index == 1, "load: fields");
     CHECK(p.state.is_object() && p.state.begin().key() == "policy_name" && p.state["limit"] == 3,
           "load: LZ4 state decompressed, key order kept");
-    CHECK(s.load(hash_exemplar_id("c3"), p, err) && p.state.is_string() && p.state.get<std::string>() == "plain text state",
+    CHECK(s.load(hash_exemplar_id("c3"), p, err) == LoadResult::Ok && p.state.is_string() && p.state.get<std::string>() == "plain text state",
           "load: string state");
-    CHECK(s.load(hash_exemplar_id("s5"), p, err) && p.number_of_levels == 5, "load: level count");
-    CHECK(s.load(hash_exemplar_id("soft"), p, err) && p.answer_index == -1, "load: soft target has no answer index");
-    CHECK(!s.load(12345, p, err) && err.find("not found") != std::string::npos, "load: missing row");
+    CHECK(s.load(hash_exemplar_id("s5"), p, err) == LoadResult::Ok && p.number_of_levels == 5, "load: level count");
+    CHECK(s.load(hash_exemplar_id("soft"), p, err) == LoadResult::Ok && p.answer_index == -1, "load: soft target has no answer index");
+    CHECK(s.load(12345, p, err) == LoadResult::Invalid && err.find("not found") != std::string::npos, "load: missing row is invalid");
 
     // Corrupt one payload in a copy of the database.
     const std::string bad = "test_store_corrupt.db";
@@ -231,9 +231,9 @@ static void test_load(const std::string& db, const std::string& allow)
     {
         ExemplarStore c;  // closed before the file is removed
         CHECK(c.open(bad, allow, err), "corrupt payload: database still opens");
-        CHECK(!c.load(hash_exemplar_id("c2"), p, err) && err.find("state_lz4") != std::string::npos,
+        CHECK(c.load(hash_exemplar_id("c2"), p, err) == LoadResult::Invalid && err.find("state_lz4") != std::string::npos,
               "corrupt payload: LZ4 error reported");
-        CHECK(c.load(hash_exemplar_id("c1"), p, err), "corrupt payload: other rows still load");
+        CHECK(c.load(hash_exemplar_id("c1"), p, err) == LoadResult::Ok, "corrupt payload: other rows still load");
     }
     remove_db(bad);
 }

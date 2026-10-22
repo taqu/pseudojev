@@ -112,6 +112,43 @@ int64_t ExemplarStore::example_count() const
     return n;
 }
 
+bool ExemplarStore::scan(std::vector<ExemplarRow>& out, std::string& err) const
+{
+    out.clear();
+    if (!db_) { err = "exemplar database is not open"; return false; }
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_,
+                           "SELECT id, group_id, kind, number_of_levels, answer_index IS NOT NULL, domain, family "
+                           "FROM examples ORDER BY rowid",
+                           -1, &stmt, nullptr) != SQLITE_OK) {
+        err = std::string("exemplar scan failed: ") + sqlite3_errmsg(db_);
+        return false;
+    }
+    auto text = [&](int c) -> std::string {
+        const char* v = reinterpret_cast<const char*>(sqlite3_column_text(stmt, c));
+        return v ? v : "";
+    };
+    int rc;
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        ExemplarRow r;
+        r.id               = sqlite3_column_int64(stmt, 0);
+        r.group_id         = sqlite3_column_int64(stmt, 1);
+        r.kind             = text(2);
+        r.number_of_levels = sqlite3_column_int(stmt, 3);
+        r.one_hot          = sqlite3_column_int(stmt, 4) != 0;
+        r.domain           = text(5);
+        r.family           = text(6);
+        out.push_back(std::move(r));
+    }
+    if (rc != SQLITE_DONE) {
+        err = std::string("exemplar scan failed: ") + sqlite3_errmsg(db_);
+        sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_finalize(stmt);
+    return true;
+}
+
 int64_t ExemplarStore::rowid_to_id(int64_t rowid) const
 {
     sqlite3_reset(stmt_id_);
@@ -187,16 +224,19 @@ bool ExemplarStore::search(const std::string&        kind,
     return true;
 }
 
-bool ExemplarStore::load(int64_t id, ExemplarPayload& out, std::string& err) const
+LoadResult ExemplarStore::load(int64_t id, ExemplarPayload& out, std::string& err) const
 {
-    if (!db_) { err = "exemplar database is not open"; return false; }
+    if (!db_) { err = "exemplar database is not open"; return LoadResult::Failed; }
     sqlite3_reset(stmt_payload_);
     sqlite3_bind_int64(stmt_payload_, 1, id);
     const int rc = sqlite3_step(stmt_payload_);
+    if (rc == SQLITE_DONE) {
+        err = "exemplar " + format_exemplar_id(id) + " not found";
+        return LoadResult::Invalid;
+    }
     if (rc != SQLITE_ROW) {
-        err = rc == SQLITE_DONE ? "exemplar " + format_exemplar_id(id) + " not found"
-                                : std::string("exemplar read failed: ") + sqlite3_errmsg(db_);
-        return false;
+        err = std::string("exemplar read failed: ") + sqlite3_errmsg(db_);
+        return LoadResult::Failed;
     }
     auto text = [&](int c) -> std::string {
         const char* v = reinterpret_cast<const char*>(sqlite3_column_text(stmt_payload_, c));
@@ -212,27 +252,27 @@ bool ExemplarStore::load(int64_t id, ExemplarPayload& out, std::string& err) con
     std::string lz4_err;
     const std::string state_json = lz4::decompress(sqlite3_column_blob(stmt_payload_, 5),
         static_cast<size_t>(sqlite3_column_bytes(stmt_payload_, 5)), lz4_err);
-    if (!lz4_err.empty()) { err = "exemplar " + format_exemplar_id(id) + " state_lz4: " + lz4_err; return false; }
+    if (!lz4_err.empty()) { err = "exemplar " + format_exemplar_id(id) + " state_lz4: " + lz4_err; return LoadResult::Invalid; }
     const std::string options_json = lz4::decompress(sqlite3_column_blob(stmt_payload_, 6),
         static_cast<size_t>(sqlite3_column_bytes(stmt_payload_, 6)), lz4_err);
-    if (!lz4_err.empty()) { err = "exemplar " + format_exemplar_id(id) + " options_lz4: " + lz4_err; return false; }
+    if (!lz4_err.empty()) { err = "exemplar " + format_exemplar_id(id) + " options_lz4: " + lz4_err; return LoadResult::Invalid; }
     try {
         out.state = nlohmann::ordered_json::parse(state_json);
         const auto opts = nlohmann::ordered_json::parse(options_json);
-        if (!opts.is_array()) { err = "exemplar " + format_exemplar_id(id) + ": options payload is not an array"; return false; }
+        if (!opts.is_array()) { err = "exemplar " + format_exemplar_id(id) + ": options payload is not an array"; return LoadResult::Invalid; }
         for (const auto& o : opts) {
-            if (!o.is_string()) { err = "exemplar " + format_exemplar_id(id) + ": options payload contains a non-string"; return false; }
+            if (!o.is_string()) { err = "exemplar " + format_exemplar_id(id) + ": options payload contains a non-string"; return LoadResult::Invalid; }
             out.options.push_back(o.get<std::string>());
         }
     } catch (const std::exception& e) {
         err = "exemplar " + format_exemplar_id(id) + " payload JSON: " + e.what();
-        return false;
+        return LoadResult::Invalid;
     }
     if (out.answer_index >= static_cast<int>(out.options.size())) {
         err = "exemplar " + format_exemplar_id(id) + ": answer_index out of range for stored options";
-        return false;
+        return LoadResult::Invalid;
     }
-    return true;
+    return LoadResult::Ok;
 }
 
 } // namespace retrieval

@@ -20,6 +20,7 @@ struct WorkerInfo {
     int32_t  pid = 0;
     std::string model_identity;
     std::string config_hash; // canonical string of effective config
+    std::string calibration; // calibration state (to_string(CalibrationState))
     int64_t  start_time_us = 0;
 };
 

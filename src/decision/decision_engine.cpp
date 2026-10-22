@@ -333,6 +333,11 @@ DecisionOutput DecisionEngine::decide_with_demonstrations(const DecisionInput& i
     return decide_single_impl(input, nullptr, nullptr, nullptr, demos.data(), demos.size());
 }
 
+DecisionOutput DecisionEngine::decide_zero_shot(const DecisionInput& input)
+{
+    return decide_single(input);
+}
+
 DecisionOutput DecisionEngine::decide(const DecisionInput& input)
 {
     if(input.type == Type::Noul && ensemble_cfg_.noul_mode == NoulEnsembleMode::BINARY_ORDER)

@@ -19,6 +19,7 @@ pjev_add_test(test_decision_mock    pjev-core)  # decision engine scoring with a
 pjev_add_test(test_ensemble         pjev-core)  # decision engine option-order ensemble
 pjev_add_test(test_perf_opt         pjev-core)  # decision engine KV prefix reuse
 pjev_add_test(test_routing          pjev-core)  # task-aware routing: dispatch, kNN, mapping, errors
+pjev_add_test(test_calibration      pjev-core)  # calibration loading, fitting, metrics, partitioning, output
 pjev_add_test(test_jev_parsing      pjev-core)  # Jev request parsing / response serialization
 pjev_add_test(test_server           pjev-core)  # API hardening: structured errors, limits
 pjev_add_test(test_cli              pjev-core)  # CLI output formatting
@@ -29,6 +30,7 @@ pjev_add_test(test_model_identity   pjev-core)  # SHA-256, model identity, candi
 if (TARGET pjev-filldb-lib)
     pjev_add_test(test_exemplar_store pjev-filldb-lib)  # read-only exemplar store, allowlist, LZ4, corruption
     pjev_add_test(test_filldb         pjev-filldb-lib)  # exemplar records, embedding text, database writer
+    pjev_add_test(test_calibrate      pjev-filldb-lib)  # calibration generation on a fixture database
     # End to end with the real embedding model (skips if the model is absent)
     pjev_add_test(test_filldb_integration pjev-filldb-lib pjev-runtime)
 endif()
