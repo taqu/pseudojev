@@ -119,11 +119,13 @@ for `score` are never calibrated.
 | `--no-calibration` | Uncalibrated (the R4 reference behaviour) |
 
 The production formulation is `layout: auto`, `candidate_scheme: letters` (the validated R4 prompt).
-**The supplied `models/calibration.json` was fitted for `candidate_scheme: natural`** and is therefore
-reported as incompatible and not applied: release decisions are uncalibrated until a calibration is
-generated for the model with [`pjev calibrate`](#generating-a-calibration-pjev-calibrate). The state is
-shown by `/version` (`calibration`), `pjev status`, `pjev diagnostics --load` and the start-up log.
-The R4 accuracy figures describe uncalibrated decisions.
+The bundled `calibration.json` is fitted for Bonsai2 2B (`candidate_scheme: letters`, prior correction
+enabled, model SHA-256 verified) and loads automatically as **enabled** in the default configuration.
+The state is shown by `/version` (`calibration`), `pjev status`, `pjev diagnostics --load` and the
+start-up log. The R4 accuracy figures describe uncalibrated decisions; calibration adjusts confidence
+but does not guarantee accuracy improvement. If you replace the default model, generate a new
+calibration with [`pjev calibrate`](#generating-a-calibration-pjev-calibrate): the bundled calibration
+is silently skipped for any model whose SHA-256 does not match.
 
 An artifact's `model` is the SHA-256 of the GGUF file it was fitted for. It is checked when the
 runtime loads the model; an empty `model` (artifacts from earlier releases) is not checked.

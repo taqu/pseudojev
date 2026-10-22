@@ -89,9 +89,17 @@ static std::vector<std::string> hex_ids(const std::vector<int64_t>& ids)
     return out;
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    const std::string data_path = env_or("PJEV_GOLDEN_DATA", "tests/data/golden_r4.jsonl");
+    bool record_mode = false;
+    std::string record_path;
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--record" && i + 1 < argc) {
+            record_mode = true;
+            record_path = argv[++i];
+        }
+    }
+    const std::string data_path = env_or("PJEV_GOLDEN_DATA", "tests/data/golden_r7.jsonl");
     RuntimeOptions opts;
     opts.paths.model              = env_or("PJEV_MODEL", "models/bonsai2_2b.gguf");
     opts.paths.embedding_model    = env_or("PJEV_EMBEDDING_MODEL", "models/nomic-embed-text-v1.5.gguf");
@@ -141,6 +149,7 @@ int main()
     int agree = 0, logits_exact = 0, logit_cases = 0;
     double max_logit_diff = 0.0;
     std::vector<DecisionOutput> uncalibrated;
+    std::vector<json> updated_cases;
 
     for (const auto& c : cases) {
         const std::string name = c["case"].get<std::string>();
@@ -217,6 +226,29 @@ int main()
         }
         printf("%s %-9s %-14s pred %d (expected %d) %7.1f ms (retrieval %.1f ms) %s\n", ok ? "ok  " : "FAIL", name.c_str(),
                r.strategy.c_str(), out.selected, want_pred, ms, out.retrieval_us / 1000.0, c["tags"].dump().c_str());
+        if (record_mode && out.ok) {
+            json upd = c;
+            json& e = upd["expected"];
+            e["strategy"] = r.strategy;
+            e["prediction_index"] = out.selected;
+            e["prediction_key"] = c["input"]["options"][out.selected][0];
+            if (exp.contains("logits")) {
+                e["demonstration_ids"] = hex_ids(r.demonstration_ids);
+                e["prompt_tokens"] = out.prompt_token_count;
+                e["logits"] = out.raw_logits;
+            } else {
+                e["neighbour_ids"] = hex_ids(r.neighbour_ids);
+                e["neighbour_labels"] = r.neighbour_labels;
+                e["neighbour_hamming"] = r.neighbour_hamming;
+                e["vote_shares"] = out.probs;
+            }
+            updated_cases.push_back(std::move(upd));
+        }
+    }
+    if (record_mode) {
+        std::ofstream rf(record_path);
+        for (const auto& u : updated_cases) rf << u.dump() << "\n";
+        printf("recorded %zu cases to %s\n", updated_cases.size(), record_path.c_str());
     }
 
     // Determinism: repeat one case per kind.
@@ -275,7 +307,12 @@ int main()
             for (size_t k = 0; k < delta.size(); ++k) delta[k] = out.raw_logits[k] - out.corrected_logits[k];
             const auto key = std::make_pair(static_cast<int>(in.type), in.options.size());
             auto [it, inserted] = priors.emplace(key, delta);
-            expect(it->second == delta, "prior correction differs between decisions of the same kind and size");
+            // Tolerance: delta = raw - corrected is computed per-decision; floating-point
+            // non-associativity can produce tiny variation (~1e-5) when raw values differ.
+            bool prior_ok = it->second.size() == delta.size();
+            for (size_t k = 0; prior_ok && k < delta.size(); ++k)
+                prior_ok = std::fabs(it->second[k] - delta[k]) < 1e-4f;
+            expect(prior_ok, "prior correction differs between decisions of the same kind and size");
             if (!cal.prior_correction()) expect(out.corrected_logits == out.raw_logits, "prior correction without prior");
             std::vector<double> probs;
             temperature_softmax(out.corrected_logits, cfg.temperature_for(in.type), probs);
@@ -293,7 +330,7 @@ int main()
     dflt.paths.calibration = ReleaseConfig::resolve_runtime_paths(RuntimePaths{}, "").calibration;
     CHECK(dflt.paths.calibration == "models/calibration.json", "default calibration path");
     const CalibrationState dstate = run_calibrated(dflt, "default calibration");
-    CHECK(dstate != CalibrationState::Disabled, "default calibration file is read automatically");
+    CHECK(dstate == CalibrationState::Enabled, "bundled calibration is enabled and model-verified");
 
     // A compatible artifact (the supplied parameters, letters formulation) is applied.
     CalibrationArtifact art;

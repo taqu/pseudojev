@@ -1,18 +1,18 @@
 {
   "formulation": {
-    "candidate_scheme": "natural",
+    "candidate_scheme": "letters",
     "layout": "auto",
     "prior_correction": true
   },
   "method": "temperature",
-  "model": "",
+  "model": "36061ad406df8a4903a6db005be350c50fabfaf717f9ef0acf4b76adcd9929fa",
   "parameters": {
-    "choice_prior_alpha": 0.9999999999999999,
-    "choice_temperature": 2.046567219106836,
-    "noul_prior_alpha": 0.0,
-    "noul_temperature": 99.99999952490862,
-    "score_prior_alpha": 1.0999999999999999,
-    "score_temperature": 11.960309669703673
+    "choice_prior_alpha": 0.2,
+    "choice_temperature": 5.8999029425620355,
+    "noul_prior_alpha": 0.6,
+    "noul_temperature": 3.7346444475185563,
+    "score_prior_alpha": 2.0,
+    "score_temperature": 99.99999952490862
   },
   "version": 1
 }

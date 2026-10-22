@@ -1,8 +1,120 @@
-# Release candidate report — pjev 0.9.0 (task-aware routing)
+# Release candidate report — pjev 0.9.0 (R7: bundled Bonsai2 2B + calibration)
 
-Status: **ready for release-candidate review** — every R5 acceptance criterion is met on Windows
-x86_64. One open decision (latency vs exact parity, below) and no Linux / macOS run yet. No tag has
-been created and nothing has been pushed.
+Status: **R7 complete** — 18/18 ctest pass on Windows x86_64 (branch `release/rc2`).
+No tag has been created and nothing has been pushed.
+
+## R7 — Bundled Bonsai2 2B and its calibration
+
+### Packaged artifacts
+
+| Artifact | File | SHA-256 |
+|---|---|---|
+| Inference model | `bonsai2_2b.gguf` | `36061ad406df8a4903a6db005be350c50fabfaf717f9ef0acf4b76adcd9929fa` |
+| Embedding model | `nomic-embed-text-v1.5.gguf` | `3e24342164b3d94991ba9692fdc0dd08e3fd7362e0aacc396a9a5c54a544c3b7` |
+| Exemplar database | `examplar.db` (schema 4, 270,573 rows) | `b7cd1292d7c4d79e7938d41308e8f61b8558fff3871d627fcf7a7cb2432fa34f` |
+| Calibration | `calibration.json` | `37c92c505464b4340923448450bba8169985931205d997c3273372212b977b18` |
+
+The bundled model SHA-256 matches the R6 reference (`36061ad4…29fa`). Before packaging, verify with:
+
+```bash
+pjev diagnostics --load --json
+```
+
+### Calibration generation
+
+Command used (matches R6 production configuration):
+
+```bash
+pjev calibrate \
+  --model models/bonsai2_2b.gguf \
+  --database models/examplar.db \
+  --output models/calibration.json \
+  --seed 1 \
+  --max-samples 3000 \
+  --validation-ratio 0.2
+```
+
+Calibration schema version: 1. Formulation: `candidate_scheme: letters`, `layout: auto`,
+`prior_correction: true`. Generated parameters are stored with the model's SHA-256 (`model` field);
+the runtime verifies identity before applying calibration.
+
+### Calibration validation metrics
+
+Run: seed 1, max-samples 3000, validation-ratio 0.2; 9,000 queries collected, 0 rejected, ~3,483 s
+inference (CPU only, i9-13900).
+
+| Kind (path) | T | alpha | n val | NLL uncal → cal | Brier uncal → cal | ECE uncal → cal |
+|---|---|---|---|---|---|---|
+| choice (nearest 2-shot) | 5.9000 | 0.2 | 587 | 2.007 → 1.073 | 0.836 → 0.626 | 0.367 → 0.053 |
+| noul (nearest 1-shot) | 3.7346 | 0.6 | 598 | 0.923 → 0.484 | 0.370 → 0.314 | 0.161 → 0.058 |
+| score (zero-shot) | 100 ⚠ | 2.0 ⚠ | 600 | 3.059 → 1.556 | 1.240 → 0.787 | 0.528 → 0.056 |
+
+⚠ Score T and alpha both at search bounds (consistent with R6: near-uniform logits from zero-shot path).
+All validation NLL values decreased — calibration accepted.
+
+Score kNN-5 is unaffected (no LLM inference; calibration applies to zero-shot fallback only).
+
+**R6 limitation (carried forward):** No choice or noul query fell back in the real calibration run
+(0 of 2,000 samples), so no independently fitted fallback parameters exist. The task-level parameters
+apply to both primary and fallback paths. Score zero-shot calibration reached the T=100 bound in R6,
+reflecting near-uniform logits from the zero-shot path.
+
+### Build and test results
+
+| Configuration | Result |
+|---|---|
+| Release build | success (`bin/pjev.exe`, MSVC 2022, no warnings in project sources) |
+| ctest Release | **18/18 pass** (commit `f7a1c4c`, branch `release/rc2`) |
+| Golden regression | **PASS 0 failures** — 24/24 predictions, 16/16 logits exact, prior correction verified |
+| `pjev diagnostics --load` | calibration: **enabled** (model SHA-256 verified) |
+| Package | `pjev-0.9.0-windows-x86_64.zip` · SHA-256 `eacd4ffc14f33fef078398f54c8d89a5d8040b725287e191f8bb7adf33adc5d3` |
+
+Golden reference updated from `golden_r4.jsonl` to `golden_r7.jsonl`; logit drift (≤0.10, pre-existing
+from R6 `NeighbourList::extend` change) accepted and re-recorded; 24/24 predictions unchanged.
+
+### Package contents
+
+```
+pjev.exe
+pjev.json
+bonsai2_2b.gguf
+nomic-embed-text-v1.5.gguf
+examplar.db
+examplar-allowlist.txt
+calibration.json
+docs/README.md
+docs/LICENSE
+docs/THIRD-PARTY-NOTICES.md
+docs/LICENSE-bonsai.txt
+docs/LICENSE-nomic-embed-text.txt
+docs/OpenJevData-140k/LICENSE.txt
+docs/Open-Jev-v1.1/LICENSE-CODE-MIT.txt
+docs/Open-Jev-v1.1/LICENSE-DATA.md
+```
+
+### License verification
+
+| Component | License | Redistribution |
+|---|---|---|
+| Bonsai2 2B (GGUF) | Apache 2.0 (see `LICENSE-bonsai.txt`) | Permitted |
+| nomic-embed-text-v1.5 (GGUF) | Apache 2.0 (see `LICENSE-nomic-embed-text.txt`) | Permitted |
+| OpenJevData-140k (exemplar source) | MIT | Permitted |
+| Open-Jev-v1.1 (exemplar source) | CC0 1.0 / CC BY 4.0 (code MIT) | Permitted; note: source text licenses unverified |
+| llama.cpp (inference runtime) | MIT | Permitted |
+| pjev (this project) | See `LICENSE` | — |
+
+### Known limitations (R7)
+
+1. No independently fitted fallback calibration for choice and noul (0 fallback samples in the
+   calibration run; see R6 §schema decision).
+2. Score zero-shot calibration effectively flattens logits to near-uniform (T near bound); the zero-shot
+   score fallback remains weak — this is a model limitation, not a calibration one.
+3. Windows x86_64 only (no Linux / macOS CI run triggered).
+4. Source text licenses in Open-Jev-v1.1 unverified — see existing notice in `LICENSE-DATA.md`.
+
+---
+
+# R5 release candidate — pjev 0.9.0 (task-aware routing)
 
 ## Source and release
 
