@@ -96,7 +96,7 @@ static void test_default_path()
 
 static void test_supplied_file()
 {
-    // The repository's default file, when present, loads as written and is reported incompatible.
+    // The bundled models/calibration.json (R7): letters formulation, model SHA-256 recorded.
     const std::string path = "models/calibration.json";
     if (!std::ifstream(path).good()) {
         printf("skip: %s not present\n", path.c_str());
@@ -105,10 +105,11 @@ static void test_supplied_file()
     CalibrationLoad c;
     std::string err;
     CHECK(load_calibration(path, false, production(), c, err), "supplied: parses (not a configuration error)");
-    CHECK(c.state == CalibrationState::Incompatible, "supplied: natural-scheme artifact is incompatible with letters");
-    CHECK(c.message.find("candidate_scheme mismatch (artifact=natural current=letters)") != std::string::npos,
-          "supplied: message names the candidate scheme mismatch");
-    CHECK(!c.config().enabled && !c.prior_correction(), "supplied: not applied (uncalibrated engine, no prior)");
+    CHECK(c.state == CalibrationState::Enabled, "supplied: letters-scheme artifact is compatible with production");
+    CHECK(c.message.empty(), "supplied: no incompatibility message");
+    CHECK(c.config().enabled && c.prior_correction(), "supplied: calibration applied with prior correction");
+    CHECK(c.artifact.model_identifier == "36061ad406df8a4903a6db005be350c50fabfaf717f9ef0acf4b76adcd9929fa",
+          "supplied: model SHA-256 recorded for Bonsai2 2B");
 }
 
 static void test_exact_values()
