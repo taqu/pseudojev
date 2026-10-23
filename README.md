@@ -39,6 +39,54 @@ for zero-shot. These figures describe that benchmark only; accuracy on other tas
 
 ---
 
+## Performance (jevbench)
+
+Measured with [jevbench](https://github.com/fstandhartinger/jevbench) (`v1.4.2.2-5-gbb05a33`, public
+split) against `pjev serve` through jevbench's Jev-compatible `typesafe` adapter, in the default
+configuration: inference model **Ternary Bonsai 2 2B** (`bonsai2_2b.gguf`). Every task
+was answered with a schema-valid response (operational success and schema validity 100%, no
+renormalized probabilities).
+
+| Tier | Tasks | Accuracy | Macro accuracy | Brier | ECE | Mean confidence | Ordinal MAE | Latency p50 / p95 |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| easy | 48 | 93.8% (45) | 93.8% | 0.323 | 0.387 | 0.55 | — | 0.65 s / 1.29 s |
+| original | 72 | 62.5% (45) | 62.5% | 0.585 | 0.229 | 0.46 | 0.988 | 0.23 s / 0.85 s |
+| hard | 111 | 42.3% (47) | 49.2% | 0.658 | 0.102 | 0.46 | 0.652 | 0.71 s / 2.20 s |
+| **all** | **231** | **59.3% (137)** | | | | | | |
+
+By task kind:
+
+| Tier | `choice` | `noul` | `score` |
+|---|---:|---:|---:|
+| easy | 100% (36/36) | 75.0% (9/12) | — |
+| original | 58.3% (21/36) | 58.3% (14/24) | 83.3% (10/12) |
+| hard | 38.8% (26/67) | 47.4% (18/38) | 50.0% (3/6) |
+
+By family:
+
+- **easy:** extraction 12/12, intent 12/12, tool selection 12/12, fact 9/12.
+- **original:** ordinal 10/12, intent 9/12, adequacy 7/12, policy 7/12, routing 7/12, extraction
+  5/12. Paraphrase consistency: 29 of 36 pairs agree (80.6%), both correct in 19 (52.8%).
+- **hard:** routing 5/5, trade-off 4/6, ambiguous 4/7, adversarial 3/6, probability 5/10, multi-hop
+  7/18, long policy 7/19, trap 3/8, judge 6/17, temporal / numeric 3/15.
+
+Observations:
+
+- Accuracy falls steeply with difficulty. The model handles direct extraction, intent and routing
+  well but is weak on multi-step reasoning: temporal / numeric (20%), judge, long-policy and multi-hop
+  tasks (35–39%).
+- The calibrated probabilities are conservative: on easy tasks the mean top probability is 0.55 at
+  94% accuracy, which accounts for most of the high ECE there. On hard tasks confidence and accuracy
+  are close (ECE 0.10).
+- Latency is jevbench's per-request wall time against a local server, one decision at a time. It grows with
+  prompt length; the long-context hard tasks (up to ~3,700 state tokens) set the p95.
+- The sample is small (231 tasks; 5–19 per family), so per-family figures are coarse. jevbench
+  results are not comparable with the R4 figures above, which use a different task set.
+
+Raw results: `RUN/{easy,original,hard}/` (`summary.json`, per-task `results.jsonl`, `ledger.jsonl`).
+
+---
+
 ## Quick start
 
 1. Build pjev (see [Building from source](#building-from-source)) or unpack a release archive.

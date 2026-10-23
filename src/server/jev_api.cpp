@@ -191,6 +191,40 @@ JevApiHandler::JevApiHandler(DecisionService& service,
 {
 }
 
+namespace
+{
+    std::string json_to_custom_string(const nlohmann::json& j, int32_t indent_level = 0)
+    {
+        using namespace nlohmann;
+        std::string indent(indent_level * 2, ' ');
+        std::string result = "";
+
+        if(j.is_object()) {
+            for(auto it = j.begin(); it != j.end(); ++it) {
+                if(it.value().is_object() || it.value().is_array()) {
+                    result += indent + it.key() + ":\n" + json_to_custom_string(it.value(), indent_level + 1);
+                } else {
+                    result += indent + it.key() + ": " + json_to_custom_string(it.value(), 0);
+                }
+            }
+        } else if(j.is_array()) {
+            for(const auto& item: j) {
+                if(item.is_object() || item.is_array()) {
+                    result += json_to_custom_string(item, indent_level);
+                } else {
+                    result += indent + item.get<std::string>() + "\n";
+                }
+            }
+        } else if(j.is_string()) {
+            result += j.get<std::string>() + "\n";
+        } else {
+            result += j.dump() + "\n";
+        }
+        return result;
+    }
+
+} // namespace
+
 void JevApiHandler::handle(const std::string& request_body,
                            int32_t& status_out,
                            std::string& response_out)
@@ -232,6 +266,9 @@ void JevApiHandler::handle(const std::string& request_body,
         }
 
         // Validate top-level structure
+        if(req.contains("state") && req["state"].is_object()) {
+            req["state"] = json_to_custom_string(req["state"]);
+        }
         if(!req.contains("state") || !req["state"].is_string() || !req.contains("questions") || !req["questions"].is_object()) {
             status_out = 400;
             response_out = make_error(ErrorCode::INVALID_REQUEST,

@@ -42,7 +42,9 @@ static void format_value(std::ostringstream& out, const nlohmann::ordered_json& 
 static std::string trim(std::string s)
 {
     auto pos = s.find_last_not_of(" \t\r\n");
-    if(pos != std::string::npos) s.erase(pos + 1);
+    if(pos != std::string::npos){
+        s.erase(pos + 1);
+    }
     return s;
 }
 

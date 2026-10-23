@@ -237,7 +237,7 @@ struct RuntimeArgs {
         o.calibration_required = !no_calibration &&
                                  (!explicit_paths.calibration.empty() || (have_cfg && !rc.calibration.empty()));
         o.n_threads    = threads > 0 ? threads : (have_cfg && rc.threads > 0 ? rc.threads : get_physical_core_count());
-        o.n_ctx        = ctx_size > 0 ? ctx_size : (have_cfg && rc.context_size > 0 ? rc.context_size : 4096);
+        o.n_ctx        = ctx_size > 0 ? ctx_size : (have_cfg && rc.context_size > 0 ? rc.context_size : 16384);
         o.n_gpu_layers = n_gpu_layers;
         o.main_gpu     = main_gpu;
         o.n_threads_batch = threads_batch;

@@ -122,6 +122,7 @@ std::unique_ptr<RouterRuntime> RouterRuntime::load(const RuntimeOptions& opts, s
     try {
         EmbeddingConfig emb_cfg;
         emb_cfg.model_path = p.embedding_model;
+        emb_cfg.n_ctx = opts.n_ctx;
         emb_cfg.verbose    = opts.verbose;
         m.embedding = std::make_unique<Embedding>(emb_cfg);
     } catch (const std::exception& e) {
