@@ -23,9 +23,6 @@ jobs:
           - os: ubuntu-latest
             name: Linux (x86_64)
             cmake_flags: ""
-          - os: macos-latest
-            name: macOS (arm64)
-            cmake_flags: ""
           - os: windows-latest
             name: Windows (x86_64)
             cmake_flags: ""
