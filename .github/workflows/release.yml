@@ -115,15 +115,17 @@ jobs:
             mkdir smoke_test
             cd smoke_test
             unzip "../$ARCHIVE"
-            ./pjev.exe --version
-            ./pjev.exe diagnostics 2>/dev/null || true
+            EXE=$(find . -name pjev.exe | head -1)
+            "$EXE" --version
+            "$EXE" diagnostics 2>/dev/null || true
           else
             ARCHIVE=$(ls pjev-*.tar.gz | head -1)
             mkdir smoke_test
             cd smoke_test
             tar -xzf "../$ARCHIVE"
-            ./pjev --version
-            ./pjev diagnostics 2>/dev/null || true
+            EXE=$(find . -name pjev | head -1)
+            "$EXE" --version
+            "$EXE" diagnostics 2>/dev/null || true
           fi
 
       - name: Generate checksums (Unix)
