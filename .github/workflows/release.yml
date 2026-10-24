@@ -151,7 +151,11 @@ jobs:
         with:
           name: pjev-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
-            build/pjev-*.*
+            build/pjev-*.tar.gz
+            build/pjev-*.tar.gz.sha256
+            build/pjev-*.zip
+            build/pjev-*.zip.sha256
+          if-no-files-found: error
           retention-days: 7
 
   release:
@@ -176,9 +180,10 @@ jobs:
 
       - name: Collect release files
         run: |
-          mkdir release_files
-          find artifacts/ -name "pjev-*" -type f | xargs -I{} cp {} release_files/
+          mkdir -p release_files
+          find artifacts/ -type f \( -name 'pjev-*.tar.gz' -o -name 'pjev-*.tar.gz.sha256' -o -name 'pjev-*.zip' -o -name 'pjev-*.zip.sha256' \) -exec cp -v {} release_files/ \;
           ls -lh release_files/
+          test "$(find release_files/ -maxdepth 1 -type f \( -name 'pjev-*.tar.gz' -o -name 'pjev-*.zip' \) | wc -l)" -eq 2
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
